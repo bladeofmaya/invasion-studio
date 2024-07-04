@@ -15,6 +15,10 @@ module InvasionEditor
       @generated_file = output_file
     end
 
+    def file_exists?(output_file)
+      File.exist?(output_file)
+    end
+
     private
 
     def segment_type

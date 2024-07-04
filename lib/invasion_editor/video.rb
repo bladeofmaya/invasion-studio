@@ -31,7 +31,7 @@ module InvasionEditor
     # TODO: Research if the process of character recognition can be improved by
     # reducing the aspect ratio of the frames. (e.g. 2560x1440 -> 1280x720)
     def generate_frames
-      system("ffmpeg -i #{@video} -vf fps=2,eq=contrast=10:brightness=1.0 #{@tmpdir}/frame_%04d.jpg")
+      system("ffmpeg -threads 8 -i #{@video} -vf fps=2,eq=contrast=10:brightness=1.0 -preset ultrafast #{@tmpdir}/frame_%04d.jpg")
     end
 
     def extract_text_from_images
@@ -43,6 +43,7 @@ module InvasionEditor
       FileUtils.rm_rf(@tmpdir)
     end
 
+    # TODO: Use a cache folder in the home directory?
     def cache_file_path
       cache_dir = File.expand_path('../../tmp/ocr_cache', __dir__)
       FileUtils.mkdir_p(cache_dir)
