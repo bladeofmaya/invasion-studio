@@ -5,6 +5,8 @@ This Ruby gem is designed to automatically detect the start and end of invasions
 As a hobby streamer, I often record entire streaming sessions in one go. Editing these long recordings to extract invasion segments was a time-consuming process that involved skimming through hours of footage. This tool is my contribution to the Souls community, aimed at helping fellow content creators streamline their editing process.
 
 ## How It Works
+[Short video demo](https://www.youtube.com/watch?v=-G9ARNrhMOI)
+
 The tool uses Optical Character Recognition (OCR) to detect invasion start and end points in your gameplay footage. It can handle multiple video files and even detect invasions that span across two files, automatically cutting and combining them correctly.
 
 For a detailed look at the development process, you can watch this [YouTube summary](https://www.youtube.com/watch?v=ZAWuatbjIuc) of the initial creation stream.
