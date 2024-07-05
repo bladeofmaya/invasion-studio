@@ -11,8 +11,9 @@ The tool uses Optical Character Recognition (OCR) to detect invasion start and e
 
 For a detailed look at the development process, you can watch this [YouTube summary](https://www.youtube.com/watch?v=ZAWuatbjIuc) of the initial creation stream.
 
-## Important things to note
-The tools reads the game text to detect invasions. If you open the PSN quick menu or any other overlay that covers the game text, the tool might not be able to detect certain invasions correctly.
+## Important things to note:
+- The tools reads the game text to detect invasions. If you open the PSN quick menu or any other overlay that covers the game text, the tool might not be able to detect certain invasions correctly.
+- At this stage I'm still writing and re-writing the code to test out different approaches. The tool is not perfect and might not work for all invasions. If you encounter any issues, please open an issue on this repository.
 
 ## Usage
 This repository comes with a `run` file that you can use to test it on your own footage. For now follow these steps.
