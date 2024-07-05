@@ -7,17 +7,16 @@ require 'digest'
 require 'tmpdir'
 require 'time'
 
-require_relative "helpers/time_shifter"
+# require_relative "invasion_extractor/frame"
+# require_relative "invasion_extractor/clip"
+# require_relative "invasion_extractor/video"
+# require_relative "invasion_extractor/ocr"
+# require_relative "invasion_extractor/processor"
+# require_relative "invasion_extractor/invasion_scanner"
+# require_relative "invasion_extractor/version"
+# require_relative "invasion_extractor/time_shifter"
 
-require_relative "invasion_cutter/frame"
-require_relative "invasion_cutter/clip"
-require_relative "invasion_cutter/video"
-require_relative "invasion_cutter/ocr"
-require_relative "invasion_cutter/processor"
-require_relative "invasion_cutter/invasion_scanner"
-require_relative "invasion_cutter/version"
-
-module InvasionCutter
+module InvasionExtractor
   class Error < StandardError; end
 
   def self.check_tesseract_installed

@@ -1,4 +1,4 @@
-# Elden Ring Invasion Editor
+# Elden Ring Invasion Extractor
 This Ruby gem is designed to automatically detect the start and end of invasions in Elden Ring gameplay footage. It's a time-saving tool for content creators who stream Elden Ring and want to efficiently edit their recordings.
 
 ## Background
@@ -20,12 +20,13 @@ This repository comes with a `run` file that you can use to test it on your own 
 
 ```
 # clone the git repository
-git clone https://github.com/bladeofmaya/invasion_cutter.git invasion_cutter
+git clone https://github.com/bladeofmaya/invasion_extractor.git invasion_extractor
 
 # Change working directory
-cd invasion_cutter
+cd invasion_extractor
 
-# make sure you have ffmpeg installed
+# make sure you have ffmpeg & tesseract installed
+brew install ffmpeg
 brew install ffmpeg
 
 # generate the clips

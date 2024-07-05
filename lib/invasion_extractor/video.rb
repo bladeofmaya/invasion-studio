@@ -1,4 +1,4 @@
-module InvasionCutter
+module InvasionExtractor
   class Video
     attr_reader :video, :tmpdir, :frame_data
 
@@ -8,7 +8,7 @@ module InvasionCutter
 
     def initialize(video)
       @video = video
-      @tmpdir = File.join(Dir.tmpdir, "invasion_cutter_#{Time.now.to_i}")
+      @tmpdir = File.join(Dir.tmpdir, "invasion_extractor_#{Time.now.to_i}")
       FileUtils.mkdir_p(@tmpdir)
       @frame_data = []
     end
@@ -41,7 +41,7 @@ module InvasionCutter
 
     def extract_text_from_images
       frames = Dir.glob("#{@tmpdir}/*.jpg").sort
-      @frame_data = InvasionCutter::Ocr.run(frames, @video)
+      @frame_data = InvasionExtractor::Ocr.run(frames, @video)
     end
 
     def cleanup
@@ -66,7 +66,7 @@ module InvasionCutter
     def load_cached_data
       cached_data = YAML.load_file(cache_file_path)
       @frame_data = cached_data.map do |item|
-        InvasionCutter::Frame.new(item[:number], item[:text], item[:timestamp], item[:video_file])
+        InvasionExtractor::Frame.new(item[:number], item[:text], item[:timestamp], item[:video_file])
       end
     end
 

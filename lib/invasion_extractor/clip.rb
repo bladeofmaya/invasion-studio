@@ -1,4 +1,4 @@
-module InvasionCutter
+module InvasionExtractor
   class Clip
     attr_accessor :generated_file, :segment
 

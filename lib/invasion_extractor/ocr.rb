@@ -1,4 +1,4 @@
-module InvasionCutter
+module InvasionExtractor
   class Ocr
     class << self
       def run(frames, video)
@@ -27,7 +27,7 @@ module InvasionCutter
 
       def parse_json(output, video)
         JSON.parse(output).map do |frame_data|
-          InvasionCutter::Frame.new(
+          InvasionExtractor::Frame.new(
             extract_frame_number(frame_data['path']),
             frame_data['text'].join("\n"),
             frame_number_to_timestamp(extract_frame_number(frame_data['path'])),

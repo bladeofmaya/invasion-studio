@@ -1,4 +1,4 @@
-module InvasionCutter
+module InvasionExtractor
   class Processor
     attr_accessor :videos, :clips
 
@@ -10,7 +10,7 @@ module InvasionCutter
     # be provided in the correct order.
     def initialize(videos)
       @videos = videos.map do |video_file|
-        InvasionCutter::Video.process(video_file)
+        InvasionExtractor::Video.process(video_file)
       end
 
       @clips = generate_clips
@@ -26,8 +26,8 @@ module InvasionCutter
     private
 
     def generate_clips
-      InvasionCutter::InvasionScanner.new(@videos).invasion_segments.map do |segment|
-        InvasionCutter::Clip.new(segment)
+      InvasionExtractor::InvasionScanner.new(@videos).invasion_segments.map do |segment|
+        InvasionExtractor::Clip.new(segment)
       end
     end
   end

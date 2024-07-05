@@ -1,4 +1,4 @@
-module InvasionCutter
+module InvasionExtractor
   class TimeShifter
     def self.wind_back(time_string, seconds)
       time = Time.parse(time_string)

@@ -1,4 +1,4 @@
-module InvasionCutter
+module InvasionExtractor
   class Frame
     attr_accessor :number, :text, :timestamp, :video_file
 
@@ -8,5 +8,10 @@ module InvasionCutter
       @timestamp = timestamp
       @video_file = video_file
     end
+
+
+
+
+
   end
 end

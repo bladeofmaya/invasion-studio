@@ -1,4 +1,4 @@
-module InvasionCutter
+module InvasionExtractor
   class InvasionScanner
     InvasionSegment = Struct.new(:start_time, :start_video, :end_time, :end_video)
 

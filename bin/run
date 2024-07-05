@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 require "bundler/setup"
-require "invasion_cutter"
+require "invasion_extractor"
 require "optparse"
 
 YourGem.ensure_tesseract_installed
@@ -35,11 +35,10 @@ if ARGV.empty?
   exit 1
 end
 
-processor = InvasionCutter::Processor.call(ARGV)
-
-clips = processor.write_clips(options[:prefix], options[:outdir])
-
-puts "Processed #{clips.size} clips:"
-clips.each do |clip|
-  puts "  #{clip}"
-end
+# TODO: UPDATE
+# processor = InvasionExtractor::Processor.call(ARGV)
+# clips = processor.write_clips(options[:prefix], options[:outdir])
+# puts "Processed #{clips.size} clips:"
+# clips.each do |clip|
+#   puts "  #{clip}"
+# end

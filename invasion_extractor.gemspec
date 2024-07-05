@@ -1,12 +1,12 @@
 Gem::Specification.new do |spec|
-  spec.name          = "invasion_cutter"
+  spec.name          = "invasion_extractor"
   spec.version       = "0.1.0"
   spec.authors       = ["Blade of Maya"]
   spec.email         = ["hey@bladeofmaya.com"]
 
   spec.summary       = %q{Scans multiple video files for the start and end of invasions and creates signle clips.}
   spec.description   = %q{Longer description of your gem}
-  spec.homepage      = "https://github.com/bladeofmaya/invasion_cutter"
+  spec.homepage      = "https://github.com/bladeofmaya/invasion_extractor"
   spec.license       = "MIT"
 
   spec.files         = Dir["lib/**/*", "MIT-LICENSE", "README.md"]
