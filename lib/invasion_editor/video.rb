@@ -31,7 +31,12 @@ module InvasionEditor
     # TODO: Research if the process of character recognition can be improved by
     # reducing the aspect ratio of the frames. (e.g. 2560x1440 -> 1280x720)
     def generate_frames
-      system("ffmpeg -threads 8 -i #{@video} -vf fps=2,eq=contrast=10:brightness=1.0 -preset ultrafast #{@tmpdir}/frame_%04d.jpg")
+      crop_width = 1000
+      crop_height = 173
+      crop_x = 750
+      crop_y = 945
+
+      system("ffmpeg -threads 8 -i #{@video} -vf 'fps=2,crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0' -preset ultrafast #{@tmpdir}/frame_%04d.jpg")
     end
 
     def extract_text_from_images
