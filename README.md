@@ -20,10 +20,10 @@ This repository comes with a `run` file that you can use to test it on your own 
 
 ```
 # clone the git repository
-git clone https://github.com/bladeofmaya/invasion_editor.git invasion_editor
+git clone https://github.com/bladeofmaya/invasion_cutter.git invasion_cutter
 
 # Change working directory
-cd invasion_editor
+cd invasion_cutter
 
 # make sure you have ffmpeg installed
 brew install ffmpeg

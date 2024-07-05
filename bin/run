@@ -2,8 +2,10 @@
 # frozen_string_literal: true
 
 require "bundler/setup"
-require "invasion_editor"
+require "invasion_cutter"
 require "optparse"
+
+YourGem.ensure_tesseract_installed
 
 options = {
   prefix: "invasion",
@@ -33,7 +35,7 @@ if ARGV.empty?
   exit 1
 end
 
-processor = InvasionEditor::Processor.call(ARGV)
+processor = InvasionCutter::Processor.call(ARGV)
 
 clips = processor.write_clips(options[:prefix], options[:outdir])
 

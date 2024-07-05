@@ -1,4 +1,4 @@
-module InvasionEditor
+module InvasionCutter
   class Frame
     attr_accessor :number, :text, :timestamp, :video_file
 

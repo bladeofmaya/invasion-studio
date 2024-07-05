@@ -2,10 +2,5 @@
 
 source "https://rubygems.org"
 
-# Specify your gem's dependencies in invasion_editor.gemspec
+# Specify your gem's dependencies in invasion_cutter.gemspec
 gemspec
-
-gem "rake", "~> 13.0"
-
-gem "minitest", "~> 5.16"
-gem 'pry',  '~> 0.14'
