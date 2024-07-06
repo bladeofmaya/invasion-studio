@@ -12,8 +12,11 @@ Gem::Specification.new do |spec|
   spec.files         = Dir["lib/**/*", "MIT-LICENSE", "README.md"]
   spec.require_paths = ["lib"]
 
+  spec.executables = ["invasion_extractor"]
+
   spec.add_dependency "rtesseract", "~> 3.1.3"
   spec.add_dependency "parallel", "~> 1.25"
+  spec.add_dependency "optparse", "~> 0.5"
 
   spec.add_development_dependency "bundler", "~> 2.0"
   spec.add_development_dependency "minitest", "~> 5.16"
