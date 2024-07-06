@@ -14,8 +14,6 @@ module InvasionExtractor
     end
 
     def run!
-      InvasionExtractor.ensure_tesseract_installed
-      InvasionExtractor.ensure_ffmpeg_installed
       frames = generate_image_frames
       
       all_frame_data = Parallel.map(frames.each_with_index, in_processes: Etc.nprocessors) do |frame_path, index|

@@ -5,7 +5,8 @@ require "bundler/setup"
 require "invasion_extractor"
 require "optparse"
 
-YourGem.ensure_tesseract_installed
+InvasionExtractor.ensure_ffmpeg_installed
+InvasionExtractor.ensure_tesseract_installed
 
 options = {
   prefix: "invasion",
@@ -35,10 +36,5 @@ if ARGV.empty?
   exit 1
 end
 
-# TODO: UPDATE
-# processor = InvasionExtractor::Processor.call(ARGV)
-# clips = processor.write_clips(options[:prefix], options[:outdir])
-# puts "Processed #{clips.size} clips:"
-# clips.each do |clip|
-#   puts "  #{clip}"
-# end
+engine = InvasionExtractor::Engine.run!(ARGV)
+engine.extract_invasion_clips(options[:prefix], options[:outdir])
