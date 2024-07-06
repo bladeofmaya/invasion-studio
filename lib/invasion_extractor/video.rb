@@ -18,7 +18,12 @@ module InvasionExtractor
       self
     end
 
+    def metadata
+      @ocr_worker.video_metadata
+    end
+
     private
+
 
     def process_frames
       @frames = InvasionExtractor::OCRWorker.new(@video).run!

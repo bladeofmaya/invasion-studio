@@ -8,7 +8,7 @@ module InvasionExtractor
 
     def initialize(video)
       @video = video
-      @video_metadata = video_metadata
+      @video_metadata = get_metadata
       @tmpdir = File.join(Dir.tmpdir, "invasion_extractor_ocr_worker_#{Time.now.to_i}")
       FileUtils.mkdir_p(@tmpdir)
     end
@@ -60,7 +60,7 @@ module InvasionExtractor
       Dir.glob("#{@tmpdir}/*.jpg").sort
     end
 
-    def video_metadata
+    def get_metadata
       command = "ffprobe -v quiet -print_format json -show_streams -select_streams v:0 #{@video}"
       
       output = `#{command}`
