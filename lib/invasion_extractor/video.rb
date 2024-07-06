@@ -1,51 +1,27 @@
 module InvasionExtractor
   class Video
-    attr_reader :video, :tmpdir, :frame_data
-
-    def self.process(video)
-      new(video).send(:generate_data)
-    end
+    attr_reader :video, :frames
 
     def initialize(video)
       @video = video
-      @tmpdir = File.join(Dir.tmpdir, "invasion_extractor_#{Time.now.to_i}")
-      FileUtils.mkdir_p(@tmpdir)
-      @frame_data = []
+      @ocr_worker = InvasionExtractor::OCRWorker.new(video)
+      @frames = []
     end
 
-    private
-
-    def generate_data
+    def generate_data!
       if cached_data_exists?
         load_cached_data
       else
-        generate_frames
-        extract_text_from_images
-        cleanup
+        process_frames
         cache_data
       end
       self
     end
 
-    # This method generates frames from the video file and adds contrast and brightness to the frames.
-    # TODO: Research if the process of character recognition can be improved by
-    # reducing the aspect ratio of the frames. (e.g. 2560x1440 -> 1280x720)
-    def generate_frames
-      crop_width = 1000
-      crop_height = 173
-      crop_x = 750
-      crop_y = 945
+    private
 
-      system("ffmpeg -threads 8 -i #{@video} -vf 'fps=2,crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0' -preset ultrafast #{@tmpdir}/frame_%04d.jpg")
-    end
-
-    def extract_text_from_images
-      frames = Dir.glob("#{@tmpdir}/*.jpg").sort
-      @frame_data = InvasionExtractor::Ocr.run(frames, @video)
-    end
-
-    def cleanup
-      FileUtils.rm_rf(@tmpdir)
+    def process_frames
+      @frames = InvasionExtractor::OCRWorker.new(@video).run!
     end
 
     # TODO: Use a cache folder in the home directory?
@@ -65,13 +41,13 @@ module InvasionExtractor
 
     def load_cached_data
       cached_data = YAML.load_file(cache_file_path)
-      @frame_data = cached_data.map do |item|
+      @frames = cached_data.map do |item|
         InvasionExtractor::Frame.new(item[:number], item[:text], item[:timestamp], item[:video_file])
       end
     end
 
     def cache_data
-      data_to_cache = @frame_data.map do |frame|
+      data_to_cache = @frames.map do |frame|
         {
           number: frame.number,
           text: frame.text,

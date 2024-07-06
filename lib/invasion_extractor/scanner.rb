@@ -1,5 +1,5 @@
 module InvasionExtractor
-  class InvasionScanner
+  class Scanner
     InvasionSegment = Struct.new(:start_time, :start_video, :end_time, :end_video)
 
     attr_reader :invasion_segments

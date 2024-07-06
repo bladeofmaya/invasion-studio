@@ -8,10 +8,5 @@ module InvasionExtractor
       @timestamp = timestamp
       @video_file = video_file
     end
-
-
-
-
-
   end
 end

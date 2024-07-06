@@ -1,5 +1,5 @@
 module InvasionExtractor
-  class TimeShifter
+  class TimeHelper
     def self.wind_back(time_string, seconds)
       time = Time.parse(time_string)
       new_time = time - seconds
