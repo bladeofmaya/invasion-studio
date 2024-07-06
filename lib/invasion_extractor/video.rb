@@ -4,7 +4,6 @@ module InvasionExtractor
 
     def initialize(video)
       @video = video
-      @ocr_worker = InvasionExtractor::OCRWorker.new(video)
       @frames = []
     end
 
@@ -19,11 +18,14 @@ module InvasionExtractor
     end
 
     def metadata
-      @ocr_worker.video_metadata
+      ocr_worker.video_metadata
     end
 
     private
 
+    def ocr_worker
+      worker ||= InvasionExtractor::OCRWorker.new(video)
+    end
 
     def process_frames
       @frames = InvasionExtractor::OCRWorker.new(@video).run!
