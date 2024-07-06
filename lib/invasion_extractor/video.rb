@@ -1,20 +1,13 @@
 module InvasionExtractor
   class Video
-    attr_reader :video, :frames
+    attr_reader :video
 
     def initialize(video)
       @video = video
-      @frames = []
     end
 
-    def generate_data!
-      if cached_data_exists?
-        load_cached_data
-      else
-        process_frames
-        cache_data
-      end
-      self
+    def frames
+      @frames ||= load_frames
     end
 
     def metadata
@@ -23,15 +16,22 @@ module InvasionExtractor
 
     private
 
+    def load_frames
+      if cached_data_exists?
+        load_cached_data
+      else
+        process_frames.tap { |frames| cache_data(frames) }
+      end
+    end
+
     def ocr_worker
-      worker ||= InvasionExtractor::OCRWorker.new(video)
+      @ocr_worker ||= InvasionExtractor::OCRWorker.new(video)
     end
 
     def process_frames
-      @frames = InvasionExtractor::OCRWorker.new(@video).run!
+      InvasionExtractor::OCRWorker.new(@video).run!
     end
 
-    # TODO: Use a cache folder in the home directory?
     def cache_file_path
       cache_dir = File.expand_path('../../tmp/ocr_cache', __dir__)
       FileUtils.mkdir_p(cache_dir)
@@ -48,13 +48,13 @@ module InvasionExtractor
 
     def load_cached_data
       cached_data = YAML.load_file(cache_file_path)
-      @frames = cached_data.map do |item|
+      cached_data.map do |item|
         InvasionExtractor::Frame.new(item[:number], item[:text], item[:timestamp], item[:video_file])
       end
     end
 
-    def cache_data
-      data_to_cache = @frames.map do |frame|
+    def cache_data(frames)
+      data_to_cache = frames.map do |frame|
         {
           number: frame.number,
           text: frame.text,
