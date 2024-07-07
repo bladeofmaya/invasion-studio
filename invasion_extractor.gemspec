@@ -1,6 +1,6 @@
 Gem::Specification.new do |spec|
   spec.name          = "invasion_extractor"
-  spec.version       = "0.1.0"
+  spec.version       = "0.2.0"
   spec.authors       = ["Blade of Maya"]
   spec.email         = ["hey@bladeofmaya.com"]
 
