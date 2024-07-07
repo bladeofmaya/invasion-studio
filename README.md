@@ -16,7 +16,7 @@ For a detailed look at the development process, you can watch this [YouTube summ
 - At this stage **I'm still writing and re-writing the code to test different approaches. The tool is not perfect and might not work for all invasions. If you happen to have any issues, please open an issue on this repository.**
 
 ## Usage
-This repository comes with a `run` file that you can use to test it on your own footage. For now follow these steps.
+This repository comes with a executable binary `invasion_extractor` file that you can use to test it on your own footage. For now follow these steps.
 
 ```
 # clone the git repository
@@ -27,10 +27,10 @@ cd invasion_extractor
 
 # make sure you have ffmpeg & tesseract installed
 brew install ffmpeg
-brew install ffmpeg
+brew install tesseract
 
 # generate the clips
-bin/run --prefix pyro-invasion --outdir /Users/username/Desktop/pyro-clips video1.mp4 video2.mp4
+bin/invasion_extractor --prefix pyro-invasion --outdir /Users/username/Desktop/pyro-clips video1.mp4 video2.mp4
 
 # Final output in /Users/username/Desktop/pyro-clips::
 pyro-invasion-001.mp4
@@ -45,16 +45,12 @@ NOTE: If you have OBS setup to split your recordings into 60-minute segments, yo
 
 ## Supported Platforms
 
-### macOS
-The macOS version uses Apple's [Vision Kit](https://developer.apple.com/documentation/visionkit) for fast OCR recognition.
-
-### Linux and Windows (NOT YET SUPPORTED)
-Support for Linux and Windows will be implemented upon request from other content creators. These versions would likely use Tesseract, an open-source OCR engine.
+Windows, macOS and Linux are supported. The tool has been tested on macOS.
 
 ## Testing Environment
 This tool has been tested with the following video files:
-- OBS
-- 2560x1440 resolution recordings
+- 2560x1440 resolution recordings at 60fps
+- Keyframe interval of 2 second
 - Apple VT HEVC Hardware Encoder
 - 60-minute video segments
 
