@@ -1,5 +1,4 @@
 require 'yaml'
-require 'pry'
 require 'fileutils'
 require 'json'
 require 'tmpdir'
