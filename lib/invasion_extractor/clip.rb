@@ -4,8 +4,8 @@ module InvasionExtractor
 
     def initialize(segment)
       @segment = segment
-      @segment.start_time = TimeHelper.wind_back(@segment.start_time, 5.5)
-      @segment.end_time = TimeHelper.wind_forward(@segment.end_time, 6.5)
+      @segment.start_time = TimeHelper.wind_back(@segment.start_time, 10.0)
+      @segment.end_time = TimeHelper.wind_forward(@segment.end_time, 7.5)
 
       @generated_file = nil
     end

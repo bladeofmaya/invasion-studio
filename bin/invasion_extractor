@@ -37,4 +37,4 @@ if ARGV.empty?
 end
 
 engine = InvasionExtractor::Engine.run!(ARGV)
-engine.extract_invasion_clips(options[:prefix], options[:outdir])
+engine.extract_invasion_clips!(options[:prefix], options[:outdir])

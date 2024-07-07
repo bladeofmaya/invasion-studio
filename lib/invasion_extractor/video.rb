@@ -32,6 +32,7 @@ module InvasionExtractor
       InvasionExtractor::OCRWorker.new(@video).run!
     end
 
+    # TODO: Think of a better cache path
     def cache_file_path
       cache_dir = File.expand_path('../../tmp/ocr_cache', __dir__)
       FileUtils.mkdir_p(cache_dir)

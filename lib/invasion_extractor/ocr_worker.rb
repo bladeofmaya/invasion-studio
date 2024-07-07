@@ -1,5 +1,5 @@
 #
-# This class processes the video and returns a list of 
+# This class processes the video and returns a list of
 # InvasionExtractor::Frame objects.
 #
 module InvasionExtractor
@@ -15,7 +15,7 @@ module InvasionExtractor
 
     def run!
       frames = generate_image_frames
-      
+
       all_frame_data = Parallel.map(frames.each_with_index, in_processes: Etc.nprocessors) do |frame_path, index|
         puts "Processing frame #{index + 1} of #{frames.length}"
         frame_number = extract_frame_number(frame_path)
@@ -31,7 +31,7 @@ module InvasionExtractor
 
     private
 
-    # Calculates the crop dimensions based on the video's resolution and 
+    # Calculates the crop dimensions based on the video's resolution and
     # extracts every second frame from the video for OCR processing.
     #
     # NOTE: 2 fps is a good balance between speed and accuracy.
@@ -53,19 +53,21 @@ module InvasionExtractor
       crop_height = (base_crop_height * scale_factor).to_i
       crop_x = (base_crop_x * scale_factor).to_i
       crop_y = (base_crop_y * scale_factor).to_i
-      system("ffmpeg -threads 8 -i #{@video} -vf 'fps=2,crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0' -preset ultrafast #{@tmpdir}/frame_%04d.jpg")
+
+      # TODO: Make this failsafe for different operating systems
+      system("ffmpeg -c:v hevc -threads 12 -i #{@video} -r 2 -filter_complex 'crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0[out]' -map '[out]' -qscale:v 2 -preset ultrafast #{@tmpdir}/frame_%04d.jpg")
 
       Dir.glob("#{@tmpdir}/*.jpg").sort
     end
 
     def get_metadata
       command = "ffprobe -v quiet -print_format json -show_streams -select_streams v:0 #{@video}"
-      
+
       output = `#{command}`
       data = JSON.parse(output)
-      
+
       video_stream = data['streams'][0]
-      
+
       {
         height: video_stream['height'],
         width: video_stream['width'],
