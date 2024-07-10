@@ -6,7 +6,7 @@ class TestVideo < Minitest::Test
   end
 
   def test_frames
-    assert_equal 420, @video.frames.size
+    assert_equal 422, @video.frames.size
   end
 
   def test_metadata

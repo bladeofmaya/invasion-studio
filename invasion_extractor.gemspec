@@ -4,6 +4,8 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Blade of Maya"]
   spec.email         = ["hey@bladeofmaya.com"]
 
+  spec.required_ruby_version = '>= 3.3.3'
+
   spec.summary       = %q{Scans multiple video files for the start and end of invasions and creates signle clips.}
   spec.description   = %q{Longer description of your gem}
   spec.homepage      = "https://github.com/bladeofmaya/invasion_extractor"

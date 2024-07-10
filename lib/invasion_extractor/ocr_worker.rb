@@ -55,7 +55,7 @@ module InvasionExtractor
       crop_y = (base_crop_y * scale_factor).to_i
 
       # TODO: Make this failsafe for different operating systems
-      system("ffmpeg -c:v hevc -threads 12 -i #{@video} -r 2 -filter_complex 'crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0[out]' -map '[out]' -qscale:v 2 -preset ultrafast #{@tmpdir}/frame_%04d.jpg")
+      system("ffmpeg -threads 12 -i #{@video} -r 2 -filter_complex 'crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0[out]' -map '[out]' -qscale:v 2 -preset ultrafast #{@tmpdir}/frame_%04d.jpg")
 
       Dir.glob("#{@tmpdir}/*.jpg").sort
     end
