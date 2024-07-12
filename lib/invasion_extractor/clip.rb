@@ -38,6 +38,7 @@ module InvasionExtractor
       )
     end
 
+    # TODO: Write a test for this one here
     def generate_multi_file_clip(segment, output_file)
       require 'tmpdir'
 
@@ -50,8 +51,8 @@ module InvasionExtractor
         system(
           "ffmpeg", "-i", segment.start_video,
           "-ss", segment.start_time,
-          "-map", "0",  # Include all streams from the input
           "-c", "copy",
+          "-map", "0",
           temp_file1
         )
 
@@ -59,8 +60,8 @@ module InvasionExtractor
         system(
           "ffmpeg", "-i", segment.end_video,
           "-to", segment.end_time,
-          "-map", "0",  # Include all streams from the input
           "-c", "copy",
+          "-map", "0",
           temp_file2
         )
 
@@ -71,6 +72,7 @@ module InvasionExtractor
           "-safe", "0",
           "-i", concat_list,
           "-c", "copy",
+          "-map", "0",
           output_file
         )
       end
