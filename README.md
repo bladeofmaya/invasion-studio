@@ -4,27 +4,12 @@ This Ruby gem is designed to automatically detect the start and end of invasions
 ## Background
 As a hobby streamer, I often record entire streaming sessions in one go. Editing these long recordings to extract invasion segments was a time-consuming process that involved skimming through hours of footage. This tool is my contribution to the Souls community, aimed at helping fellow content creators streamline their editing process.
 
-## How It Works
-[Short video demo](https://www.youtube.com/watch?v=-G9ARNrhMOI)
-
-The tool uses Optical Character Recognition (OCR) to detect invasion start and end points in your gameplay footage. It can handle multiple video files and even detect invasions that span across two files, automatically cutting and combining them correctly.
+## What it does
+The tool uses Optical Character Recognition (OCR) to detect invasion start and end points in your gameplay footage. It can handle multiple video files and even detect invasions that span across two files, automatically cutting and combining them correctly. [Short video demo](https://www.youtube.com/watch?v=-G9ARNrhMOI)
 
 ![](images/invasion-extractor.jpg)
 
 For a detailed look at the development process, you can watch this [YouTube summary](https://www.youtube.com/watch?v=ZAWuatbjIuc) of the initial creation stream.
-
-## Important things to note:
-- The tool reads the game text to detect invasions. If you open the PSN quick menu or any other overlay that covers the game text, the tool might not be able to detect certain invasions correctly.
-- At this stage **I'm still writing and re-writing the code to test different approaches. The tool is not perfect and might not work for all invasions. If you happen to have any issues, please open an issue on this repository.**
-
-## Planned Features
-- [x] Automatically detect invasion start and end points in Elden Ring gameplay footage
-- [x] Support for Arena Duels
-- [ ] Multi language support (Right now only English is supported)
-- [ ] Support for Taunters Tongue Runs (When you get invaded until the invader dies)
-- [ ] Windows & Linux Support. (Right now this gem has only been tested on macOS)
-
-If you have any feature requests, please [open an issue](https://github.com/bladeofmaya/invasion_extractor/issues) on this repository.
 
 ## Usage
 This repository comes with a executable binary `invasion_extractor` file that you can use to test it on your own footage. For now follow these steps.
@@ -51,11 +36,23 @@ pyro-invasion-004.mp4
 etc...
 
 ```
-
 NOTE: If you have OBS setup to split your recordings into 60-minute segments, you can pass multiple video files to the tool. It will automatically detect invasions that span across two files and combine them correctly. Make sure to pass in the videos in the correct order.
 
 ## Supported Platforms
 This tool should work on Windows, Linux and macOS. Right now the tool has only been tested on macOS. If you have any issues on Windows or Linux, please [open an issue](https://github.com/bladeofmaya/invasion_extractor/issues) on this repository.
+
+## Important things to note:
+- The tool reads the game text to detect invasions. If you open the PSN quick menu or any other overlay that covers the game text, the tool might not be able to detect certain invasions correctly.
+- At this stage **I'm still writing and re-writing the code to test different approaches. The tool is not perfect and might not work for all invasions. If you happen to have any issues, please open an issue on this repository.**
+
+## Planned Features
+- [x] Automatically detect invasion start and end points in Elden Ring gameplay footage
+- [x] Support for Arena Duels
+- [ ] Multi language support (Right now only English is supported)
+- [ ] Support for Taunters Tongue Runs (When you get invaded until the invader dies)
+- [ ] Windows & Linux Support. (Right now this gem has only been tested on macOS)
+
+If you have any feature requests, please [open an issue](https://github.com/bladeofmaya/invasion_extractor/issues) on this repository.
 
 ## Testing Environment
 This tool has been tested with the following video files:
@@ -64,7 +61,7 @@ This tool has been tested with the following video files:
 - Apple VT HEVC Hardware Encoder
 - 60-minute video segments
 
-## Support
+## Support Development
 If you find this tool helpful and want to support my work, you can donate via [Ko-fi](https://ko-fi.com/bladeofmaya).
 
 ## Contributing
