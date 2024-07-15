@@ -3,8 +3,9 @@ module InvasionExtractor
 
     Segment = Struct.new(:start_time, :start_video, :end_time, :end_video)
 
-    START_REGEX = /Defeat.*Host of Fingers!/i
-    END_REGEX = /Returning to your world/i
+    # TODO: Implement Multi Language Support
+    START_REGEX = /Defeat.*Host of Fingers|Commencing combat/i
+    END_REGEX = /Returning to your world|Combat ends/i
 
     attr_reader :invasion_segments
 
