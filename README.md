@@ -14,28 +14,37 @@ For a detailed look at the development process, you can watch this [YouTube summ
 ## Usage
 This repository comes with a executable binary `invasion_extractor` file that you can use to test it on your own footage. For now follow these steps.
 
-```
-# clone the git repository
+Clone the git repository
+```bash
 git clone https://github.com/bladeofmaya/invasion_extractor.git invasion_extractor
+```
 
-# Change working directory
+Change working directory
+```bash
 cd invasion_extractor
+```
 
-# make sure you have ffmpeg & tesseract installed
+Make sure you have ffmpeg & tesseract installed
+```bash
+# macos
 brew install ffmpeg
 brew install tesseract
+```
 
-# generate the clips
+Generate the clips
+```bash
 bin/invasion_extractor --prefix pyro-invasion --outdir /Users/username/Desktop/pyro-clips video1.mp4 video2.mp4
+```
 
-# Final output in /Users/username/Desktop/pyro-clips::
+Final output in /Users/username/Desktop/pyro-clips:
+```
 pyro-invasion-001.mp4
 pyro-invasion-002.mp4
 pyro-invasion-003.mp4
 pyro-invasion-004.mp4
 etc...
-
 ```
+
 NOTE: If you have OBS setup to split your recordings into 60-minute segments, you can pass multiple video files to the tool. It will automatically detect invasions that span across two files and combine them correctly. Make sure to pass in the videos in the correct order.
 
 ## Supported Platforms
