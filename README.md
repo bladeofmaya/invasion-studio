@@ -15,6 +15,15 @@ For a detailed look at the development process, you can watch this [YouTube summ
 - The tool reads the game text to detect invasions. If you open the PSN quick menu or any other overlay that covers the game text, the tool might not be able to detect certain invasions correctly.
 - At this stage **I'm still writing and re-writing the code to test different approaches. The tool is not perfect and might not work for all invasions. If you happen to have any issues, please open an issue on this repository.**
 
+## Planned Features
+- [x] Automatically detect invasion start and end points in Elden Ring gameplay footage
+- [x] Support for Arena Duels
+- [ ] Multi language support (Right now only English is supported)
+- [ ] Support for Taunters Tongue Runs (When you get invaded until the invader dies)
+- [ ] Windows & Linux Support. (Right now this gem has only been tested on macOS)
+
+If you have any feature requests, please [open an issue](https://github.com/bladeofmaya/invasion_extractor/issues) on this repository.
+
 ## Usage
 This repository comes with a executable binary `invasion_extractor` file that you can use to test it on your own footage. For now follow these steps.
 
@@ -44,24 +53,20 @@ etc...
 NOTE: If you have OBS setup to split your recordings into 60-minute segments, you can pass multiple video files to the tool. It will automatically detect invasions that span across two files and combine them correctly. Make sure to pass in the videos in the correct order.
 
 ## Supported Platforms
-
-Windows, macOS and Linux are supported. The tool has been tested on macOS.
+This tool should work on Windows, Linux and macOS. Right now the tool has only been tested on macOS. If you have any issues on Windows or Linux, please [open an issue](https://github.com/bladeofmaya/invasion_extractor/issues) on this repository.
 
 ## Testing Environment
 This tool has been tested with the following video files:
 - 2560x1440 resolution recordings at 60fps
-- Keyframe interval of 2 second
+- Keyframe interval of 1 second
 - Apple VT HEVC Hardware Encoder
 - 60-minute video segments
 
 ## Support
-
 If you find this tool helpful and want to support my work, you can donate via [Ko-fi](https://ko-fi.com/bladeofmaya).
 
 ## Contributing
-
 Contributions are welcome! If you're interested in improving this tool or adding support for other platforms, please feel free to submit a pull request or open an issue.
 
 ## License
-
 MIT-LICENSE
