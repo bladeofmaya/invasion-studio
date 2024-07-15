@@ -9,6 +9,8 @@ As a hobby streamer, I often record entire streaming sessions in one go. Editing
 
 The tool uses Optical Character Recognition (OCR) to detect invasion start and end points in your gameplay footage. It can handle multiple video files and even detect invasions that span across two files, automatically cutting and combining them correctly.
 
+![](images/invasion-extractor.jpg)
+
 For a detailed look at the development process, you can watch this [YouTube summary](https://www.youtube.com/watch?v=ZAWuatbjIuc) of the initial creation stream.
 
 ## Important things to note:
