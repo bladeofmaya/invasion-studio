@@ -1,0 +1,61 @@
+# Detection patterns for Elden Ring text markers
+# This configuration defines which game events to detect and the text patterns to match.
+#
+# Available match modes:
+#   - exact:    Text must match exactly (case-insensitive)
+#   - contains: Text must contain the pattern (case-insensitive)
+#   - regex:    Pattern is a regular expression
+#
+# Each event can have multiple match_text entries - if ANY match, the event is detected.
+
+fps: 2
+
+# OCR Configuration
+ollama:
+  model: "qwen3.5:27b"
+  host: "http://localhost:11434"
+  # Brightness threshold (0-255) to skip dark frames with no text
+  brightness_threshold: 20.0
+
+# Language-specific detection patterns
+languages:
+  en:
+    events:
+      invasion_start:
+        match_mode: "contains"
+        match_text:
+          - "Defeat the Host of Fingers"
+          - "Bloody Finger"
+          - "Recusant"
+      
+      invasion_end:
+        match_mode: "contains"
+        match_text:
+          - "Returning to your world"
+          - "Duty Fulfilled"
+          - "Host of Fingers has died"
+      
+      duel_start:
+        match_mode: "contains"
+        match_text:
+          - "Commencing combat"
+      
+      duel_end:
+        match_mode: "contains"
+        match_text:
+          - "Combat ends"
+      
+      disconnect:
+        match_mode: "contains"
+        match_text:
+          - "Connection error"
+          - "Network error"
+          - "Connection lost"
+  
+  # Add more languages here (ja, de, fr, etc.)
+  # ja:
+  #   events:
+  #     invasion_start:
+  #       match_mode: "contains"
+  #       match_text:
+  #         - "フィンガーの主を倒せ"
