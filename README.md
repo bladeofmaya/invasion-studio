@@ -1,80 +1,169 @@
 # Elden Ring Invasion Extractor
-This Ruby gem is designed to automatically detect the start and end of invasions in Elden Ring gameplay footage. It's a time-saving tool for content creators who stream Elden Ring and want to efficiently edit their recordings.
 
-## Background
-As a hobby streamer, I often record entire streaming sessions in one go. Editing these long recordings to extract invasion segments was a time-consuming process that involved skimming through hours of footage. This tool is my contribution to the Souls community, aimed at helping fellow content creators streamline their editing process.
+Automatically detect and extract invasion clips from your Elden Ring gameplay footage. This Ruby gem scans your recordings using OCR (Optical Character Recognition) to find invasion start/end points and cuts them into separate video files—perfect for content creators who want to streamline their editing workflow.
 
-## What it does
-The tool uses Optical Character Recognition (OCR) to detect invasion start and end points in your gameplay footage. It can handle multiple video files and even detect invasions that span across two files, automatically cutting and combining them correctly. [Short video demo](https://www.youtube.com/watch?v=-G9ARNrhMOI)
+[📺 Watch the demo](https://www.youtube.com/watch?v=-G9ARNrhMOI)
 
 ![](images/invasion-extractor.jpg)
 
-For a detailed look at the development process, you can watch this [YouTube summary](https://www.youtube.com/watch?v=ZAWuatbjIuc) of the initial creation stream.
+---
 
-## Usage
-This repository comes with a executable binary `invasion_extractor` file that you can use to test it on your own footage. For now follow these steps.
+## Quick Start
 
-Clone the git repository
+Just want to extract some invasions? Here's everything you need:
+
+### Prerequisites
+
+Make sure you have **ffmpeg** and **tesseract** installed:
+
 ```bash
-git clone https://github.com/bladeofmaya/invasion_extractor.git invasion_extractor
+# macOS
+brew install ffmpeg tesseract
+
+# Ubuntu/Debian  
+sudo apt-get install ffmpeg tesseract-ocr
+
+# Arch Linux
+sudo pacman -S ffmpeg tesseract tesseract-data-eng
 ```
 
-Change working directory
+### Installation
+
 ```bash
+git clone https://github.com/bladeofmaya/invasion_extractor.git
 cd invasion_extractor
+bundle install
 ```
 
-Make sure you have ffmpeg & tesseract installed
+### Usage
+
 ```bash
-# macos
-brew install ffmpeg
-brew install tesseract
+bin/invasion_extractor --prefix pyro-invasion --outdir ~/Desktop/pyro-clips video1.mp4 video2.mp4
 ```
 
-Generate the clips
-```bash
-bin/invasion_extractor --prefix pyro-invasion --outdir /Users/username/Desktop/pyro-clips video1.mp4 video2.mp4
+**Output:**
+```
+~/Desktop/pyro-clips/
+├── pyro-invasion_00001.mp4
+├── pyro-invasion_00002.mp4
+├── pyro-invasion_00003.mp4
+└── ...
 ```
 
-Final output in /Users/username/Desktop/pyro-clips:
-```
-pyro-invasion-001.mp4
-pyro-invasion-002.mp4
-pyro-invasion-003.mp4
-pyro-invasion-004.mp4
-etc...
-```
+**Pro tip:** If OBS splits your recordings into segments (e.g., 60-minute chunks), pass all files in order. The tool detects invasions that span across files and combines them automatically.
 
-NOTE: If you have OBS setup to split your recordings into 60-minute segments, you can pass multiple video files to the tool. It will automatically detect invasions that span across two files and combine them correctly. Make sure to pass in the videos in the correct order.
+---
 
-## Supported Platforms
-This tool should work on Windows, Linux and macOS. Right now the tool has only been tested on macOS. If you have any issues on Windows or Linux, please [open an issue](https://github.com/bladeofmaya/invasion_extractor/issues) on this repository.
+## What It Does
 
-## Important things to note:
-- The tool reads the game text to detect invasions. If you open the PSN quick menu or any other overlay that covers the game text, the tool might not be able to detect certain invasions correctly.
-- At this stage **I'm still writing and re-writing the code to test different approaches. The tool is not perfect and might not work for all invasions. If you happen to have any issues, please open an issue on this repository.**
+This tool reads on-screen text to detect:
+- **Invasion Start**: "Invading another world" / "Defeat [Name], Host of Fingers"
+- **Invasion End**: "Returning to your world" / "Host of Fingers defeated"
+- **Arena Duels**: "Commencing combat" / "Combat ends"
+
+It then automatically cuts your video into individual invasion clips, adding a 10-second buffer before the start and 7.5 seconds after the end so you don't miss any action.
+
+---
+
+## Requirements & Compatibility
+
+| Requirement | Details |
+|------------|---------|
+| **Resolution** | Optimized for 1440p (2560×1440), works at 1080p and 720p |
+| **Framerate** | 30fps or 60fps |
+| **Platform** | macOS (tested), Linux & Windows should work |
+| **Language** | English only (for now) |
+
+### Known Limitations
+
+- **UI Overlays**: PSN quick menu or other overlays covering game text can cause missed detections
+- **Text Position**: Invasion text must be visible—if you're in a menu when it appears, detection may fail
+- **Performance**: Processing a 60-minute video takes ~30-60 seconds on CPU
+
+---
 
 ## Planned Features
-- [x] Automatically detect invasion start and end points in Elden Ring gameplay footage
+
+- [x] Automatically detect invasion start and end points
 - [x] Support for Arena Duels
-- [ ] Multi language support (Right now only English is supported)
-- [ ] Support for Taunters Tongue Runs (When you get invaded until the invader dies)
-- [ ] Windows & Linux Support. (Right now this gem has only been tested on macOS)
+- [ ] Multi-language support
+- [ ] Support for Taunter's Tongue runs
+- [ ] Windows & Linux binaries
 
-If you have any feature requests, please [open an issue](https://github.com/bladeofmaya/invasion_extractor/issues) on this repository.
+---
 
-## Testing Environment
-This tool has been tested with the following video files:
-- 2560x1440 resolution recordings at 60fps
-- Keyframe interval of 1 second
-- Apple VT HEVC Hardware Encoder
-- 60-minute video segments
+## Development
 
-## Support Development
-If you find this tool helpful and want to support my work, you can donate via [Ko-fi](https://ko-fi.com/bladeofmaya).
+Want to hack on this or add new features? Here's the technical overview.
 
-## Contributing
-Contributions are welcome! If you're interested in improving this tool or adding support for other platforms, please feel free to submit a pull request or open an issue.
+### Architecture
+
+The codebase follows SOLID principles with a Strategy pattern for OCR providers:
+
+```
+lib/invasion_extractor/
+├── ocr/
+│   ├── provider.rb           # Abstract OCR interface
+│   ├── tesseract_provider.rb # Tesseract implementation (default)
+│   └── ollama_provider.rb    # Vision LLM implementation (experimental)
+├── engine.rb                  # Main orchestration
+├── video.rb                   # Video file representation
+├── ocr_worker.rb             # Frame extraction & OCR processing
+├── scanner.rb                # Pattern matching for invasion detection
+└── clip.rb                   # Video clip generation
+```
+
+### Running Tests
+
+```bash
+bundle exec rake test
+```
+
+All tests run against sample video files in `test/samples/`.
+
+### Using Different OCR Providers
+
+The tool defaults to Tesseract, but you can swap OCR providers:
+
+```ruby
+# Using Tesseract (default)
+provider = InvasionExtractor::OCR::TesseractProvider.new
+engine = InvasionExtractor::Engine.new(["video.mp4"], ocr_provider: provider)
+
+# Using Ollama (requires vision model + GPU)
+provider = InvasionExtractor::OCR::OllamaProvider.new(
+  model: 'llava:7b',
+  host: 'http://localhost:11434'
+)
+```
+
+See `BENCHMARK_SUMMARY.md` for performance comparisons between providers.
+
+### Contributing
+
+Contributions welcome! Areas that need help:
+
+- **Windows/Linux testing**: Currently only tested on macOS
+- **Multi-language support**: Japanese, German, French, etc.
+- **OCR accuracy**: Tuning crop regions for better text detection
+- **Alternative OCR**: Benchmarking EasyOCR, PaddleOCR, etc.
+
+Open an issue or submit a PR at [github.com/bladeofmaya/invasion_extractor](https://github.com/bladeofmaya/invasion_extractor).
+
+---
+
+## Support
+
+If this tool saves you time, consider supporting development:
+
+[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/bladeofmaya)
 
 ## License
-MIT-LICENSE
+
+MIT License - see [MIT-LICENSE](MIT-LICENSE)
+
+---
+
+*Happy invading! ⚔️*
+
+*For a behind-the-scenes look at how this was built, check out the [creation stream summary](https://www.youtube.com/watch?v=ZAWuatbjIuc).*
