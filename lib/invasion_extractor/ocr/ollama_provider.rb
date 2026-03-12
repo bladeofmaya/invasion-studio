@@ -15,7 +15,7 @@ module InvasionExtractor
         require 'faraday'
         require 'base64'
 
-        Faraday.new(@host) do |f|
+        client = Faraday.new(@host) do |f|
           f.request :json
           f.response :json
           f.options.timeout = 30 # LLM can be slow

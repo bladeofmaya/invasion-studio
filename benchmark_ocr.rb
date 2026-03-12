@@ -28,10 +28,16 @@ sample_frames.each do |frame|
   puts "  Extracted: #{frame[:name]} at #{frame[:ts]}"
 end
 
-# Initialize providers
-providers = [
-  InvasionExtractor::OCR::TesseractProvider.new
-]
+# Initialize providers - add OllamaProvider if available
+providers = [InvasionExtractor::OCR::TesseractProvider.new]
+
+begin
+  ollama_provider = InvasionExtractor::OCR::OllamaProvider.new(model: 'llava:7b')
+  providers << ollama_provider
+  puts "\n✓ OllamaProvider (llava:7b) added to benchmark"
+rescue StandardError => e
+  puts "\n✗ OllamaProvider unavailable: #{e.message}"
+end
 
 puts "\n" + '=' * 60
 puts 'Running Benchmarks'
@@ -64,7 +70,7 @@ providers.each do |provider|
 
     status = accuracy ? '✓' : '✗'
     puts "  #{status} #{frame_info[:name]}: #{elapsed.round(3)}s"
-    puts "    Text: #{text[0..60].inspect}"
+    puts "    Text: #{text[0..80].inspect}"
     puts "    Expected: #{frame_info[:expect].join(', ')}" unless frame_info[:expect].empty?
   end
 
@@ -79,6 +85,21 @@ providers.each do |provider|
   puts "    Total: #{total_time.round(3)}s for #{sample_frames.size} frames"
 
   results[provider.name] = provider_results
+end
+
+puts "\n" + '=' * 60
+puts 'Benchmark Comparison'
+puts '=' * 60
+if results.size > 1
+  puts "\nProvider Comparison:"
+  results.each do |name, data|
+    puts "  #{name.capitalize}: #{data[:avg_time].round(3)}s avg, #{data[:total_time].round(3)}s total"
+  end
+
+  if results['ollama'] && results['tesseract']
+    speedup = results['ollama'][:avg_time] / results['tesseract'][:avg_time]
+    puts "\n  Tesseract is #{speedup.round(1)}x faster than Ollama (llava:7b)"
+  end
 end
 
 puts "\n" + '=' * 60
