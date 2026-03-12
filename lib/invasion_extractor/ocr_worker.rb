@@ -4,11 +4,12 @@
 #
 module InvasionExtractor
   class OCRWorker
-    attr_reader :video, :video_metadata
+    attr_reader :video, :video_metadata, :ocr_provider
 
-    def initialize(video)
+    def initialize(video, ocr_provider = nil)
       @video = video
       @video_metadata = get_metadata
+      @ocr_provider = ocr_provider || InvasionExtractor::OCR::TesseractProvider.new
       @tmpdir = File.join(Dir.tmpdir, "invasion_extractor_ocr_worker_#{Time.now.to_i}")
       FileUtils.mkdir_p(@tmpdir)
     end
@@ -19,14 +20,14 @@ module InvasionExtractor
       all_frame_data = Parallel.map(frames.each_with_index, in_processes: Etc.nprocessors) do |frame_path, index|
         puts "Processing frame #{index + 1} of #{frames.length}"
         frame_number = extract_frame_number(frame_path)
-        frame_text = RTesseract.new(frame_path).to_s
+        frame_text = @ocr_provider.recognize(frame_path)
         frame_timestamp = frame_number_to_timestamp(frame_number)
         video_file = @video
         InvasionExtractor::Frame.new(frame_number, frame_text, frame_timestamp, video_file)
       end
 
       cleanup
-      return all_frame_data
+      all_frame_data
     end
 
     private
@@ -40,12 +41,11 @@ module InvasionExtractor
     #
     # Returns an array of frame paths.
     def generate_image_frames
-      base_width = 2560
       base_height = 1440
       base_crop_width = 700
-      base_crop_height = 150
+      base_crop_height = 200 # Taller crop to capture full text box
       base_crop_x = 950
-      base_crop_y = 965
+      base_crop_y = 960 # Text appears at bottom center (~67% height in 1440p)
 
       scale_factor = @video_metadata[:height].to_f / base_height
 
@@ -83,10 +83,10 @@ module InvasionExtractor
     end
 
     def frame_number_to_timestamp(frame_number)
-      seconds = (frame_number - 1) / 2.0  # Assuming 2 fps
+      seconds = (frame_number - 1) / 2.0 # Assuming 2 fps
       minutes, seconds = seconds.divmod(60)
       hours, minutes = minutes.divmod(60)
-      format("%02d:%02d:%06.3f", hours, minutes, seconds)
+      format('%02d:%02d:%06.3f', hours, minutes, seconds)
     end
 
     def cleanup

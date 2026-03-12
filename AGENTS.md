@@ -1,5 +1,10 @@
 # Invasion Extractor - Agent Documentation
 
+## Core directive when working with this project
+
+Use Test Driven Development when implementing new features / refactoring code. Running tests are the most important thing for stability. Use SOLID design principles when shaing the code. Write simple and beautiful code that is human readable. Good naming is key.
+
+
 ## Overview
 
 **Invasion Extractor** is a Ruby gem that automatically detects the start and end of invasions in Elden Ring gameplay footage. It uses OCR (Optical Character Recognition) to scan video frames for specific text markers (e.g., "Defeat the Host of Fingers", "Returning to your world") and extracts clips accordingly.
