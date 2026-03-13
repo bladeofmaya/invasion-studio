@@ -4,21 +4,38 @@
 #
 module InvasionExtractor
   class OCRWorker
-    attr_reader :video, :video_metadata, :ocr_provider
+    attr_reader :video, :video_metadata, :ocr_provider, :frame_filter, :progress_callback
 
-    def initialize(video, ocr_provider = nil)
+    def initialize(video, ocr_provider = nil, options = {})
       @video = video
       @video_metadata = get_metadata
       @ocr_provider = ocr_provider || InvasionExtractor::OCR::TesseractProvider.new
+      @frame_filter = options[:frame_filter] || InvasionExtractor::FrameFilter.new(enabled: options[:filter_enabled] != false)
+      @progress_callback = options[:progress_callback]
+      @options = options
       @tmpdir = File.join(Dir.tmpdir, "invasion_extractor_ocr_worker_#{Time.now.to_i}")
       FileUtils.mkdir_p(@tmpdir)
     end
 
     def run!
       frames = generate_image_frames
+      total_frames = frames.length
 
-      all_frame_data = Parallel.map(frames.each_with_index, in_processes: Etc.nprocessors) do |frame_path, index|
-        puts "Processing frame #{index + 1} of #{frames.length}"
+      report_progress(:extracting_frames, 0, total_frames)
+
+      filtered_frames = frames.each_with_index.select do |frame_path, index|
+        should_process = @frame_filter.should_process?(frame_path)
+        report_progress(:extracting_frames, index + 1, total_frames) unless should_process
+        should_process
+      end
+
+      total_to_process = filtered_frames.length
+      processed_count = 0
+
+      all_frame_data = Parallel.map(filtered_frames, in_processes: Etc.nprocessors) do |frame_path, _index|
+        processed_count += 1
+        report_progress(:processing_ocr, processed_count, total_to_process)
+
         frame_number = extract_frame_number(frame_path)
         frame_text = @ocr_provider.recognize(frame_path)
         frame_timestamp = frame_number_to_timestamp(frame_number)
@@ -26,8 +43,13 @@ module InvasionExtractor
         InvasionExtractor::Frame.new(frame_number, frame_text, frame_timestamp, video_file)
       end
 
+      report_progress(:processing_ocr, total_to_process, total_to_process)
       cleanup
       all_frame_data
+    end
+
+    def filter_stats
+      @frame_filter.stats
     end
 
     private
@@ -47,17 +69,43 @@ module InvasionExtractor
       base_crop_x = 950
       base_crop_y = 960 # Text appears at bottom center (~67% height in 1440p)
 
-      scale_factor = @video_metadata[:height].to_f / base_height
+      height = @video_metadata ? @video_metadata[:height] : base_height
+      scale_factor = height.to_f / base_height
 
       crop_width = (base_crop_width * scale_factor).to_i
       crop_height = (base_crop_height * scale_factor).to_i
       crop_x = (base_crop_x * scale_factor).to_i
       crop_y = (base_crop_y * scale_factor).to_i
 
-      # TODO: Make this failsafe for different operating systems
-      system("ffmpeg -threads 12 -i #{@video} -r 2 -filter_complex 'crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0[out]' -map '[out]' -qscale:v 2 -preset ultrafast #{@tmpdir}/frame_%04d.jpg")
+      use_gpu = @options && @options[:use_gpu] != false && InvasionExtractor::GPUDetector.available?
+
+      if use_gpu
+        generate_frames_with_gpu(crop_width, crop_height, crop_x, crop_y)
+      else
+        generate_frames_with_cpu(crop_width, crop_height, crop_x, crop_y)
+      end
 
       Dir.glob("#{@tmpdir}/*.jpg").sort
+    end
+
+    def generate_frames_with_cpu(crop_width, crop_height, crop_x, crop_y)
+      # TODO: Make this failsafe for different operating systems
+      system("ffmpeg -threads 12 -i #{@video} -r 2 -filter_complex 'crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0[out]' -map '[out]' -qscale:v 2 -preset ultrafast #{@tmpdir}/frame_%04d.jpg")
+    end
+
+    def generate_frames_with_gpu(crop_width, crop_height, crop_x, crop_y)
+      hwaccel_opts = InvasionExtractor::GPUDetector.ffmpeg_hwaccel_options.join(' ')
+
+      # GPU-accelerated decoding with CPU filtering
+      # hwdownload transfers from GPU to CPU memory before filters
+      cmd = "ffmpeg #{hwaccel_opts} -i #{@video} -r 2 -vf 'hwdownload,format=nv12,crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0' -qscale:v 2 -preset ultrafast #{@tmpdir}/frame_%04d.jpg"
+      success = system(cmd)
+
+      # Fallback to CPU if GPU fails
+      return if success
+
+      puts 'GPU frame extraction failed, falling back to CPU...'
+      generate_frames_with_cpu(crop_width, crop_height, crop_x, crop_y)
     end
 
     def get_metadata
@@ -91,6 +139,12 @@ module InvasionExtractor
 
     def cleanup
       FileUtils.rm_rf(@tmpdir)
+    end
+
+    def report_progress(event, current, total)
+      return unless @progress_callback
+
+      @progress_callback.call(event, current, total)
     end
   end
 end

@@ -10,6 +10,9 @@ require_relative 'invasion_extractor/version'
 require_relative 'invasion_extractor/engine'
 require_relative 'invasion_extractor/video'
 require_relative 'invasion_extractor/frame'
+require_relative 'invasion_extractor/frame_filter'
+require_relative 'invasion_extractor/gpu_detector'
+require_relative 'invasion_extractor/progress_handler'
 require_relative 'invasion_extractor/ocr_worker'
 
 require_relative 'invasion_extractor/scanner'
@@ -20,6 +23,7 @@ require_relative 'invasion_extractor/time_helper'
 require_relative 'invasion_extractor/ocr/provider'
 require_relative 'invasion_extractor/ocr/tesseract_provider'
 require_relative 'invasion_extractor/ocr/ollama_provider'
+require_relative 'invasion_extractor/ocr/easyocr_provider'
 
 module InvasionExtractor
   class Error < StandardError; end

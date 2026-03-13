@@ -9,6 +9,7 @@ module InvasionExtractor
         @model = options[:model] || DEFAULT_MODEL
         @host = options[:host] || DEFAULT_HOST
         @prompt = options[:prompt] || DEFAULT_PROMPT
+        @batch_size = options[:batch_size] || 1
       end
 
       def recognize(image_path)
@@ -38,6 +39,37 @@ module InvasionExtractor
         raise LoadError, "Missing dependency for OllamaProvider: #{e.message}. Add to Gemfile: gem 'faraday'"
       rescue Faraday::Error => e
         raise RecognitionError, "Failed to connect to Ollama: #{e.message}"
+      end
+
+      def recognize_batch(image_paths)
+        return [] if image_paths.empty?
+        return image_paths.map { |path| recognize(path) } if @batch_size == 1
+
+        image_paths.each_slice(@batch_size).flat_map do |batch|
+          batch.map { |path| recognize(path) }
+        end
+      end
+
+      def gpu_available?
+        require 'faraday'
+
+        client = Faraday.new(@host) do |f|
+          f.request :json
+          f.response :json
+          f.options.timeout = 5
+        end
+
+        response = client.get('/api/ps')
+        return false unless response.success?
+
+        models = response.body['models'] || []
+        models.any? { |m| m['name']&.include?(@model) }
+      rescue StandardError
+        false
+      end
+
+      def name
+        'ollama'
       end
     end
   end
