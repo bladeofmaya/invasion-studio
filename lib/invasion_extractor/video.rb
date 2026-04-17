@@ -1,9 +1,10 @@
 module InvasionExtractor
   class Video
-    attr_reader :video
+    attr_reader :video, :options
 
-    def initialize(video)
+    def initialize(video, options = {})
       @video = video
+      @options = options
     end
 
     def frames
@@ -12,6 +13,11 @@ module InvasionExtractor
 
     def metadata
       ocr_worker.video_metadata
+    end
+
+    # Public method to check if cached data exists
+    def cached_data_exists?
+      File.exist?(cache_file_path)
     end
 
     private
@@ -25,26 +31,26 @@ module InvasionExtractor
     end
 
     def ocr_worker
-      @ocr_worker ||= InvasionExtractor::OCRWorker.new(video)
+      @ocr_worker ||= InvasionExtractor::OCRWorker.new(video, nil, @options)
     end
 
     def process_frames
-      InvasionExtractor::OCRWorker.new(@video).run!
+      InvasionExtractor::OCRWorker.new(@video, nil, @options).run!
     end
 
-    # TODO: Think of a better cache path
+    # Cache in ~/.invasion_extractor/cache/ for persistence across sessions
     def cache_file_path
-      cache_dir = File.expand_path('../../tmp/ocr_cache', __dir__)
+      cache_dir = File.join(Dir.home, '.invasion_extractor', 'cache')
       FileUtils.mkdir_p(cache_dir)
       File.join(cache_dir, "#{video_hash}.yml")
     end
 
     def video_hash
-      File.basename(@video)
-    end
-
-    def cached_data_exists?
-      File.exist?(cache_file_path)
+      # Use full path hash for uniqueness, but sanitize for filename
+      require 'digest'
+      base = File.basename(@video, '.*')
+      path_hash = Digest::MD5.hexdigest(File.expand_path(@video))[0..7]
+      "#{base}-#{path_hash}"
     end
 
     def load_cached_data

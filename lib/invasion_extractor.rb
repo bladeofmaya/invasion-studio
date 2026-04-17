@@ -5,6 +5,7 @@ require 'tmpdir'
 require 'time'
 require 'rtesseract'
 require 'parallel'
+require 'etc'
 
 require_relative 'invasion_extractor/version'
 require_relative 'invasion_extractor/engine'
@@ -18,6 +19,12 @@ require_relative 'invasion_extractor/ocr_worker'
 require_relative 'invasion_extractor/scanner'
 require_relative 'invasion_extractor/clip'
 require_relative 'invasion_extractor/time_helper'
+
+# Session management and CLI support
+require_relative 'invasion_extractor/session'
+require_relative 'invasion_extractor/session_store'
+require_relative 'invasion_extractor/benchmark_runner'
+require_relative 'invasion_extractor/progress_reporter'
 
 # OCR Providers
 require_relative 'invasion_extractor/ocr/provider'
