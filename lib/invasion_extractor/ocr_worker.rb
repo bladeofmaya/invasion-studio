@@ -89,22 +89,26 @@ module InvasionExtractor
     end
 
     def generate_frames_with_cpu(crop_width, crop_height, crop_x, crop_y)
-      # TODO: Make this failsafe for different operating systems
-      system("ffmpeg -threads 12 -i #{@video} -r 2 -filter_complex 'crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0[out]' -map '[out]' -qscale:v 2 -preset ultrafast #{@tmpdir}/frame_%04d.jpg")
+      # Redirect ffmpeg output to avoid interfering with progress bars
+      ffmpeg_log = File.join(@tmpdir, 'ffmpeg.log')
+      cmd = "ffmpeg -threads 12 -i #{@video} -r 2 -filter_complex 'crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0[out]' -map '[out]' -qscale:v 2 -preset ultrafast #{@tmpdir}/frame_%04d.jpg > #{ffmpeg_log} 2>&1"
+      system(cmd)
     end
 
     def generate_frames_with_gpu(crop_width, crop_height, crop_x, crop_y)
       hwaccel_opts = InvasionExtractor::GPUDetector.ffmpeg_hwaccel_options.join(' ')
+      ffmpeg_log = File.join(@tmpdir, 'ffmpeg.log')
 
       # GPU-accelerated decoding with CPU filtering
       # hwdownload transfers from GPU to CPU memory before filters
-      cmd = "ffmpeg #{hwaccel_opts} -i #{@video} -r 2 -vf 'hwdownload,format=nv12,crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0' -qscale:v 2 -preset ultrafast #{@tmpdir}/frame_%04d.jpg"
+      cmd = "ffmpeg #{hwaccel_opts} -i #{@video} -r 2 -vf 'hwdownload,format=nv12,crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0' -qscale:v 2 -preset ultrafast #{@tmpdir}/frame_%04d.jpg > #{ffmpeg_log} 2>&1"
       success = system(cmd)
 
       # Fallback to CPU if GPU fails
       return if success
 
-      puts 'GPU frame extraction failed, falling back to CPU...'
+      # Log GPU failure for debugging
+      File.write(ffmpeg_log, "GPU frame extraction failed, falling back to CPU...\n", mode: 'a')
       generate_frames_with_cpu(crop_width, crop_height, crop_x, crop_y)
     end
 
