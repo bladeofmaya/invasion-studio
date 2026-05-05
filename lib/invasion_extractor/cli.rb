@@ -49,6 +49,7 @@ module InvasionExtractor
         opts.on("-q", "--quiet", "Suppress non-error output") { @options[:quiet] = true }
         opts.on("--show-cache", "Show cache information and exit") { show_cache; exit 0 }
         opts.on("--clear-cache", "Clear OCR cache before processing") { clear_cache }
+        opts.on("--save-frames", "Preserve extracted frame images for debugging") { @options[:save_frames] = true }
       end
 
       parser.order!(@argv) rescue nil
@@ -111,6 +112,8 @@ module InvasionExtractor
     puts "    --no-cache                   Skip OCR cache, force re-processing"
     puts "    --show-cache                 Show cache information and exit"
     puts "    --clear-cache                Clear OCR cache before processing"
+    puts "    --save-frames                Preserve extracted frame images for debugging"
+    puts "    --filter                     Enable frame pre-filtering (experimental)"
     puts ""
     puts "  Resume & Progress:"
       puts "    --resume SESSION             Resume from a saved session"

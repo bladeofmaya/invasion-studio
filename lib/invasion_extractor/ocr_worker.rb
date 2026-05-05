@@ -10,11 +10,24 @@ module InvasionExtractor
       @video = video
       @video_metadata = get_metadata
       @ocr_provider = ocr_provider || InvasionExtractor::OCR::TesseractProvider.new
-      @frame_filter = options[:frame_filter] || InvasionExtractor::FrameFilter.new(enabled: options[:filter_enabled] != false)
+      @frame_filter = options[:frame_filter] || InvasionExtractor::FrameFilter.new(enabled: options[:filter_enabled] == true)
       @progress_callback = options[:progress_callback]
       @options = options
       @tmpdir = File.join(Dir.tmpdir, "invasion_extractor_ocr_worker_#{Time.now.to_i}")
       FileUtils.mkdir_p(@tmpdir)
+    end
+
+    def frames_dir
+      return @tmpdir unless @options[:save_frames]
+
+      File.join(Dir.home, '.invasion_extractor', 'cache', 'frames', video_hash)
+    end
+
+    def video_hash
+      require 'digest'
+      base = File.basename(@video, '.*')
+      path_hash = Digest::MD5.hexdigest(File.expand_path(@video))[0..7]
+      "#{base}-#{path_hash}"
     end
 
     def run!
@@ -65,9 +78,9 @@ module InvasionExtractor
     def generate_image_frames
       base_height = 1440
       base_crop_width = 700
-      base_crop_height = 200 # Taller crop to capture full text box
+      base_crop_height = 130 # Tightened crop: text occupies upper ~60-80px, rest was empty
       base_crop_x = 950
-      base_crop_y = 960 # Text appears at bottom center (~67% height in 1440p)
+      base_crop_y = 960 # Text appears at ~67% height in 1440p
 
       height = @video_metadata ? @video_metadata[:height] : base_height
       scale_factor = height.to_f / base_height
@@ -79,29 +92,32 @@ module InvasionExtractor
 
       use_gpu = @options && @options[:use_gpu] != false && InvasionExtractor::GPUDetector.available?
 
+      output_dir = frames_dir
+      FileUtils.mkdir_p(output_dir) unless Dir.exist?(output_dir)
+
       if use_gpu
-        generate_frames_with_gpu(crop_width, crop_height, crop_x, crop_y)
+        generate_frames_with_gpu(crop_width, crop_height, crop_x, crop_y, output_dir)
       else
-        generate_frames_with_cpu(crop_width, crop_height, crop_x, crop_y)
+        generate_frames_with_cpu(crop_width, crop_height, crop_x, crop_y, output_dir)
       end
 
-      Dir.glob("#{@tmpdir}/*.jpg").sort
+      Dir.glob("#{output_dir}/*.jpg").sort
     end
 
-    def generate_frames_with_cpu(crop_width, crop_height, crop_x, crop_y)
+    def generate_frames_with_cpu(crop_width, crop_height, crop_x, crop_y, output_dir)
       # Redirect ffmpeg output to avoid interfering with progress bars
-      ffmpeg_log = File.join(@tmpdir, 'ffmpeg.log')
-      cmd = "ffmpeg -threads 12 -i #{@video} -r 2 -filter_complex 'crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0[out]' -map '[out]' -qscale:v 2 -preset ultrafast #{@tmpdir}/frame_%04d.jpg > #{ffmpeg_log} 2>&1"
+      ffmpeg_log = File.join(output_dir, 'ffmpeg.log')
+      cmd = "ffmpeg -threads 12 -i #{@video} -r 2 -filter_complex 'crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0[out]' -map '[out]' -qscale:v 2 -preset ultrafast #{output_dir}/frame_%04d.jpg > #{ffmpeg_log} 2>&1"
       system(cmd)
     end
 
-    def generate_frames_with_gpu(crop_width, crop_height, crop_x, crop_y)
+    def generate_frames_with_gpu(crop_width, crop_height, crop_x, crop_y, output_dir)
       hwaccel_opts = InvasionExtractor::GPUDetector.ffmpeg_hwaccel_options.join(' ')
-      ffmpeg_log = File.join(@tmpdir, 'ffmpeg.log')
+      ffmpeg_log = File.join(output_dir, 'ffmpeg.log')
 
       # GPU-accelerated decoding with CPU filtering
       # hwdownload transfers from GPU to CPU memory before filters
-      cmd = "ffmpeg #{hwaccel_opts} -i #{@video} -r 2 -vf 'hwdownload,format=nv12,crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0' -qscale:v 2 -preset ultrafast #{@tmpdir}/frame_%04d.jpg > #{ffmpeg_log} 2>&1"
+      cmd = "ffmpeg #{hwaccel_opts} -i #{@video} -r 2 -vf 'hwdownload,format=nv12,crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0' -qscale:v 2 -preset ultrafast #{output_dir}/frame_%04d.jpg > #{ffmpeg_log} 2>&1"
       success = system(cmd)
 
       # Fallback to CPU if GPU fails
@@ -109,7 +125,7 @@ module InvasionExtractor
 
       # Log GPU failure for debugging
       File.write(ffmpeg_log, "GPU frame extraction failed, falling back to CPU...\n", mode: 'a')
-      generate_frames_with_cpu(crop_width, crop_height, crop_x, crop_y)
+      generate_frames_with_cpu(crop_width, crop_height, crop_x, crop_y, output_dir)
     end
 
     def get_metadata
@@ -142,6 +158,8 @@ module InvasionExtractor
     end
 
     def cleanup
+      return if @options[:save_frames]
+
       FileUtils.rm_rf(@tmpdir)
     end
 

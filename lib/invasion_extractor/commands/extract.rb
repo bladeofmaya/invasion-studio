@@ -27,6 +27,8 @@ module InvasionExtractor
           opts.on("--ocr-provider NAME", "OCR provider (tesseract, easyocr, ollama)") { |v| @options[:ocr_provider] = v }
           opts.on("--use-gpu", "Enable GPU acceleration") { @options[:use_gpu] = true }
           opts.on("--no-cache", "Skip OCR cache") { @options[:no_cache] = true }
+          opts.on("--filter", "Enable frame pre-filtering (saves time but may miss frames)") { @options[:filter_enabled] = true }
+          opts.on("--save-frames", "Preserve extracted frame images for debugging") { @options[:save_frames] = true }
           opts.on("--resume SESSION", "Resume from session") { |v| @options[:resume] = v }
           opts.on("--save-session NAME", "Save session ID") { |v| @options[:save_session] = v }
           opts.on("--no-progress", "Disable progress bars") { @options[:no_progress] = true }
