@@ -32,6 +32,14 @@ require_relative 'invasion_extractor/ocr/tesseract_provider'
 require_relative 'invasion_extractor/ocr/ollama_provider'
 require_relative 'invasion_extractor/ocr/easyocr_provider'
 
+# CLI and Commands
+require_relative 'invasion_extractor/cli'
+require_relative 'invasion_extractor/commands/base'
+require_relative 'invasion_extractor/commands/extract'
+require_relative 'invasion_extractor/commands/status'
+require_relative 'invasion_extractor/commands/cache'
+require_relative 'invasion_extractor/commands/benchmark'
+
 module InvasionExtractor
   class Error < StandardError; end
 

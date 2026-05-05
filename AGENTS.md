@@ -16,6 +16,13 @@ Use Test Driven Development when implementing new features / refactoring code. R
 ```
 lib/invasion_extractor/
 ├── invasion_extractor.rb    # Main entry point, dependency checks
+├── cli.rb                   # CLI orchestrator (parses args, dispatches commands)
+├── commands/                # CLI command implementations
+│   ├── base.rb              # Abstract command base class
+│   ├── extract.rb           # Extract/scan command
+│   ├── status.rb            # Session status command
+│   ├── cache.rb             # Cache management command
+│   └── benchmark.rb         # Benchmark command
 ├── engine.rb                # High-level orchestration with stages
 ├── video.rb                 # Video file representation & caching
 ├── ocr_worker.rb            # Frame extraction and OCR processing
@@ -48,7 +55,22 @@ Video Files → OCRWorker → FrameFilter → Frames → Scanner → Segments �
 
 ### Key Classes
 
-#### 1. Engine (`engine.rb`)
+#### 1. CLI (`cli.rb`) & Commands (`commands/`)
+- **Responsibility**: Parse command-line arguments and dispatch to the appropriate command handler
+- **CLI Class**:
+  - `run` - Main entry point: parses global options, detects command, delegates execution
+  - `parse_global_options!` - Extracts global flags (`--help`, `--version`, `--debug`, `--quiet`)
+  - `detect_command!` - Identifies command from argv (defaults to `extract`)
+  - `execute_command!` - Instantiates and runs the correct command class
+- **Command Classes** (Strategy pattern):
+  - `Commands::Base` - Abstract base with `run` method
+  - `Commands::Extract` - Handles `extract` and `scan` commands (option parsing, validation, dependency checks, engine execution)
+  - `Commands::Status` - Handles `status` command (session listing and detail view)
+  - `Commands::Cache` - Handles `cache` command (list, clear, stats sub-commands)
+  - `Commands::Benchmark` - Handles `benchmark` command (runs engine with benchmarking)
+- **Design**: Follows Open/Closed Principle - new commands can be added without modifying existing code
+
+#### 2. Engine (`engine.rb`)
 - **Responsibility**: Main entry point for video processing with 3-stage pipeline
 - **Key Methods**:
   - `run!(videos, options)` - Class method to start processing
@@ -63,7 +85,7 @@ Video Files → OCRWorker → FrameFilter → Frames → Scanner → Segments �
   - Progress reporting per stage
   - Error handling with `continue_on_error` option
 
-#### 2. OCRWorker (`ocr_worker.rb`)
+#### 3. OCRWorker (`ocr_worker.rb`)
 - **Responsibility**: Extract frames from video and run OCR
 - **Process**:
   1. Uses ffmpeg to extract frames at 2 fps
@@ -79,7 +101,7 @@ Video Files → OCRWorker → FrameFilter → Frames → Scanner → Segments �
   - Frame rate: 2 fps (configurable)
   - GPU fallback: Falls back to CPU if GPU frame extraction fails
 
-#### 3. Video (`video.rb`)
+#### 4. Video (`video.rb`)
 - **Responsibility**: Represents a video file with caching
 - **Features**:
   - Caches OCR results to YAML (in `~/.invasion_extractor/cache/`)
@@ -87,7 +109,7 @@ Video Files → OCRWorker → FrameFilter → Frames → Scanner → Segments �
   - Avoids re-processing same video
   - Exposes metadata (height, width, fps)
 
-#### 4. Scanner (`scanner.rb`)
+#### 5. Scanner (`scanner.rb`)
 - **Responsibility**: Detects invasion start/end from frame text
 - **Pattern Matching**:
   - Start: `/Defeat.*Host of Fingers|Commencing combat/i`
@@ -98,7 +120,7 @@ Video Files → OCRWorker → FrameFilter → Frames → Scanner → Segments �
   - Supports multi-file invasions (when invasion spans video files)
 - **Note**: YAML config exists but isn't wired into the Scanner class (still TODO)
 
-#### 5. Clip (`clip.rb`)
+#### 6. Clip (`clip.rb`)
 - **Responsibility**: Generates output video clips
 - **Features**:
   - Adjusts timestamps (winds back 10s at start, forward 7.5s at end)
@@ -106,7 +128,7 @@ Video Files → OCRWorker → FrameFilter → Frames → Scanner → Segments �
   - Uses ffmpeg for lossless cutting (copy codec)
   - Writes ffmpeg logs alongside output files
 
-#### 6. FrameFilter (`frame_filter.rb`)
+#### 7. FrameFilter (`frame_filter.rb`)
 - **Responsibility**: Pre-filter frames before OCR to skip obviously empty/dark frames
 - **Checks**:
   1. Brightness threshold (default: 15) - skip dark frames
@@ -115,14 +137,14 @@ Video Files → OCRWorker → FrameFilter → Frames → Scanner → Segments �
 - **Implementation**: Uses ruby-vips for fast image analysis
 - **Stats tracking**: Tracks total, passed, skipped (dark/edges/text), skip rate
 
-#### 7. OCR Providers (`ocr/`)
+#### 8. OCR Providers (`ocr/`)
 - **Provider (Base)**: Abstract interface with `recognize(image_path)`
 - **TesseractProvider**: Default, uses RTesseract gem, ~0.3-0.5s per frame
 - **OllamaProvider**: Uses vision LLM (llava:7b), requires Ollama server, batch support
 - **EasyOCRProvider**: Python bridge using easyocr library, GPU/CPU support
 - **Selection**: Configurable via `--ocr-provider` CLI flag
 
-#### 8. Session Management (`session.rb`, `session_store.rb`)
+#### 9. Session Management (`session.rb`, `session_store.rb`)
 - **Session**: Tracks video status, detected invasions, clips to extract
 - **SessionStore**: Persists sessions as JSON to `~/.invasion_extractor/sessions/`
 - **Features**:
@@ -130,7 +152,7 @@ Video Files → OCRWorker → FrameFilter → Frames → Scanner → Segments �
   - Track per-video progress (frames processed, invasions detected)
   - Track clip extraction status
 
-#### 9. BenchmarkRunner (`benchmark_runner.rb`)
+#### 10. BenchmarkRunner (`benchmark_runner.rb`)
 - **Responsibility**: Performance benchmarking and profiling
 - **Metrics**:
   - Stage timing (OCR, scan, extraction)
@@ -201,6 +223,8 @@ Test suite uses Minitest with sample video files:
 - `test/test_frame_filter.rb` - FrameFilter unit tests
 - `test/test_frame_filter_integration.rb` - Frame filter integration with real video
 - `test/test_video.rb` - Video metadata and frame loading tests
+- `test/test_cli.rb` - CLI parsing and dispatch tests
+- `test/test_commands.rb` - Command class tests
 
 Run tests: `rake test` (default task)
 
@@ -275,6 +299,12 @@ bin/invasion_extractor benchmark ~/Videos/*.mp4  # Run benchmarks
 ├── lib/
 │   └── invasion_extractor/
 │       ├── [core files]
+│       ├── commands/
+│       │   ├── base.rb
+│       │   ├── extract.rb
+│       │   ├── status.rb
+│       │   ├── cache.rb
+│       │   └── benchmark.rb
 │       └── ocr/
 │           ├── provider.rb
 │           ├── tesseract_provider.rb

@@ -23,7 +23,7 @@ module InvasionExtractor
     private
 
     def load_frames
-      if cached_data_exists?
+      if cached_data_exists? && !@options[:no_cache]
         load_cached_data
       else
         process_frames.tap { |frames| cache_data(frames) }
