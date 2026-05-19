@@ -70,7 +70,7 @@ module InvasionExtractor
       FileUtils.mkdir_p(outdir)
 
       puts "Extracting clips..."
-      segs.each_with_index do |segment, index|
+      Parallel.each(segs.each_with_index.to_a, in_processes: [4, segs.length].min) do |segment, index|
         output_file = File.join(outdir, format("#{prefix}_%05d.mp4", index + 1))
         clip = Clip.new(segment, @options)
 
