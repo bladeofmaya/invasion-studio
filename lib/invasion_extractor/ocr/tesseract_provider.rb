@@ -4,7 +4,7 @@ module InvasionExtractor
   module OCR
     class TesseractProvider < Provider
       def initialize(options = {})
-        @options = options
+        @options = { psm: 6 }.merge(options)
       end
 
       def recognize(image_path)
