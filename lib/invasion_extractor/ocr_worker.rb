@@ -67,8 +67,8 @@ module InvasionExtractor
     end
 
     def build_ffmpeg_command(crop, fps)
-      filter = "crop=#{crop[:width]}:#{crop[:height]}:#{crop[:x]}:#{crop[:y]},format=gray"
-      "ffmpeg -i #{@video_path} -r #{fps} -vf '#{filter}' -f rawvideo -pix_fmt gray8 pipe:1 2>/dev/null"
+      filter = "fps=#{fps},crop=#{crop[:width]}:#{crop[:height]}:#{crop[:x]}:#{crop[:y]},format=gray"
+      "ffmpeg -i #{@video_path} -vf '#{filter}' -f rawvideo -pix_fmt gray8 pipe:1 2>/dev/null"
     end
 
     def calculate_crop

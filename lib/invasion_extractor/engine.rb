@@ -34,7 +34,7 @@ module InvasionExtractor
     private
 
     def run_ocr_stage
-      @videos.each do |video|
+      Parallel.each(@videos, in_processes: [4, @videos.length].min) do |video|
         puts "Processing: #{File.basename(video.path)}"
         frames = video.frames
         puts "  #{frames.length} frames processed"
