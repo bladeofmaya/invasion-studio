@@ -13,14 +13,16 @@ module InvasionExtractor
     end
 
     def matched_frames
-      all_frames.select { |frame| frame.text.match?(START_REGEX) || frame.text.match?(END_REGEX) }
+      frames = []
+      @videos.each do |video|
+        video.frames.each do |frame|
+          frames << frame if frame.text.match?(START_REGEX) || frame.text.match?(END_REGEX)
+        end
+      end
+      frames
     end
 
     private
-
-    def all_frames
-      @videos.flat_map(&:frames)
-    end
 
     def generate_invasion_segments
       relevant_frames = matched_frames
@@ -61,7 +63,7 @@ module InvasionExtractor
     end
 
     def last_frame_timestamp
-      all_frames.last.timestamp
+      @videos.last.frames.last.timestamp
     end
   end
 end
