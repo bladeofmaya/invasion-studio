@@ -6,42 +6,39 @@ require 'time'
 require 'rtesseract'
 require 'parallel'
 require 'etc'
+require 'tempfile'
 
 require_relative 'invasion_extractor/version'
 require_relative 'invasion_extractor/engine'
 require_relative 'invasion_extractor/video'
 require_relative 'invasion_extractor/frame'
-require_relative 'invasion_extractor/frame_filter'
-require_relative 'invasion_extractor/gpu_detector'
-require_relative 'invasion_extractor/progress_handler'
 require_relative 'invasion_extractor/ocr_worker'
-
 require_relative 'invasion_extractor/scanner'
 require_relative 'invasion_extractor/clip'
 require_relative 'invasion_extractor/time_helper'
 
-# Session management and CLI support
-require_relative 'invasion_extractor/session'
-require_relative 'invasion_extractor/session_store'
-require_relative 'invasion_extractor/benchmark_runner'
-require_relative 'invasion_extractor/progress_reporter'
-
 # OCR Providers
 require_relative 'invasion_extractor/ocr/provider'
 require_relative 'invasion_extractor/ocr/tesseract_provider'
-require_relative 'invasion_extractor/ocr/ollama_provider'
-require_relative 'invasion_extractor/ocr/easyocr_provider'
 
 # CLI and Commands
 require_relative 'invasion_extractor/cli'
 require_relative 'invasion_extractor/commands/base'
 require_relative 'invasion_extractor/commands/extract'
-require_relative 'invasion_extractor/commands/status'
-require_relative 'invasion_extractor/commands/cache'
-require_relative 'invasion_extractor/commands/benchmark'
 
 module InvasionExtractor
   class Error < StandardError; end
+
+  CACHE_DIR = File.join(Dir.home, '.invasion_extractor', 'cache')
+
+  module VideoHasher
+    def self.hash(path)
+      require 'digest'
+      base = File.basename(path, '.*')
+      path_hash = Digest::MD5.hexdigest(File.expand_path(path))[0..7]
+      "#{base}-#{path_hash}"
+    end
+  end
 
   def self.check_tesseract_installed
     system('tesseract --version > /dev/null 2>&1')

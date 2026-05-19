@@ -1,9 +1,7 @@
 module InvasionExtractor
   class Scanner
-
     Segment = Struct.new(:start_time, :start_video, :end_time, :end_video)
 
-    # TODO: Implement Multi Language Support
     START_REGEX = /Defeat.*Host of Fingers|Commencing combat/i
     END_REGEX = /Returning to your world|Combat ends/i
 
@@ -14,22 +12,25 @@ module InvasionExtractor
       @invasion_segments = generate_invasion_segments
     end
 
-    def all_frames
-      @videos.flat_map(&:frames)
+    def matched_frames
+      all_frames.select { |frame| frame.text.match?(START_REGEX) || frame.text.match?(END_REGEX) }
     end
 
     private
 
+    def all_frames
+      @videos.flat_map(&:frames)
+    end
+
     def generate_invasion_segments
-      relevant_frames = filter_relevant_frames
+      relevant_frames = matched_frames
       return [] if relevant_frames.empty?
 
       segments = []
       start_frame = nil
 
-      # Handle case where first frame is an end frame
       if relevant_frames.first.text.match?(END_REGEX)
-        start_frame = OpenStruct.new(timestamp: "00:00:00", video_file: relevant_frames.first.video_file)
+        start_frame = OpenStruct.new(timestamp: "00:00:00", video_path: relevant_frames.first.video_path)
       end
 
       relevant_frames.each do |frame|
@@ -38,29 +39,25 @@ module InvasionExtractor
         elsif frame.text.match?(END_REGEX) && start_frame
           segments << Segment.new(
             start_frame.timestamp,
-            start_frame.video_file,
+            start_frame.video_path,
             frame.timestamp,
-            frame.video_file
+            frame.video_path
           )
           start_frame = nil
         end
       end
 
-      # Handle case where last frame is a start frame
       if start_frame
-        end_frame = OpenStruct.new(timestamp: last_frame_timestamp, video_file: start_frame.video_file)
+        end_frame = OpenStruct.new(timestamp: last_frame_timestamp, video_path: start_frame.video_path)
         segments << Segment.new(
           start_frame.timestamp,
-          start_frame.video_file,
+          start_frame.video_path,
           end_frame.timestamp,
-          end_frame.video_file
+          end_frame.video_path
         )
       end
-      segments
-    end
 
-    def filter_relevant_frames
-      all_frames.select { |frame| frame.text.match?(START_REGEX) || frame.text.match?(END_REGEX) }
+      segments
     end
 
     def last_frame_timestamp

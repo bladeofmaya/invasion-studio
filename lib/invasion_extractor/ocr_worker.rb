@@ -1,139 +1,98 @@
-#
-# This class processes the video and returns a list of
-# InvasionExtractor::Frame objects.
-#
 module InvasionExtractor
   class OCRWorker
-    attr_reader :video, :video_metadata, :ocr_provider, :frame_filter, :progress_callback
+    attr_reader :video_path, :video_metadata
 
-    def initialize(video, ocr_provider = nil, options = {})
-      @video = video
+    def initialize(video_path, ocr_provider = nil, options = {})
+      @video_path = video_path
       @video_metadata = get_metadata
       @ocr_provider = ocr_provider || InvasionExtractor::OCR::TesseractProvider.new
-      @frame_filter = options[:frame_filter] || InvasionExtractor::FrameFilter.new(enabled: options[:filter_enabled] == true)
-      @progress_callback = options[:progress_callback]
       @options = options
-      @tmpdir = File.join(Dir.tmpdir, "invasion_extractor_ocr_worker_#{Time.now.to_i}")
-      FileUtils.mkdir_p(@tmpdir)
-    end
-
-    def frames_dir
-      return @tmpdir unless @options[:save_frames]
-
-      File.join(Dir.home, '.invasion_extractor', 'cache', 'frames', video_hash)
-    end
-
-    def video_hash
-      require 'digest'
-      base = File.basename(@video, '.*')
-      path_hash = Digest::MD5.hexdigest(File.expand_path(@video))[0..7]
-      "#{base}-#{path_hash}"
     end
 
     def run!
-      frames = generate_image_frames
-      total_frames = frames.length
+      crop = calculate_crop
+      frame_size = crop[:width] * crop[:height]
+      fps = @options[:fps] || 2
 
-      report_progress(:extracting_frames, 0, total_frames)
+      frames = []
+      mutex = Mutex.new
+      queue = SizedQueue.new(Etc.nprocessors * 2)
 
-      filtered_frames = frames.each_with_index.select do |frame_path, index|
-        should_process = @frame_filter.should_process?(frame_path)
-        report_progress(:extracting_frames, index + 1, total_frames) unless should_process
-        should_process
+      producer = Thread.new do
+        cmd = build_ffmpeg_command(crop, fps)
+        IO.popen(cmd, 'rb') do |io|
+          frame_number = 0
+          while (data = io.read(frame_size))
+            break if data.bytesize < frame_size
+            frame_number += 1
+            queue << {
+              number: frame_number,
+              data: data.dup,
+              timestamp: frame_number_to_timestamp(frame_number, fps)
+            }
+          end
+        end
+        queue.close
       end
 
-      total_to_process = filtered_frames.length
-      processed_count = 0
-
-      all_frame_data = Parallel.map(filtered_frames, in_processes: Etc.nprocessors) do |frame_path, _index|
-        processed_count += 1
-        report_progress(:processing_ocr, processed_count, total_to_process)
-
-        frame_number = extract_frame_number(frame_path)
-        frame_text = @ocr_provider.recognize(frame_path)
-        frame_timestamp = frame_number_to_timestamp(frame_number)
-        video_file = @video
-        InvasionExtractor::Frame.new(frame_number, frame_text, frame_timestamp, video_file)
+      consumers = Etc.nprocessors.times.map do
+        Thread.new do
+          while (item = queue.pop)
+            text = recognize_frame(item[:data], crop[:width], crop[:height])
+            frame = Frame.new(item[:number], text, item[:timestamp], @video_path)
+            mutex.synchronize { frames << frame }
+          end
+        end
       end
 
-      report_progress(:processing_ocr, total_to_process, total_to_process)
-      cleanup
-      all_frame_data
-    end
+      producer.join
+      consumers.each(&:join)
 
-    def filter_stats
-      @frame_filter.stats
+      frames.sort_by(&:number)
     end
 
     private
 
-    # Calculates the crop dimensions based on the video's resolution and
-    # extracts every second frame from the video for OCR processing.
-    #
-    # NOTE: 2 fps is a good balance between speed and accuracy.
-    #       Additional testing is worth the time so we can find the best
-    #       balance between speed and accuracy.
-    #
-    # Returns an array of frame paths.
-    def generate_image_frames
+    def recognize_frame(data, width, height)
+      tmp = Tempfile.new(['frame', '.pgm'])
+      tmp.binmode
+      tmp.write("P5\n#{width} #{height}\n255\n")
+      tmp.write(data)
+      tmp.close
+
+      @ocr_provider.recognize(tmp.path)
+    ensure
+      tmp&.close
+      tmp&.unlink
+    end
+
+    def build_ffmpeg_command(crop, fps)
+      filter = "crop=#{crop[:width]}:#{crop[:height]}:#{crop[:x]}:#{crop[:y]},format=gray"
+      "ffmpeg -i #{@video_path} -r #{fps} -vf '#{filter}' -f rawvideo -pix_fmt gray8 pipe:1 2>/dev/null"
+    end
+
+    def calculate_crop
       base_height = 1440
       base_crop_width = 700
-      base_crop_height = 130 # Tightened crop: text occupies upper ~60-80px, rest was empty
+      base_crop_height = 130
       base_crop_x = 950
-      base_crop_y = 960 # Text appears at ~67% height in 1440p
+      base_crop_y = 960
 
       height = @video_metadata ? @video_metadata[:height] : base_height
       scale_factor = height.to_f / base_height
 
-      crop_width = (base_crop_width * scale_factor).to_i
-      crop_height = (base_crop_height * scale_factor).to_i
-      crop_x = (base_crop_x * scale_factor).to_i
-      crop_y = (base_crop_y * scale_factor).to_i
-
-      use_gpu = @options && @options[:use_gpu] != false && InvasionExtractor::GPUDetector.available?
-
-      output_dir = frames_dir
-      FileUtils.mkdir_p(output_dir) unless Dir.exist?(output_dir)
-
-      if use_gpu
-        generate_frames_with_gpu(crop_width, crop_height, crop_x, crop_y, output_dir)
-      else
-        generate_frames_with_cpu(crop_width, crop_height, crop_x, crop_y, output_dir)
-      end
-
-      Dir.glob("#{output_dir}/*.jpg").sort
-    end
-
-    def generate_frames_with_cpu(crop_width, crop_height, crop_x, crop_y, output_dir)
-      # Redirect ffmpeg output to avoid interfering with progress bars
-      ffmpeg_log = File.join(output_dir, 'ffmpeg.log')
-      cmd = "ffmpeg -threads 12 -i #{@video} -r 2 -filter_complex 'crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0[out]' -map '[out]' -qscale:v 2 -preset ultrafast #{output_dir}/frame_%04d.jpg > #{ffmpeg_log} 2>&1"
-      system(cmd)
-    end
-
-    def generate_frames_with_gpu(crop_width, crop_height, crop_x, crop_y, output_dir)
-      hwaccel_opts = InvasionExtractor::GPUDetector.ffmpeg_hwaccel_options.join(' ')
-      ffmpeg_log = File.join(output_dir, 'ffmpeg.log')
-
-      # GPU-accelerated decoding with CPU filtering
-      # hwdownload transfers from GPU to CPU memory before filters
-      cmd = "ffmpeg #{hwaccel_opts} -i #{@video} -r 2 -vf 'hwdownload,format=nv12,crop=#{crop_width}:#{crop_height}:#{crop_x}:#{crop_y},eq=contrast=10:brightness=1.0' -qscale:v 2 -preset ultrafast #{output_dir}/frame_%04d.jpg > #{ffmpeg_log} 2>&1"
-      success = system(cmd)
-
-      # Fallback to CPU if GPU fails
-      return if success
-
-      # Log GPU failure for debugging
-      File.write(ffmpeg_log, "GPU frame extraction failed, falling back to CPU...\n", mode: 'a')
-      generate_frames_with_cpu(crop_width, crop_height, crop_x, crop_y, output_dir)
+      {
+        width: (base_crop_width * scale_factor).to_i,
+        height: (base_crop_height * scale_factor).to_i,
+        x: (base_crop_x * scale_factor).to_i,
+        y: (base_crop_y * scale_factor).to_i
+      }
     end
 
     def get_metadata
-      command = "ffprobe -v quiet -print_format json -show_streams -select_streams v:0 #{@video}"
-
+      command = "ffprobe -v quiet -print_format json -show_streams -select_streams v:0 #{@video_path}"
       output = `#{command}`
       data = JSON.parse(output)
-
       video_stream = data['streams'][0]
 
       {
@@ -146,27 +105,11 @@ module InvasionExtractor
       nil
     end
 
-    def extract_frame_number(path)
-      File.basename(path).scan(/\d+/).first.to_i
-    end
-
-    def frame_number_to_timestamp(frame_number)
-      seconds = (frame_number - 1) / 2.0 # Assuming 2 fps
+    def frame_number_to_timestamp(frame_number, fps)
+      seconds = (frame_number - 1) / fps.to_f
       minutes, seconds = seconds.divmod(60)
       hours, minutes = minutes.divmod(60)
       format('%02d:%02d:%06.3f', hours, minutes, seconds)
-    end
-
-    def cleanup
-      return if @options[:save_frames]
-
-      FileUtils.rm_rf(@tmpdir)
-    end
-
-    def report_progress(event, current, total)
-      return unless @progress_callback
-
-      @progress_callback.call(event, current, total)
     end
   end
 end

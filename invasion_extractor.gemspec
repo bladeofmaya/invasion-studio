@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '>= 3.3.3'
 
-  spec.summary       = 'Scans multiple video files for the start and end of invasions and creates signle clips.'
+  spec.summary       = 'Scans multiple video files for the start and end of invasions and creates single clips.'
   spec.description   = 'Longer description of your gem'
   spec.homepage      = 'https://github.com/bladeofmaya/invasion_extractor'
   spec.license       = 'MIT'
@@ -16,13 +16,9 @@ Gem::Specification.new do |spec|
 
   spec.executables = ['invasion_extractor']
 
-  spec.add_dependency 'base64', '~> 0.2'
-  spec.add_dependency 'faraday', '~> 2.0'
   spec.add_dependency 'optparse', '~> 0.5'
   spec.add_dependency 'parallel', '~> 1.25'
   spec.add_dependency 'rtesseract', '~> 3.1.3'
-  spec.add_dependency 'ruby-progressbar', '~> 1.13'
-  spec.add_dependency 'ruby-vips', '~> 2.2'
 
   spec.add_development_dependency 'bundler', '~> 2.0'
   spec.add_development_dependency 'minitest', '~> 5.16'

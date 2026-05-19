@@ -2,16 +2,16 @@ module InvasionExtractor
   class Clip
     attr_accessor :generated_file, :segment
 
-    def initialize(segment)
+    def initialize(segment, options = {})
       @segment = segment
-      @segment.start_time = TimeHelper.wind_back(@segment.start_time, 10.0)
-      @segment.end_time = TimeHelper.wind_forward(@segment.end_time, 7.5)
-
+      pad_start = options[:pad_start] || 10.0
+      pad_end = options[:pad_end] || 7.5
+      @segment.start_time = TimeHelper.wind_back(@segment.start_time, pad_start)
+      @segment.end_time = TimeHelper.wind_forward(@segment.end_time, pad_end)
       @generated_file = nil
     end
 
     def write(output_file)
-      # Create a log file for ffmpeg output
       log_file = File.join(File.dirname(output_file), ".#{File.basename(output_file, '.*')}_ffmpeg.log")
       send("generate_#{segment_type}_clip", @segment, output_file, log_file)
       @generated_file = output_file
@@ -35,7 +35,7 @@ module InvasionExtractor
         "-to", segment.end_time,
         "-map", "0",
         "-c", "copy",
-        "-y", # Overwrite output
+        "-y",
         output_file,
         ">", log_file, "2>&1"
       ].join(" ")
@@ -52,7 +52,6 @@ module InvasionExtractor
         concat_list = File.join(temp_dir, "concat_list.txt")
         temp_log = File.join(temp_dir, "ffmpeg.log")
 
-        # Cut from start_video
         cmd1 = [
           "ffmpeg",
           "-i", segment.start_video,
@@ -65,7 +64,6 @@ module InvasionExtractor
         ].join(" ")
         system(cmd1)
 
-        # Cut from end_video
         cmd2 = [
           "ffmpeg",
           "-i", segment.end_video,
@@ -78,7 +76,6 @@ module InvasionExtractor
         ].join(" ")
         system(cmd2)
 
-        # Concatenate the two parts
         File.write(concat_list, "file '#{temp_file1}'\nfile '#{temp_file2}'")
         cmd3 = [
           "ffmpeg",
@@ -93,7 +90,6 @@ module InvasionExtractor
         ].join(" ")
         system(cmd3)
 
-        # Copy log to final location
         FileUtils.cp(temp_log, log_file) if File.exist?(temp_log)
       end
     end

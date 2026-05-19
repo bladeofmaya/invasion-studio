@@ -1,9 +1,9 @@
 module InvasionExtractor
   class Video
-    attr_reader :video, :options
+    attr_reader :path, :options
 
-    def initialize(video, options = {})
-      @video = video
+    def initialize(path, options = {})
+      @path = path
       @options = options
     end
 
@@ -12,10 +12,9 @@ module InvasionExtractor
     end
 
     def metadata
-      ocr_worker.video_metadata
+      @metadata ||= OCRWorker.new(@path, nil, @options).video_metadata
     end
 
-    # Public method to check if cached data exists
     def cached_data_exists?
       File.exist?(cache_file_path)
     end
@@ -30,33 +29,20 @@ module InvasionExtractor
       end
     end
 
-    def ocr_worker
-      @ocr_worker ||= InvasionExtractor::OCRWorker.new(video, nil, @options)
-    end
-
     def process_frames
-      InvasionExtractor::OCRWorker.new(@video, nil, @options).run!
+      OCRWorker.new(@path, nil, @options).run!
     end
 
-    # Cache in ~/.invasion_extractor/cache/ for persistence across sessions
     def cache_file_path
-      cache_dir = File.join(Dir.home, '.invasion_extractor', 'cache')
-      FileUtils.mkdir_p(cache_dir)
-      File.join(cache_dir, "#{video_hash}.yml")
-    end
-
-    def video_hash
-      # Use full path hash for uniqueness, but sanitize for filename
-      require 'digest'
-      base = File.basename(@video, '.*')
-      path_hash = Digest::MD5.hexdigest(File.expand_path(@video))[0..7]
-      "#{base}-#{path_hash}"
+      FileUtils.mkdir_p(InvasionExtractor::CACHE_DIR)
+      File.join(InvasionExtractor::CACHE_DIR, "#{VideoHasher.hash(@path)}.yml")
     end
 
     def load_cached_data
       cached_data = YAML.load_file(cache_file_path)
       cached_data.map do |item|
-        InvasionExtractor::Frame.new(item[:number], item[:text], item[:timestamp], item[:video_file])
+        video_path = item[:video_path] || item[:video_file]
+        Frame.new(item[:number], item[:text], item[:timestamp], video_path)
       end
     end
 
@@ -66,7 +52,7 @@ module InvasionExtractor
           number: frame.number,
           text: frame.text,
           timestamp: frame.timestamp,
-          video_file: frame.video_file
+          video_path: frame.video_path
         }
       end
       File.write(cache_file_path, data_to_cache.to_yaml)
