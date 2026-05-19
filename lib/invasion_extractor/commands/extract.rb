@@ -24,6 +24,7 @@ module InvasionExtractor
           opts.on("-o", "--outdir DIRECTORY", "Output directory") { |v| @options[:outdir] = v }
           opts.on("--fps RATE", Integer, "Frame extraction rate") { |v| @options[:fps] = v }
           opts.on("--no-cache", "Skip OCR cache") { @options[:no_cache] = true }
+          opts.on("--hwaccel", "Enable VAAPI hardware acceleration") { @options[:hwaccel] = true }
           opts.on("--pad-start SECONDS", Float, "Seconds before invasion") { |v| @options[:pad_start] = v }
           opts.on("--pad-end SECONDS", Float, "Seconds after invasion") { |v| @options[:pad_end] = v }
           opts.on("-d", "--debug", "Enable debug output") { @options[:debug] = true }

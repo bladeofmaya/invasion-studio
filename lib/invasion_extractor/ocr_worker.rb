@@ -20,18 +20,41 @@ module InvasionExtractor
 
       producer = Thread.new do
         cmd = build_ffmpeg_command(crop, fps)
-        IO.popen(cmd, 'rb') do |io|
-          frame_number = 0
-          while (data = io.read(frame_size))
-            break if data.bytesize < frame_size
-            frame_number += 1
-            queue << {
-              number: frame_number,
-              data: data.dup,
-              timestamp: frame_number_to_timestamp(frame_number, fps)
-            }
+        success = false
+
+        if @options[:hwaccel] && InvasionExtractor::GPUDetector.vaapi_available?
+          IO.popen(cmd, 'rb') do |io|
+            frame_number = 0
+            while (data = io.read(frame_size))
+              break if data.bytesize < frame_size
+              frame_number += 1
+              queue << {
+                number: frame_number,
+                data: data.dup,
+                timestamp: frame_number_to_timestamp(frame_number, fps)
+              }
+            end
+            success = frame_number > 0
           end
         end
+
+        unless success
+          # Fallback to CPU
+          cmd = build_ffmpeg_command(crop, fps, hwaccel: false)
+          IO.popen(cmd, 'rb') do |io|
+            frame_number = 0
+            while (data = io.read(frame_size))
+              break if data.bytesize < frame_size
+              frame_number += 1
+              queue << {
+                number: frame_number,
+                data: data.dup,
+                timestamp: frame_number_to_timestamp(frame_number, fps)
+              }
+            end
+          end
+        end
+
         queue.close
       end
 
@@ -66,9 +89,20 @@ module InvasionExtractor
       tmp&.unlink
     end
 
-    def build_ffmpeg_command(crop, fps)
-      filter = "fps=#{fps},crop=#{crop[:width]}:#{crop[:height]}:#{crop[:x]}:#{crop[:y]},format=gray"
-      "ffmpeg -i #{@video_path} -vf '#{filter}' -f rawvideo -pix_fmt gray8 pipe:1 2>/dev/null"
+    def build_ffmpeg_command(crop, fps, hwaccel: @options[:hwaccel])
+      filter_parts = ["fps=#{fps}"]
+      hwaccel_args = ""
+
+      if hwaccel && InvasionExtractor::GPUDetector.vaapi_available?
+        hwaccel_args = InvasionExtractor::GPUDetector.ffmpeg_hwaccel_args.join(' ')
+        filter_parts << "hwdownload" << "format=nv12"
+      end
+
+      filter_parts << "crop=#{crop[:width]}:#{crop[:height]}:#{crop[:x]}:#{crop[:y]}"
+      filter_parts << "format=gray"
+
+      filter = filter_parts.join(',')
+      "ffmpeg #{hwaccel_args} -i #{@video_path} -vf '#{filter}' -f rawvideo -pix_fmt gray8 pipe:1 2>/dev/null"
     end
 
     def calculate_crop

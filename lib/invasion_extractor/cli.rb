@@ -42,6 +42,7 @@ module InvasionExtractor
         opts.on("-v", "--version", "Show version") { version }
         opts.on("-d", "--debug", "Enable debug output") { @options[:debug] = true }
         opts.on("-q", "--quiet", "Suppress non-error output") { @options[:quiet] = true }
+        opts.on("--hwaccel", "Enable VAAPI hardware acceleration for frame decoding") { @options[:hwaccel] = true }
       end
 
       parser.order!(@argv) rescue nil
@@ -90,10 +91,11 @@ module InvasionExtractor
       puts "    -p, --prefix PREFIX          Prefix for output files (default: invasion)"
       puts "    -o, --outdir DIRECTORY       Output directory (default: ./invasion_clips)"
       puts ""
-      puts "  Processing:"
-      puts "    --fps RATE                   Frame extraction rate (default: 2)"
-      puts "    --no-cache                   Skip OCR cache, force re-processing"
-      puts ""
+  puts "  Processing:"
+  puts "    --fps RATE                   Frame extraction rate (default: 2)"
+  puts "    --no-cache                   Skip OCR cache, force re-processing"
+  puts "    --hwaccel                    Enable VAAPI hardware acceleration"
+  puts ""
       puts "  Detection:"
       puts "    --pad-start SECONDS          Seconds to include before invasion (default: 10)"
       puts "    --pad-end SECONDS            Seconds to include after invasion (default: 7.5)"
