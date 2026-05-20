@@ -7,6 +7,7 @@ require 'rtesseract'
 require 'parallel'
 require 'etc'
 require 'tempfile'
+require 'tty-progressbar'
 
 require_relative 'invasion_extractor/version'
 require_relative 'invasion_extractor/engine'

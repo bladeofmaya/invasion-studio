@@ -6,11 +6,15 @@ class TestVideo < Minitest::Test
   end
 
   def test_frames
-    assert_equal 413, @video.frames.size
+    assert_equal 420, @video.frames.size
   end
 
   def test_metadata
-    assert_equal({ height: 720, width: 1280, fps: 60 }, @video.metadata)
+    meta = @video.metadata
+    assert_equal 720, meta[:height]
+    assert_equal 1280, meta[:width]
+    assert_equal 60, meta[:fps]
+    assert meta[:duration] > 0, "Expected duration to be present"
   end
 
   def test_no_cache_option_bypasses_cache

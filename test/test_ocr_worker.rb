@@ -6,6 +6,6 @@ class TestOCRWorker < Minitest::Test
 
     assert_instance_of Array, result
     assert_instance_of InvasionExtractor::Frame, result.first
-    assert_equal 413, result.size
+    assert_equal 420, result.size
   end
 end

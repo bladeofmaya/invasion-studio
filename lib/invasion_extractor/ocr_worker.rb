@@ -11,47 +11,30 @@ module InvasionExtractor
 
     def run!
       crop = calculate_crop
-      frame_size = crop[:width] * crop[:height]
       fps = @options[:fps] || 2
+      frame_size = crop[:width] * crop[:height]
+      progress = @options[:progress_callback]
+      total_frames = @options[:total_frames]
 
       frames = []
+      processed_count = 0
       mutex = Mutex.new
-      queue = SizedQueue.new(Etc.nprocessors * 2)
+      queue = Queue.new
 
       producer = Thread.new do
         cmd = build_ffmpeg_command(crop, fps)
-        success = false
 
-        if @options[:hwaccel] && InvasionExtractor::GPUDetector.vaapi_available?
-          IO.popen(cmd, 'rb') do |io|
-            frame_number = 0
-            while (data = io.read(frame_size))
-              break if data.bytesize < frame_size
-              frame_number += 1
-              queue << {
-                number: frame_number,
-                data: data.dup,
-                timestamp: frame_number_to_timestamp(frame_number, fps)
-              }
-            end
-            success = frame_number > 0
-          end
-        end
+        IO.popen(cmd, 'rb') do |io|
+          frame_number = 0
+          while (data = io.read(frame_size))
+            break if data.bytesize < frame_size
 
-        unless success
-          # Fallback to CPU
-          cmd = build_ffmpeg_command(crop, fps, hwaccel: false)
-          IO.popen(cmd, 'rb') do |io|
-            frame_number = 0
-            while (data = io.read(frame_size))
-              break if data.bytesize < frame_size
-              frame_number += 1
-              queue << {
-                number: frame_number,
-                data: data.dup,
-                timestamp: frame_number_to_timestamp(frame_number, fps)
-              }
-            end
+            frame_number += 1
+            queue << {
+              number: frame_number,
+              data: data.dup,
+              timestamp: frame_number_to_timestamp(frame_number, fps)
+            }
           end
         end
 
@@ -64,6 +47,11 @@ module InvasionExtractor
             text = recognize_frame(item[:data], crop[:width], crop[:height])
             frame = Frame.new(item[:number], text, item[:timestamp], @video_path)
             mutex.synchronize { frames << frame }
+
+            if progress
+              mutex.synchronize { processed_count += 1 }
+              progress.call(processed_count, total_frames)
+            end
           end
         end
       end
@@ -116,10 +104,10 @@ module InvasionExtractor
       scale_factor = height.to_f / base_height
 
       {
-        width: (base_crop_width * scale_factor).to_i,
-        height: (base_crop_height * scale_factor).to_i,
-        x: (base_crop_x * scale_factor).to_i,
-        y: (base_crop_y * scale_factor).to_i
+        width: ((base_crop_width * scale_factor).to_i / 2) * 2,
+        height: ((base_crop_height * scale_factor).to_i / 2) * 2,
+        x: ((base_crop_x * scale_factor).to_i / 2) * 2,
+        y: ((base_crop_y * scale_factor).to_i / 2) * 2
       }
     end
 
@@ -128,11 +116,13 @@ module InvasionExtractor
       output = `#{command}`
       data = JSON.parse(output)
       video_stream = data['streams'][0]
+      duration = video_stream['duration']&.to_f || 0
 
       {
         height: video_stream['height'],
         width: video_stream['width'],
-        fps: eval(video_stream['r_frame_rate']).to_i
+        fps: eval(video_stream['r_frame_rate']).to_i,
+        duration: duration
       }
     rescue JSON::ParserError, StandardError => e
       puts "Error extracting video metadata: #{e.message}"
