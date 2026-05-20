@@ -16,8 +16,8 @@ module InvasionExtractor
 
       [
         '-hwaccel', 'vaapi',
-        '-hwaccel_output_format', 'vaapi',
-        '-hwaccel_device', '/dev/dri/renderD128'
+        '-vaapi_device', '/dev/dri/renderD128',
+        '-hwaccel_output_format', 'vaapi'
       ]
     end
   end

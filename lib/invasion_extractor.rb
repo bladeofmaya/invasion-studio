@@ -31,7 +31,7 @@ require_relative 'invasion_extractor/commands/extract'
 module InvasionExtractor
   class Error < StandardError; end
 
-  CACHE_DIR = '/tmp/invasion_extractor_cache'
+  CACHE_DIR = '/dev/shm/invasion_extractor_cache'
 
   module VideoHasher
     def self.hash(path)
