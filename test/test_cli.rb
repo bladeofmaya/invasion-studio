@@ -88,4 +88,16 @@ class TestCLI < Minitest::Test
     assert cli1.options[:debug]
     refute cli2.options[:debug]
   end
+
+  def test_parses_ffmpeg_threads_flag
+    cli = InvasionExtractor::CLI.new(['--ffmpeg-threads', '8', 'video.mp4'])
+    cli.send(:parse_global_options!)
+    assert_equal 8, cli.options[:ffmpeg_threads]
+  end
+
+  def test_default_ffmpeg_threads_is_4
+    cli = InvasionExtractor::CLI.new(['video.mp4'])
+    cli.send(:parse_global_options!)
+    assert_equal 4, cli.options[:ffmpeg_threads]
+  end
 end

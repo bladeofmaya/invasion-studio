@@ -14,7 +14,8 @@ module InvasionExtractor
       debug: false,
       continue_on_error: false,
       pad_start: 10.0,
-      pad_end: 7.5
+      pad_end: 7.5,
+      ffmpeg_threads: 4
     }.freeze
 
     VALID_COMMANDS = %w[extract scan].freeze
@@ -43,6 +44,7 @@ module InvasionExtractor
         opts.on("-d", "--debug", "Enable debug output") { @options[:debug] = true }
         opts.on("-q", "--quiet", "Suppress non-error output") { @options[:quiet] = true }
         opts.on("--hwaccel", "Enable VAAPI hardware acceleration for frame decoding") { @options[:hwaccel] = true }
+        opts.on("--ffmpeg-threads N", Integer, "ffmpeg encoding threads (default: 4)") { |v| @options[:ffmpeg_threads] = v }
       end
 
       parser.order!(@argv) rescue nil
@@ -93,6 +95,7 @@ module InvasionExtractor
       puts ""
   puts "  Processing:"
   puts "    --fps RATE                   Frame extraction rate (default: 2)"
+  puts "    --ffmpeg-threads N           ffmpeg encoding threads (default: 4)"
   puts "    --no-cache                   Skip OCR cache, force re-processing"
   puts "    --hwaccel                    Enable VAAPI hardware acceleration"
   puts ""

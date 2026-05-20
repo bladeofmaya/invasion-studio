@@ -15,11 +15,6 @@ module InvasionExtractor
       @metadata ||= OCRWorker.new(@path, nil, @options).video_metadata
     end
 
-    def total_frames
-      return 0 unless metadata && metadata[:duration] > 0
-      ((metadata[:duration] * (@options[:fps] || 2)) + 0.5).to_i
-    end
-
     def cached_data_exists?
       File.exist?(cache_file_path)
     end
@@ -35,8 +30,7 @@ module InvasionExtractor
     end
 
     def process_frames
-      worker_options = @options.merge(total_frames: total_frames)
-      OCRWorker.new(@path, nil, worker_options).run!
+      OCRWorker.new(@path, nil, @options).run!
     end
 
     def cache_file_path

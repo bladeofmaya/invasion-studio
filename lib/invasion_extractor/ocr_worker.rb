@@ -10,87 +10,93 @@ module InvasionExtractor
     end
 
     def run!
-      crop = calculate_crop
+      frames_dir = ensure_frames_dir
       fps = @options[:fps] || 2
-      frame_size = crop[:width] * crop[:height]
-      progress = @options[:progress_callback]
-      total_frames = @options[:total_frames]
+      extract_progress = @options[:extract_progress_callback]
+      ocr_progress = @options[:progress_callback]
 
-      frames = []
-      processed_count = 0
-      mutex = Mutex.new
-      queue = Queue.new
-
-      producer = Thread.new do
-        cmd = build_ffmpeg_command(crop, fps)
-
-        IO.popen(cmd, 'rb') do |io|
-          frame_number = 0
-          while (data = io.read(frame_size))
-            break if data.bytesize < frame_size
-
-            frame_number += 1
-            queue << {
-              number: frame_number,
-              data: data.dup,
-              timestamp: frame_number_to_timestamp(frame_number, fps)
-            }
-          end
-        end
-
-        queue.close
+      unless frames_extracted?(frames_dir)
+        extract_frames(frames_dir, fps, extract_progress)
       end
 
-      consumers = Etc.nprocessors.times.map do
-        Thread.new do
-          while (item = queue.pop)
-            text = recognize_frame(item[:data], crop[:width], crop[:height])
-            frame = Frame.new(item[:number], text, item[:timestamp], @video_path)
-            mutex.synchronize { frames << frame }
+      frame_paths = Dir.glob(File.join(frames_dir, '*.jpg')).sort
+      total = frame_paths.length
 
-            if progress
-              mutex.synchronize { processed_count += 1 }
-              progress.call(processed_count, total_frames)
-            end
-          end
-        end
+      results = Parallel.map(frame_paths.each_with_index, in_threads: Etc.nprocessors) do |path, index|
+        text = @ocr_provider.recognize(path)
+        frame_number = extract_frame_number(path)
+        timestamp = frame_number_to_timestamp(frame_number, fps)
+
+        ocr_progress&.call(index + 1, total)
+
+        Frame.new(frame_number, text, timestamp, @video_path)
       end
 
-      producer.join
-      consumers.each(&:join)
-
-      frames.sort_by(&:number)
+      results.sort_by(&:number)
     end
 
     private
 
-    def recognize_frame(data, width, height)
-      tmp = Tempfile.new(['frame', '.pgm'])
-      tmp.binmode
-      tmp.write("P5\n#{width} #{height}\n255\n")
-      tmp.write(data)
-      tmp.close
-
-      @ocr_provider.recognize(tmp.path)
-    ensure
-      tmp&.close
-      tmp&.unlink
+    def ensure_frames_dir
+      hash = VideoHasher.hash(@video_path)
+      dir = File.join(CACHE_DIR, 'frames', hash)
+      FileUtils.mkdir_p(dir)
+      dir
     end
 
-    def build_ffmpeg_command(crop, fps, hwaccel: @options[:hwaccel])
-      filter_parts = ["fps=#{fps}"]
-      hwaccel_args = ""
+    def frames_extracted?(frames_dir)
+      return false if @options[:no_cache]
+      Dir.glob(File.join(frames_dir, '*.jpg')).length > 0
+    end
 
-      if hwaccel && InvasionExtractor::GPUDetector.vaapi_available?
-        hwaccel_args = InvasionExtractor::GPUDetector.ffmpeg_hwaccel_args.join(' ')
-        filter_parts << "hwdownload" << "format=nv12"
+    def extract_frames(frames_dir, fps, progress)
+      crop = calculate_crop
+      filter = "fps=#{fps},crop=#{crop[:width]}:#{crop[:height]}:#{crop[:x]}:#{crop[:y]}"
+
+      hwaccel_args = ""
+      if @options[:hwaccel] && GPUDetector.vaapi_available?
+        hwaccel_args = GPUDetector.ffmpeg_hwaccel_args.join(' ')
+        filter = "fps=#{fps},hwdownload,format=nv12,crop=#{crop[:width]}:#{crop[:height]}:#{crop[:x]}:#{crop[:y]}"
       end
 
-      filter_parts << "crop=#{crop[:width]}:#{crop[:height]}:#{crop[:x]}:#{crop[:y]}"
-      filter_parts << "format=gray"
+      # Clean old frames first
+      FileUtils.rm_f(Dir.glob(File.join(frames_dir, '*.jpg')))
 
-      filter = filter_parts.join(',')
-      "ffmpeg #{hwaccel_args} -i #{@video_path} -vf '#{filter}' -f rawvideo -pix_fmt gray8 pipe:1 2>/dev/null"
+      total_frames = @video_metadata && @video_metadata[:duration] > 0 ?
+        (@video_metadata[:duration] * fps).to_i : 0
+
+      threads = @options[:ffmpeg_threads] || 4
+      cmd = "ffmpeg -threads #{threads} #{hwaccel_args} -i #{@video_path} -vf '#{filter}' -qscale:v 5 #{frames_dir}/frame_%06d.jpg 2>/dev/null"
+
+      # Start ffmpeg in a separate thread
+      ffmpeg_done = false
+      ffmpeg_thread = Thread.new do
+        system(cmd)
+        ffmpeg_done = true
+      end
+
+      # Poll frame count and update progress bar
+      if progress && total_frames > 0
+        Thread.new do
+          last_count = 0
+          until ffmpeg_done
+            sleep 0.5
+            count = Dir.glob(File.join(frames_dir, '*.jpg')).length
+            if count > last_count
+              progress.call(count, total_frames)
+              last_count = count
+            end
+          end
+          # Ensure bar reaches 100%
+          progress.call(total_frames, total_frames)
+        end
+      end
+
+      ffmpeg_thread.join
+    end
+
+    def extract_frame_number(path)
+      File.basename(path).scan(/\d+/).first.to_i
     end
 
     def calculate_crop

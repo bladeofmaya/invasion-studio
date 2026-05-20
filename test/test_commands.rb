@@ -53,6 +53,16 @@ class TestCommandsExtract < Minitest::Test
     assert_equal 8.0, options[:pad_end]
   end
 
+  def test_build_parser_sets_ffmpeg_threads
+    options = { command: 'extract' }
+    argv = ['--ffmpeg-threads', '12', 'video.mp4']
+    cmd = InvasionExtractor::Commands::Extract.new(options, argv)
+
+    cmd.send(:parse_options!)
+
+    assert_equal 12, options[:ffmpeg_threads]
+  end
+
   def test_validate_exits_when_no_video_files
     options = { command: 'extract' }
     argv = []
