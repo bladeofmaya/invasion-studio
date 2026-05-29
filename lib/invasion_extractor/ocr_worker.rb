@@ -13,7 +13,6 @@ module InvasionExtractor
       frames_dir = ensure_frames_dir
       fps = @options[:fps] || 2
       extract_progress = @options[:extract_progress_callback]
-      ocr_progress = @options[:progress_callback]
 
       unless frames_extracted?(frames_dir)
         extract_frames(frames_dir, fps, extract_progress)
@@ -22,15 +21,42 @@ module InvasionExtractor
       frame_paths = Dir.glob(File.join(frames_dir, '*.jpg')).sort
       total = frame_paths.length
 
-      results = Parallel.map(frame_paths.each_with_index, in_threads: Etc.nprocessors) do |path, index|
+      # Fork-safe progress: each child appends a line to a temp file;
+      # parent monitors the line count and updates the bar.
+      progress_file = nil
+      monitor = nil
+
+      if @options[:progress_callback] && total > 0
+        require 'tempfile'
+        progress_file = Tempfile.new(['ocr_progress', '.txt'])
+        File.write(progress_file.path, "")
+
+        monitor = Thread.new do
+          loop do
+            count = File.readlines(progress_file.path).count rescue 0
+            break if count >= total
+            @options[:progress_callback].call(count, total)
+            sleep 0.3
+          end
+          @options[:progress_callback].call(total, total)
+        end
+      end
+
+      results = Parallel.map(frame_paths.each_with_index, in_processes: Etc.nprocessors) do |path, index|
         text = @ocr_provider.recognize(path)
         frame_number = extract_frame_number(path)
         timestamp = frame_number_to_timestamp(frame_number, fps)
 
-        ocr_progress&.call(index + 1, total)
+        if progress_file
+          File.open(progress_file.path, 'a') { |f| f.puts "1" }
+        end
 
         Frame.new(frame_number, text, timestamp, @video_path)
       end
+
+      monitor&.join
+      progress_file&.close
+      progress_file&.unlink
 
       results.sort_by(&:number)
     end
