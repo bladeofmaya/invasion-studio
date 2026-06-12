@@ -37,6 +37,11 @@
       --danger-hover:         #F87171;
       --danger-fg:            #ffffff;
 
+      /* Success */
+      --success:              #22C55E;
+      --success-hover:        #4ADE80;
+      --success-fg:           #1a171a;
+
       /* Text */
       --text-primary:         #E8E8E0;
       --text-secondary:       #D1D1C8;
@@ -350,7 +355,7 @@
     }
 
     .video-wrapper {
-      height: 75%;
+      height: 70%;
       background: #000;
       display: flex;
       align-items: center;
@@ -370,7 +375,7 @@
 
     .editor {
       padding: 16px;
-      height: 25%;
+      height: 30%;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -413,6 +418,64 @@
     }
     .editor .meta span {
       color: var(--text-secondary);
+    }
+
+    .result-toggle {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .result-toggle label {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+      padding: 1px 6px;
+      border-radius: 4px;
+      transition: all 0.15s;
+      line-height: 1;
+    }
+    .result-toggle label:hover {
+      background: var(--surface-hover);
+    }
+    .result-toggle input[type="radio"] {
+      cursor: pointer;
+      accent-color: var(--accent);
+      margin: 0;
+    }
+    .result-toggle .result-win {
+      color: var(--success);
+    }
+    .result-toggle .result-loss {
+      color: var(--danger);
+    }
+    .result-toggle .result-dc {
+      color: var(--text-muted);
+    }
+
+    .result-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 6px;
+    }
+    .result-badge.win {
+      color: var(--success);
+      background: rgba(34, 197, 94, 0.15);
+    }
+    .result-badge.loss {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.15);
+    }
+    .result-badge.dc {
+      color: var(--text-muted);
+      background: rgba(156, 163, 175, 0.15);
     }
 
     .star-rating {
@@ -574,7 +637,7 @@
       </div>
       <div class="editor">
         <div class="editor-header">
-          <div class="title" id="editor-title">No clip selected</div>
+          <input type="text" id="title-input" placeholder="Clip title (optional)" disabled onblur="saveTitle()" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--input-border); border-radius: 4px; padding: 4px 10px; font-size: 0.9rem; flex: 1; min-width: 0; margin-right: 10px;">
           <div class="audio-track-select">
             <label>Audio:</label>
             <select id="audio-track" onchange="changeAudioTrack()">
@@ -586,9 +649,22 @@
           </div>
         </div>
         <div class="meta">
-          <div>Filename: <span id="meta-filename">—</span></div>
-          <div>ID: <span id="meta-id">—</span></div>
+          <div style="cursor: pointer; text-decoration: underline; color: var(--text-secondary);" onclick="openClipFile()" title="Click to open in external player">File: <span id="meta-filename">—</span></div>
           <div class="star-rating" id="editor-rating" onclick="event.stopPropagation()"></div>
+          <div class="result-toggle" id="editor-result">
+            <label class="result-win">
+              <input type="radio" name="result" value="win" onchange="setResult('win')"> Win
+            </label>
+            <label class="result-loss">
+              <input type="radio" name="result" value="loss" onchange="setResult('loss')"> Loss
+            </label>
+            <label class="result-dc">
+              <input type="radio" name="result" value="dc" onchange="setResult('dc')"> DC
+            </label>
+            <label>
+              <input type="radio" name="result" value="" onchange="setResult('')"> None
+            </label>
+          </div>
         </div>
         <textarea id="note-input" placeholder="Add a note about this clip..." disabled onblur="saveNote()"></textarea>
         <div class="editor-actions">
@@ -892,7 +968,10 @@
         const noteText = clip.note ? clip.note : 'No note';
         const noteClass = clip.note ? '' : ' empty';
         const rating = clip.rating || 0;
-        const ratingHtml = '<div class="star-rating-display">' + renderStarsDisplay(rating) + '</div>';
+        const resultBadge = clip.result
+          ? '<span class="result-badge ' + clip.result + '">' + clip.result + '</span>'
+          : '';
+        const ratingHtml = '<div class="star-rating-display">' + renderStarsDisplay(rating) + '</div>' + resultBadge;
 
         let actionsHtml = '';
         if (filterMode === 'deleted') {
@@ -917,9 +996,11 @@
           ? '<span class="drag-handle">&#x2630;</span>'
           : '';
 
+        const displayTitle = clip.title ? clip.title : clip.filename;
+
         div.innerHTML = dragHandle +
           '<div class="info">' +
-          '<div class="name">' + escapeHtml(clip.filename) + '</div>' +
+          '<div class="name">' + escapeHtml(displayTitle) + '</div>' +
           '<div class="note' + noteClass + '">' + escapeHtml(noteText) + '</div>' +
           '</div>' +
           '<div class="actions">' + actionsHtml + '</div>';
@@ -982,20 +1063,25 @@
         return;
       }
 
-      document.getElementById('editor-title').textContent = escapeHtml(clip.filename);
+      const displayTitle = clip.title || clip.filename;
       document.getElementById('meta-filename').textContent = escapeHtml(clip.filename);
-      document.getElementById('meta-id').textContent = escapeHtml(clip.id);
 
       const audioTrack = document.getElementById('audio-track').value;
       const videoSrc = '/clip/' + encodeURIComponent(clip.filename) + '?audio_track=' + audioTrack;
       const videoWrapper = document.getElementById('video-wrapper');
       videoWrapper.innerHTML = '<video src="' + videoSrc + '" controls></video>';
 
+      const titleInput = document.getElementById('title-input');
+      titleInput.value = displayTitle;
+      titleInput.disabled = false;
+      titleInput.placeholder = clip.filename;
+
       const noteInput = document.getElementById('note-input');
       noteInput.value = clip.note || '';
       noteInput.disabled = false;
 
       renderStarsInteractive(clip.rating || 0);
+      renderResult(clip.result || '');
       document.getElementById('save-status').textContent = '';
 
       if (clip.deleted) {
@@ -1018,6 +1104,15 @@
       videoWrapper.innerHTML = '<video src="' + videoSrc + '" controls></video>';
     }
 
+    async function openClipFile() {
+      if (!selectedClipId) return;
+      const res = await fetch('/api/clip/' + encodeURIComponent(selectedClipId) + '/open', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        alert('Could not open file: ' + (data.error || 'Unknown error'));
+      }
+    }
+
     async function saveNote() {
       if (!selectedClipId) return;
       const note = document.getElementById('note-input').value;
@@ -1032,6 +1127,23 @@
         await loadClips();
       } else {
         document.getElementById('save-status').textContent = 'Error saving';
+      }
+    }
+
+    async function saveTitle() {
+      if (!selectedClipId) return;
+      const title = document.getElementById('title-input').value;
+      const res = await fetch('/api/title', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedClipId, title: title })
+      });
+      if (res.ok) {
+        document.getElementById('save-status').textContent = 'Title saved';
+        setTimeout(() => { document.getElementById('save-status').textContent = ''; }, 2000);
+        await loadClips();
+      } else {
+        document.getElementById('save-status').textContent = 'Error saving title';
       }
     }
 
@@ -1225,10 +1337,12 @@
     }
 
     function resetEditor() {
-      document.getElementById('editor-title').textContent = 'No clip selected';
+      const titleInput = document.getElementById('title-input');
+      titleInput.value = 'No clip selected';
+      titleInput.disabled = true;
       document.getElementById('meta-filename').textContent = '—';
-      document.getElementById('meta-id').textContent = '—';
       document.getElementById('editor-rating').innerHTML = '';
+      renderResult('');
       document.getElementById('video-wrapper').innerHTML = '<div class="placeholder">Select a clip to preview</div>';
       const noteInput = document.getElementById('note-input');
       noteInput.value = '';
@@ -1256,6 +1370,28 @@
         star.dataset.value = i;
         star.onclick = () => setRating(i);
         container.appendChild(star);
+      }
+    }
+
+    function renderResult(result) {
+      const radios = document.querySelectorAll('input[name="result"]');
+      radios.forEach(radio => {
+        radio.checked = radio.value === result;
+      });
+    }
+
+    async function setResult(result) {
+      if (!selectedClipId) return;
+      const res = await fetch('/api/result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedClipId, result: result })
+      });
+      if (res.ok) {
+        renderResult(result);
+        document.getElementById('save-status').textContent = 'Result saved';
+        setTimeout(() => { document.getElementById('save-status').textContent = ''; }, 2000);
+        await loadClips();
       }
     }
 

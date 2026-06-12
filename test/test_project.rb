@@ -104,10 +104,11 @@ class TestProject < Minitest::Test
   def test_delete_clip_moves_to_trash
     create_clip_file('invasion_00001.mp4')
     project = InvasionExtractor::Project.new(@tmp_dir)
-    clip_path = project.clips[0]['path']
+    clip = project.clips[0]
+    resolved_path = project.resolve_clip_path(clip)
 
     assert project.delete_clip('invasion_00001')
-    refute File.exist?(clip_path)
+    refute File.exist?(resolved_path)
     assert File.exist?(File.join(@tmp_dir, '.trashed', 'invasion_00001.mp4'))
     assert project.find_clip('invasion_00001')['deleted']
     assert_equal [], project.clips
@@ -116,11 +117,12 @@ class TestProject < Minitest::Test
   def test_restore_clip
     create_clip_file('invasion_00001.mp4')
     project = InvasionExtractor::Project.new(@tmp_dir)
-    clip_path = project.clips[0]['path']
+    clip = project.clips[0]
+    resolved_path = project.resolve_clip_path(clip)
 
     project.delete_clip('invasion_00001')
     assert project.restore_clip('invasion_00001')
-    assert File.exist?(clip_path)
+    assert File.exist?(resolved_path)
     refute project.find_clip('invasion_00001')['deleted']
     assert_equal 1, project.clips.length
   end

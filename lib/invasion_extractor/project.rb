@@ -106,12 +106,30 @@ module InvasionExtractor
       true
     end
 
+    def update_result(clip_id, result)
+      clip = find_clip(clip_id)
+      return false unless clip
+
+      clip['result'] = %w[win loss dc].include?(result) ? result : nil
+      save!
+      true
+    end
+
+    def update_title(clip_id, title)
+      clip = find_clip(clip_id)
+      return false unless clip
+
+      clip['title'] = title.to_s.strip.empty? ? nil : title.to_s.strip
+      save!
+      true
+    end
+
     def delete_clip(clip_id)
       clip = find_clip(clip_id)
       return false unless clip
 
-      source_path = clip['path']
-      if File.exist?(source_path)
+      source_path = resolve_clip_path(clip)
+      if source_path && File.exist?(source_path)
         trash_dir = File.join(@folder_path, '.trashed')
         FileUtils.mkdir_p(trash_dir)
         FileUtils.mv(source_path, File.join(trash_dir, clip['filename']))
@@ -127,9 +145,9 @@ module InvasionExtractor
       return false unless clip
 
       trash_path = File.join(@folder_path, '.trashed', clip['filename'])
-      source_path = clip['path']
+      source_path = resolve_clip_path(clip)
 
-      if File.exist?(trash_path)
+      if File.exist?(trash_path) && source_path
         FileUtils.mv(trash_path, source_path)
       end
 
@@ -146,7 +164,7 @@ module InvasionExtractor
     end
 
     def group_clip_paths(group_name)
-      group_clips(group_name).map { |c| c['path'] }
+      group_clips(group_name).map { |c| resolve_clip_path(c) }.compact
     end
 
     def clip_groups(clip_id)
@@ -157,12 +175,27 @@ module InvasionExtractor
       @data['clips'].find { |c| c['id'] == clip_id }
     end
 
+    def resolve_clip_path(clip)
+      path = clip['path']
+      return nil if path.nil? || path.empty?
+      return path if path.start_with?('/')
+      File.join(@folder_path, path)
+    end
+
     def save!
       @data['updated_at'] = Time.now.iso8601
       File.write(@project_file, JSON.pretty_generate(@data))
     end
 
     private
+
+    def make_relative_path(path)
+      return path if path.nil? || path.empty?
+      # If already relative, return as-is
+      return path unless path.start_with?('/')
+      # Make relative to project folder
+      path.sub(@folder_path + '/', '')
+    end
 
     def load_or_initialize
       if File.exist?(@project_file)
@@ -192,23 +225,28 @@ module InvasionExtractor
         @data['clips'] << {
           'id' => File.basename(filename, '.*'),
           'filename' => filename,
-          'path' => path,
+          'path' => make_relative_path(path),
+          'title' => nil,
           'note' => '',
           'rating' => 0,
+          'result' => nil,
           'deleted' => false
         }
       end
 
-      # Ensure all clips have a rating field
+      # Ensure all clips have required fields and migrate absolute paths to relative
       @data['clips'].each do |clip|
+        clip['title'] = nil unless clip.key?('title')
         clip['rating'] = 0 unless clip.key?('rating')
+        clip['result'] = nil unless clip.key?('result')
+        clip['path'] = make_relative_path(clip['path'])
       end
 
       # Remove entries for files that no longer exist anywhere
       @data['clips'].reject! do |clip|
-        path = clip['path']
+        resolved = resolve_clip_path(clip)
         trash_path = File.join(@folder_path, '.trashed', clip['filename'])
-        !File.exist?(path) && !File.exist?(trash_path)
+        !File.exist?(resolved) && !File.exist?(trash_path)
       end
 
       save!

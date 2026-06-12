@@ -65,6 +65,22 @@ module InvasionExtractor
         json_response(clip)
       end
 
+      post '/api/clip/:id/open' do
+        clip = project.all_clips.find { |c| c['id'] == params['id'] }
+        halt 404, json_response({ error: 'Clip not found' }) unless clip
+
+        full_path = project.resolve_clip_path(clip)
+        halt 400, json_response({ error: 'File not found' }) unless full_path && File.exist?(full_path)
+
+        if RbConfig::CONFIG['host_os'] =~ /darwin/
+          system('open', full_path)
+        else
+          system('xdg-open', full_path)
+        end
+
+        json_response({ success: true, path: full_path })
+      end
+
       delete '/api/clip/:id' do
         clip = project.all_clips.find { |c| c['id'] == params['id'] }
         halt 404, json_response({ error: 'Clip not found' }) unless clip
@@ -118,6 +134,32 @@ module InvasionExtractor
         end
       end
 
+      post '/api/result' do
+        body = JSON.parse(request.body.read)
+        id = body['id']
+        result = body['result'].to_s
+
+        if project.update_result(id, result)
+          json_response({ success: true })
+        else
+          status 400
+          json_response({ error: 'Failed to update result' })
+        end
+      end
+
+      post '/api/title' do
+        body = JSON.parse(request.body.read)
+        id = body['id']
+        title = body['title'].to_s
+
+        if project.update_title(id, title)
+          json_response({ success: true })
+        else
+          status 400
+          json_response({ error: 'Failed to update title' })
+        end
+      end
+
       get '/api/groups' do
         json_response(project.groups)
       end
@@ -126,7 +168,9 @@ module InvasionExtractor
         stats = project.groups.map do |g|
           group_clips = project.group_clips(g['name'])
           total_duration = group_clips.sum do |c|
-            video = Video.new(c['path'])
+            resolved_path = project.resolve_clip_path(c)
+            next 0 unless resolved_path && File.exist?(resolved_path)
+            video = Video.new(resolved_path)
             meta = video.metadata
             meta && meta[:duration] ? meta[:duration] : 0
           end
