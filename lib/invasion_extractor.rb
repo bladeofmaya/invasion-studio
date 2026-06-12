@@ -27,6 +27,11 @@ require_relative 'invasion_extractor/ocr/tesseract_provider'
 require_relative 'invasion_extractor/cli'
 require_relative 'invasion_extractor/commands/base'
 require_relative 'invasion_extractor/commands/extract'
+require_relative 'invasion_extractor/commands/export_kdenlive'
+require_relative 'invasion_extractor/commands/concat'
+
+# Exporters
+require_relative 'invasion_extractor/kdenlive_exporter'
 
 module InvasionExtractor
   class Error < StandardError; end

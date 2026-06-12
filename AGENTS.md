@@ -22,7 +22,9 @@ lib/invasion_extractor/
 ├── cli.rb                   # CLI orchestrator (parses args, dispatches commands)
 ├── commands/
 │   ├── base.rb              # Abstract command base class
-│   └── extract.rb           # Extract/scan command implementation
+│   ├── extract.rb           # Extract/scan command implementation
+│   └── export_kdenlive.rb   # Kdenlive timeline export command
+├── kdenlive_exporter.rb     # Kdenlive MLT XML project generator
 ├── engine.rb                # High-level orchestration with 3-stage pipeline
 ├── video.rb                 # Video file representation & YAML caching
 ├── ocr_worker.rb            # Frame extraction (rawvideo pipe) and OCR processing
@@ -117,7 +119,26 @@ Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Outpu
   - Uses ffmpeg for lossless cutting (copy codec)
   - Writes ffmpeg logs alongside output files
 
-#### 7. OCR Providers (`ocr/`)
+#### 7. KdenliveExporter (`kdenlive_exporter.rb`)
+- **Responsibility**: Two-step export: splices clips into a single video, then generates a Kdenlive 26.04 `.kdenlive` project file
+- **Process**:
+  1. Discovers video files in the target folder (filtered by extension)
+  2. Sorts clips alphabetically by filename
+  3. Splices all clips into a single `combined.mp4` using ffmpeg concat (lossless, `-c copy`)
+  4. Uses `ffprobe` (via `Video#metadata`) to gather duration, resolution, and fps for the spliced video
+  5. Generates a Kdenlive 26.04-compatible MLT XML with the spliced video on the timeline:
+     - 6 chain definitions for the single video (5 for timeline tracks + 1 for project bin)
+     - 6 timeline track tractors (4 audio + 2 video) with proper filter structure
+     - Sequence tractor with UUID-as-ID and internal transitions
+     - `main_bin` with document properties, categories, and bin entries
+     - Project tractor referencing the sequence
+  6. Writes the project file to disk (overwrites if exists)
+- **Output**: 
+  - `combined.mp4` — spliced video in the input folder
+  - `timeline.kdenlive` — Kdenlive 26.04+ compatible MLT XML
+- **Design**: Self-contained class with no dependencies beyond existing `Video` metadata helper
+
+#### 8. OCR Providers (`ocr/`)
 - **Provider (Base)**: Abstract interface with `recognize(image_path)`
 - **TesseractProvider**: Default, uses RTesseract gem
 
@@ -159,6 +180,8 @@ Test suite uses Minitest with sample video files:
 - `test/test_video.rb` - Video metadata and frame loading tests
 - `test/test_cli.rb` - CLI parsing and dispatch tests
 - `test/test_commands.rb` - Command class tests
+- `test/test_kdenlive_exporter.rb` - Kdenlive exporter (splice + project generation) tests
+- `test/test_concat.rb` - Concat command tests
 
 Run tests: `rake test` (default task)
 
@@ -176,9 +199,23 @@ bin/invasion_extractor scan ~/Videos/Capture/*.mp4
 
 # Debug mode - see every matched frame and write YAML debug file
 bin/invasion_extractor extract -d ~/Videos/Capture/*.mp4
+
+# Export clips folder to Kdenlive project
+bin/invasion_extractor export-kdenlive ~/Videos/ER/clips
+
+# Export with custom output path and transition duration
+bin/invasion_extractor export-kdenlive -o ~/Videos/ER/project.kdenlive -t 3.0 ~/Videos/ER/clips
+
+# Concatenate clips into a single video (no re-encoding, with chapter markers)
+bin/invasion_extractor concat ~/Videos/ER/clips
+
+# Concat with custom output
+bin/invasion_extractor concat -o ~/Videos/ER/final.mp4 ~/Videos/ER/clips
 ```
 
 ### CLI Options
+
+#### Extract/Scan Options
 - `-p, --prefix PREFIX` - Output file prefix (default: invasion)
 - `-o, --outdir DIRECTORY` - Output directory (default: ./invasion_clips)
 - `--fps RATE` - Frame extraction rate (default: 2)
@@ -188,6 +225,12 @@ bin/invasion_extractor extract -d ~/Videos/Capture/*.mp4
 - `--continue-on-error` - Continue processing remaining videos if one fails
 - `-d, --debug` - Enable debug output (writes frame text to YAML)
 - `-q, --quiet` - Suppress non-error output
+
+#### Export-Kdenlive Options
+- `-o, --output FILE` - Output `.kdenlive` file path (default: `./timeline.kdenlive` in the input folder). Also generates `combined.mp4` (spliced video) in the input folder.
+
+#### Concat Options
+- `-o, --output FILE` - Output video file path (default: `./combined.mp4` in the input folder). Output includes chapter markers for each clip, visible in video players and editors that support MP4 chapters (e.g., VLC, mpv, DaVinci Resolve).
 
 ## Current Limitations
 
@@ -209,7 +252,10 @@ bin/invasion_extractor extract -d ~/Videos/Capture/*.mp4
 │       ├── [core files]
 │       ├── commands/
 │       │   ├── base.rb
-│       │   └── extract.rb
+│       │   ├── concat.rb
+│       │   ├── extract.rb
+│       │   └── export_kdenlive.rb
+│       ├── kdenlive_exporter.rb
 │       └── ocr/
 │           ├── provider.rb
 │           └── tesseract_provider.rb
@@ -232,4 +278,4 @@ bin/invasion_extractor extract -d ~/Videos/Capture/*.mp4
 - **Strategy**: Clip single vs multi-file generation
 - **Template Method**: Video loading with cache check
 - **Data Transfer Object**: Frame, Segment structs
-- **Command**: CLI command pattern (extract, scan)
+- **Command**: CLI command pattern (extract, scan, export-kdenlive, concat)

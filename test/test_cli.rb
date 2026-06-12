@@ -74,6 +74,18 @@ class TestCLI < Minitest::Test
     assert_equal InvasionExtractor::Commands::Extract, cli.send(:command_class_for, 'scan')
   end
 
+  def test_command_class_for_export_kdenlive
+    cli = InvasionExtractor::CLI.new([])
+    assert_equal InvasionExtractor::Commands::ExportKdenlive, cli.send(:command_class_for, 'export-kdenlive')
+  end
+
+  def test_detects_export_kdenlive_command
+    cli = InvasionExtractor::CLI.new(['export-kdenlive', '/tmp/clips'])
+    cli.send(:parse_global_options!)
+    cli.send(:detect_command!)
+    assert_equal 'export-kdenlive', cli.options[:command]
+  end
+
   def test_default_options_are_frozen
     assert InvasionExtractor::CLI::DEFAULT_OPTIONS.frozen?
   end

@@ -18,7 +18,7 @@ module InvasionExtractor
       ffmpeg_threads: 4
     }.freeze
 
-    VALID_COMMANDS = %w[extract scan].freeze
+    VALID_COMMANDS = %w[extract scan export-kdenlive concat].freeze
 
     attr_reader :options
 
@@ -74,6 +74,8 @@ module InvasionExtractor
     def command_class_for(command_name)
       case command_name
       when 'extract', 'scan' then Commands::Extract
+      when 'export-kdenlive' then Commands::ExportKdenlive
+      when 'concat' then Commands::Concat
       else Commands::Extract
       end
     end
@@ -87,6 +89,8 @@ module InvasionExtractor
       puts "Commands:"
       puts "  extract              Extract invasion clips from videos (default)"
       puts "  scan                 Scan videos and output invasion timestamps only"
+      puts "  export-kdenlive      Splice clips and create a Kdenlive project"
+      puts "  concat               Concatenate clips into a single video (no re-encoding)"
       puts ""
       puts "Options:"
       puts "  Output:"

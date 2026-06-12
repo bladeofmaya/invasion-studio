@@ -99,3 +99,43 @@ class TestCommandsExtract < Minitest::Test
     assert_equal 'scan', options[:command]
   end
 end
+
+class TestCommandsExportKdenlive < Minitest::Test
+  def test_build_parser_sets_output_option
+    options = { command: 'export-kdenlive' }
+    argv = ['-o', 'test.kdenlive', '/tmp/clips']
+    cmd = InvasionExtractor::Commands::ExportKdenlive.new(options, argv)
+
+    cmd.send(:parse_options!)
+
+    assert_equal 'test.kdenlive', options[:output]
+  end
+
+  def test_build_parser_sets_transition_duration
+    options = { command: 'export-kdenlive' }
+    argv = ['-t', '3.5', '/tmp/clips']
+    cmd = InvasionExtractor::Commands::ExportKdenlive.new(options, argv)
+
+    cmd.send(:parse_options!)
+
+    assert_equal 3.5, options[:transition_duration]
+  end
+
+  def test_validate_exits_when_no_folder
+    options = { command: 'export-kdenlive' }
+    argv = []
+    cmd = InvasionExtractor::Commands::ExportKdenlive.new(options, argv)
+
+    error = assert_raises(SystemExit) { cmd.send(:validate!) }
+    assert_equal 1, error.status
+  end
+
+  def test_validate_exits_when_invalid_folder
+    options = { command: 'export-kdenlive' }
+    argv = ['/nonexistent/folder']
+    cmd = InvasionExtractor::Commands::ExportKdenlive.new(options, argv)
+
+    error = assert_raises(SystemExit) { cmd.send(:validate!) }
+    assert_equal 1, error.status
+  end
+end
