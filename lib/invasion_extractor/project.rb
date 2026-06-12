@@ -124,6 +124,15 @@ module InvasionExtractor
       true
     end
 
+    def update_cuts(clip_id, cuts)
+      clip = find_clip(clip_id)
+      return false unless clip
+
+      clip['cuts'] = cuts
+      save!
+      true
+    end
+
     def delete_clip(clip_id)
       clip = find_clip(clip_id)
       return false unless clip
@@ -230,6 +239,7 @@ module InvasionExtractor
           'note' => '',
           'rating' => 0,
           'result' => nil,
+          'cuts' => [],
           'deleted' => false
         }
       end
@@ -239,6 +249,7 @@ module InvasionExtractor
         clip['title'] = nil unless clip.key?('title')
         clip['rating'] = 0 unless clip.key?('rating')
         clip['result'] = nil unless clip.key?('result')
+        clip['cuts'] = [] unless clip.key?('cuts')
         clip['path'] = make_relative_path(clip['path'])
       end
 

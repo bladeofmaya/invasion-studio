@@ -355,7 +355,7 @@
     }
 
     .video-wrapper {
-      height: 70%;
+      height: 65%;
       background: #000;
       display: flex;
       align-items: center;
@@ -373,9 +373,73 @@
       display: block;
     }
 
+    .video-controls {
+      height: 10%;
+      min-height: 60px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 6px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .video-controls .cut-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .video-controls .cut-row button {
+      padding: 2px 10px;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+    .video-controls .cut-timeline {
+      flex: 1;
+      height: 16px;
+      background: var(--surface-overlay);
+      border-radius: 3px;
+      position: relative;
+      overflow: hidden;
+      min-width: 80px;
+    }
+    .video-controls .cut-segment {
+      position: absolute;
+      height: 100%;
+      background: var(--danger);
+      opacity: 0.6;
+      border-radius: 2px;
+    }
+    .video-controls .cut-list-inline {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .video-controls .cut-list-inline .cut-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .video-controls .cut-list-inline .cut-item button {
+      padding: 0 4px;
+      font-size: 0.7rem;
+      background: transparent;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+    }
+    .video-controls .cut-list-inline .cut-item button:hover {
+      color: var(--danger-hover);
+    }
+
     .editor {
-      padding: 16px;
-      height: 30%;
+      padding: 12px 16px;
+      height: 25%;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -386,7 +450,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      margin-bottom: 6px;
     }
     .editor .title {
       font-size: 1rem;
@@ -411,7 +475,7 @@
     .editor .meta {
       display: flex;
       gap: 16px;
-      margin-bottom: 12px;
+      margin-bottom: 6px;
       font-size: 0.85rem;
       color: var(--text-muted);
       align-items: center;
@@ -634,6 +698,15 @@
     <div class="preview-panel" id="preview-panel">
       <div class="video-wrapper" id="video-wrapper">
         <div class="placeholder">Select a clip to preview</div>
+      </div>
+      <div class="video-controls" id="video-controls" style="display:none;">
+        <div class="cut-row">
+          <button class="secondary" onclick="markCutStart()">[ Mark</button>
+          <button class="secondary" onclick="markCutEnd()">] End</button>
+          <button class="secondary" onclick="clearCuts()">Clear</button>
+          <div class="cut-timeline" id="cut-timeline"></div>
+        </div>
+        <div class="cut-list-inline" id="cut-list"></div>
       </div>
       <div class="editor">
         <div class="editor-header">
@@ -1082,6 +1155,7 @@
 
       renderStarsInteractive(clip.rating || 0);
       renderResult(clip.result || '');
+      renderCuts(clip.cuts || []);
       document.getElementById('save-status').textContent = '';
 
       if (clip.deleted) {
@@ -1145,6 +1219,113 @@
       } else {
         document.getElementById('save-status').textContent = 'Error saving title';
       }
+    }
+
+    let currentCutStart = null;
+    let currentCuts = [];
+
+    function markCutStart() {
+      const video = document.querySelector('video');
+      if (!video) return;
+      currentCutStart = video.currentTime;
+      document.getElementById('save-status').textContent = 'Cut start: ' + formatTime(currentCutStart);
+    }
+
+    function markCutEnd() {
+      if (currentCutStart === null) {
+        alert('Press [ Mark Cut first to set a start point');
+        return;
+      }
+      const video = document.querySelector('video');
+      if (!video) return;
+      const end = video.currentTime;
+      if (end <= currentCutStart) {
+        alert('End time must be after start time');
+        return;
+      }
+      currentCuts.push({ start: currentCutStart, end: end });
+      currentCutStart = null;
+      renderCuts(currentCuts);
+      saveCuts();
+    }
+
+    function clearCuts() {
+      if (!confirm('Clear all cuts?')) return;
+      currentCuts = [];
+      currentCutStart = null;
+      renderCuts(currentCuts);
+      saveCuts();
+    }
+
+    function deleteCut(index) {
+      currentCuts.splice(index, 1);
+      renderCuts(currentCuts);
+      saveCuts();
+    }
+
+    async function saveCuts() {
+      if (!selectedClipId) return;
+      const res = await fetch('/api/cuts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedClipId, cuts: currentCuts })
+      });
+      if (res.ok) {
+        document.getElementById('save-status').textContent = 'Cuts saved';
+        setTimeout(() => { document.getElementById('save-status').textContent = ''; }, 2000);
+      } else {
+        document.getElementById('save-status').textContent = 'Error saving cuts';
+      }
+    }
+
+    function renderCuts(cuts) {
+      currentCuts = cuts;
+      const controls = document.getElementById('video-controls');
+      const timeline = document.getElementById('cut-timeline');
+      const list = document.getElementById('cut-list');
+
+      controls.style.display = 'block';
+
+      const video = document.querySelector('video');
+      const duration = video ? video.duration : 0;
+
+      if (duration > 0) {
+        timeline.innerHTML = '';
+        if (cuts && cuts.length > 0) {
+          cuts.forEach(cut => {
+            const left = (cut.start / duration) * 100;
+            const width = ((cut.end - cut.start) / duration) * 100;
+            const div = document.createElement('div');
+            div.className = 'cut-segment';
+            div.style.left = left + '%';
+            div.style.width = width + '%';
+            div.title = formatTime(cut.start) + ' - ' + formatTime(cut.end);
+            timeline.appendChild(div);
+          });
+        }
+      } else {
+        timeline.innerHTML = '<div style="font-size:0.75rem; color:var(--text-muted); padding:2px 6px;">Play video to see timeline</div>';
+      }
+
+      list.innerHTML = '';
+      if (cuts && cuts.length > 0) {
+        cuts.forEach((cut, index) => {
+          const item = document.createElement('span');
+          item.className = 'cut-item';
+          item.innerHTML = 'Cut ' + (index + 1) + ': ' + formatTime(cut.start) + ' - ' + formatTime(cut.end) +
+            ' <button onclick="deleteCut(' + index + ')">x</button>';
+          list.appendChild(item);
+        });
+      } else {
+        list.innerHTML = '<span style="opacity:0.5">No cuts defined</span>';
+      }
+    }
+
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      const ms = Math.floor((seconds % 1) * 100);
+      return m + ':' + (s < 10 ? '0' : '') + s + '.' + (ms < 10 ? '0' : '') + ms;
     }
 
     async function deleteSelected() {
@@ -1343,6 +1524,11 @@
       document.getElementById('meta-filename').textContent = '—';
       document.getElementById('editor-rating').innerHTML = '';
       renderResult('');
+      currentCutStart = null;
+      currentCuts = [];
+      document.getElementById('video-controls').style.display = 'none';
+      document.getElementById('cut-timeline').innerHTML = '';
+      document.getElementById('cut-list').innerHTML = '';
       document.getElementById('video-wrapper').innerHTML = '<div class="placeholder">Select a clip to preview</div>';
       const noteInput = document.getElementById('note-input');
       noteInput.value = '';

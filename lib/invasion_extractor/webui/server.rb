@@ -160,6 +160,19 @@ module InvasionExtractor
         end
       end
 
+      post '/api/cuts' do
+        body = JSON.parse(request.body.read)
+        id = body['id']
+        cuts = body['cuts']
+
+        if project.update_cuts(id, cuts)
+          json_response({ success: true })
+        else
+          status 400
+          json_response({ error: 'Failed to update cuts' })
+        end
+      end
+
       get '/api/groups' do
         json_response(project.groups)
       end
