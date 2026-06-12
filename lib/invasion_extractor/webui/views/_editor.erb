@@ -1,0 +1,28 @@
+<div class="editor">
+  <div class="editor-header">
+    <input type="text" id="title-input" placeholder="Clip title (optional)" disabled onblur="saveTitle()" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--input-border); border-radius: 4px; padding: 4px 10px; font-size: 0.9rem; flex: 1; min-width: 0; margin-right: 10px;">
+    <button id="delete-btn" class="danger delete-btn-small" onclick="deleteSelected()" style="display:none">Delete</button>
+    <button id="restore-btn" class="secondary delete-btn-small" onclick="restoreSelected()" style="display:none">Restore</button>
+  </div>
+  <textarea id="note-input" placeholder="Add a note about this clip..." disabled onblur="saveNote()"></textarea>
+  <div class="meta">
+    <div class="star-rating" id="editor-rating" onclick="event.stopPropagation()"></div>
+    <div class="result-toggle" id="editor-result">
+      <label class="result-win">
+        <input type="radio" name="result" value="win" onchange="setResult('win')"> Win
+      </label>
+      <label class="result-loss">
+        <input type="radio" name="result" value="loss" onchange="setResult('loss')"> Loss
+      </label>
+      <label class="result-dc">
+        <input type="radio" name="result" value="dc" onchange="setResult('dc')"> DC
+      </label>
+      <label>
+        <input type="radio" name="result" value="" onchange="setResult('')"> None
+      </label>
+    </div>
+  </div>
+  <div class="editor-actions">
+    <div class="status" id="save-status"></div>
+  </div>
+</div>

@@ -1,0 +1,30 @@
+<div class="clip-panel" id="clip-panel">
+  <div class="clip-panel-header">
+    <h2 id="panel-title">All Clips</h2>
+    <div class="filter-dropdown" id="filter-dropdown">
+      <select id="clip-filter" onchange="setFilter(this.value)">
+        <option value="everything">Everything</option>
+        <option value="unassigned">Unassigned</option>
+        <option value="assigned">Assigned</option>
+        <option value="deleted">Deleted</option>
+      </select>
+    </div>
+    <div id="group-export-controls" class="export-area" style="display:none">
+      <input type="text" id="export-filename" placeholder="combined (optional)">
+      <button class="primary" onclick="exportGroup()">Export</button>
+    </div>
+  </div>
+  <div class="clip-list" id="clip-list"></div>
+  <div class="group-grid" id="group-grid" style="display:none">
+    <div class="group-card new-group-card" id="new-group-card" onclick="showNewGroupFormInline()">
+      <div class="name" style="color:var(--text-secondary); text-align:center; margin:8px 0">+ New Group</div>
+    </div>
+    <div id="new-group-inline-form" style="display:none; grid-column:1 / -1; margin-bottom:16px;">
+      <div class="new-group-form" style="display:flex; gap:8px;">
+        <input type="text" id="new-group-name" placeholder="Group name" onkeydown="if(event.key==='Enter')createGroup()">
+        <button onclick="createGroup()">Add</button>
+        <button class="secondary" onclick="cancelNewGroupInline()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>

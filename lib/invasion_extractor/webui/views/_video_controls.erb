@@ -1,0 +1,21 @@
+<div class="video-controls" id="video-controls" style="display:none;">
+  <div class="video-meta-row">
+    <div class="audio-track-select">
+      <label>Audio:</label>
+      <select id="audio-track" onchange="changeAudioTrack()">
+        <option value="1">Track 1</option>
+        <option value="2">Track 2</option>
+        <option value="3">Track 3</option>
+        <option value="4" selected>Track 4</option>
+      </select>
+    </div>
+    <div class="file-link" onclick="openClipFile()" title="Click to open in external player">File: <span id="meta-filename">—</span></div>
+  </div>
+  <div class="cut-row">
+    <button class="secondary" onclick="markCutStart()">[ Mark</button>
+    <button class="secondary" onclick="markCutEnd()">] End</button>
+    <button class="secondary" onclick="clearCuts()">Clear</button>
+    <div class="cut-timeline" id="cut-timeline"></div>
+  </div>
+  <div class="cut-list-inline" id="cut-list"></div>
+</div>
