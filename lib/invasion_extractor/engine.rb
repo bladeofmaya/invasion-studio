@@ -109,10 +109,13 @@ module InvasionExtractor
       prefix = @options[:prefix] || 'invasion'
       FileUtils.mkdir_p(outdir)
 
+      start_index = find_highest_clip_number(outdir, prefix)
+
       puts "Extracting clips..." unless @options[:quiet]
+      puts "  Starting from #{prefix}_#{format('%05d', start_index + 1)}" unless @options[:quiet] || start_index == 0
 
       segs.each_with_index do |segment, index|
-        output_file = File.join(outdir, format("#{prefix}_%05d.mp4", index + 1))
+        output_file = File.join(outdir, format("#{prefix}_%05d.mp4", start_index + index + 1))
         clip = Clip.new(segment, @options)
 
         if clip.file_exists?(output_file)
@@ -124,6 +127,18 @@ module InvasionExtractor
       end
 
       puts "  #{segs.length} clips extracted" unless @options[:quiet]
+    end
+
+    def find_highest_clip_number(outdir, prefix)
+      return 0 unless Dir.exist?(outdir)
+
+      pattern = /^#{Regexp.escape(prefix)}_(\d{5})\.mp4$/
+      existing_numbers = Dir.entries(outdir).map do |entry|
+        match = entry.match(pattern)
+        match ? match[1].to_i : nil
+      end.compact
+
+      existing_numbers.empty? ? 0 : existing_numbers.max
     end
 
     def write_debug_file(video_path, frames)

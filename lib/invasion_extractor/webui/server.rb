@@ -267,7 +267,10 @@ module InvasionExtractor
 
       get '/clip/:filename' do
         path = File.join(settings.folder_path, params['filename'])
-        halt 404 unless File.exist?(path)
+        unless File.exist?(path)
+          path = File.join(settings.folder_path, '.trashed', params['filename'])
+          halt 404 unless File.exist?(path)
+        end
 
         audio_track = params['audio_track']
         if audio_track && audio_track.match?(/^\d+$/)

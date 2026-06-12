@@ -11,10 +11,10 @@ module InvasionExtractor
       clip_paths = @project.group_clip_paths(group_name)
       raise Error, "No clips in group '#{group_name}'" if clip_paths.empty?
 
-      output_dir = File.join(@project.folder_path, group_name)
+      output_dir = File.join(@project.folder_path, 'export')
       FileUtils.mkdir_p(output_dir)
 
-      output_basename ||= 'combined'
+      output_basename ||= group_name.downcase.gsub(/[^a-z0-9]+/, '_')
       spliced_path = File.join(output_dir, "#{output_basename}.mp4")
       kdenlive_path = File.join(output_dir, "#{output_basename}.kdenlive")
 
