@@ -52,18 +52,11 @@
       <div class="editor">
         <div class="editor-header">
           <input type="text" id="title-input" placeholder="Clip title (optional)" disabled onblur="saveTitle()" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--input-border); border-radius: 4px; padding: 4px 10px; font-size: 0.9rem; flex: 1; min-width: 0; margin-right: 10px;">
-          <div class="audio-track-select">
-            <label>Audio:</label>
-            <select id="audio-track" onchange="changeAudioTrack()">
-              <option value="1">Track 1</option>
-              <option value="2">Track 2</option>
-              <option value="3">Track 3</option>
-              <option value="4" selected>Track 4</option>
-            </select>
-          </div>
+          <button id="delete-btn" class="danger delete-btn-small" onclick="deleteSelected()" style="display:none">Delete</button>
+          <button id="restore-btn" class="secondary delete-btn-small" onclick="restoreSelected()" style="display:none">Restore</button>
         </div>
+        <textarea id="note-input" placeholder="Add a note about this clip..." disabled onblur="saveNote()"></textarea>
         <div class="meta">
-          <div style="cursor: pointer; text-decoration: underline; color: var(--text-secondary);" onclick="openClipFile()" title="Click to open in external player">File: <span id="meta-filename">—</span></div>
           <div class="star-rating" id="editor-rating" onclick="event.stopPropagation()"></div>
           <div class="result-toggle" id="editor-result">
             <label class="result-win">
@@ -79,10 +72,7 @@
               <input type="radio" name="result" value="" onchange="setResult('')"> None
             </label>
           </div>
-          <button id="delete-btn" class="danger delete-btn-small" onclick="deleteSelected()" style="display:none">Delete</button>
-          <button id="restore-btn" class="secondary delete-btn-small" onclick="restoreSelected()" style="display:none">Restore</button>
         </div>
-        <textarea id="note-input" placeholder="Add a note about this clip..." disabled onblur="saveNote()"></textarea>
         <div class="editor-actions">
           <div class="status" id="save-status"></div>
         </div>
@@ -91,6 +81,18 @@
         <div class="placeholder">Select a clip to preview</div>
       </div>
       <div class="video-controls" id="video-controls" style="display:none;">
+        <div class="video-meta-row">
+          <div class="audio-track-select">
+            <label>Audio:</label>
+            <select id="audio-track" onchange="changeAudioTrack()">
+              <option value="1">Track 1</option>
+              <option value="2">Track 2</option>
+              <option value="3">Track 3</option>
+              <option value="4" selected>Track 4</option>
+            </select>
+          </div>
+          <div class="file-link" onclick="openClipFile()" title="Click to open in external player">File: <span id="meta-filename">—</span></div>
+        </div>
         <div class="cut-row">
           <button class="secondary" onclick="markCutStart()">[ Mark</button>
           <button class="secondary" onclick="markCutEnd()">] End</button>

@@ -380,16 +380,28 @@
     }
 
     .video-controls {
-      height: 10%;
+      height: 15%;
       min-height: 60px;
       background: var(--surface);
       border-top: 1px solid var(--border);
       padding: 6px 16px;
-      display: flex;
+      display: flex !important;
       flex-direction: column;
       justify-content: center;
-      gap: 4px;
+      gap: 8px;
       flex-shrink: 0;
+    }
+    .video-controls .video-meta-row {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .video-controls .file-link {
+      cursor: pointer;
+      text-decoration: underline;
+      color: var(--text-secondary);
     }
     .video-controls .cut-row {
       display: flex;
@@ -525,7 +537,7 @@
       color: var(--text-muted);
     }
     .meta .delete-btn-small {
-      padding: 2px 8px;
+      padding: 5px 16px;
       font-size: 0.7rem;
       margin-left: auto;
     }
@@ -607,7 +619,7 @@
       color: var(--text-primary);
       border: 1px solid var(--border);
       border-radius: 4px;
-      padding: 8px 16px;
+      padding: 4px 16px;
       cursor: pointer;
       font-size: 0.9rem;
       transition: all 0.2s;
