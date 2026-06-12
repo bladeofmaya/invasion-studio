@@ -29,8 +29,14 @@ require_relative 'invasion_extractor/commands/base'
 require_relative 'invasion_extractor/commands/extract'
 require_relative 'invasion_extractor/commands/export_kdenlive'
 require_relative 'invasion_extractor/commands/concat'
+require_relative 'invasion_extractor/commands/webui'
 
-# Exporters
+# WebUI
+require_relative 'invasion_extractor/webui/server'
+
+# Project and Exporters
+require_relative 'invasion_extractor/project'
+require_relative 'invasion_extractor/project_exporter'
 require_relative 'invasion_extractor/kdenlive_exporter'
 
 module InvasionExtractor

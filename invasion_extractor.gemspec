@@ -20,6 +20,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'parallel', '~> 1.25'
   spec.add_dependency 'rtesseract', '~> 3.1.3'
   spec.add_dependency 'tty-progressbar', '~> 0.18'
+  spec.add_dependency 'sinatra', '~> 3.0'
+  spec.add_dependency 'puma', '~> 6.0'
 
   spec.add_development_dependency 'bundler', '~> 2.0'
   spec.add_development_dependency 'minitest', '~> 5.16'
