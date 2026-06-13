@@ -1,9 +1,10 @@
-<div class="w-1/2 h-full min-h-0 bg-surface-overlay border-l border-border flex flex-col" id="preview-panel" data-navigation-target="previewPanel">
+<div class="flex flex-col min-h-0 overflow-hidden bg-surface-overlay border-l border-border relative" id="preview-panel" data-navigation-target="previewPanel" data-controller="video-player" data-video-player-clip-id-value="" data-video-player-src-value="">
   <%= erb :_editor %>
-  <div class="flex-1 min-h-0 flex flex-col" data-controller="video-player" data-video-player-clip-id-value="" data-video-player-src-value="">
-    <div class="flex-1 min-h-0 bg-black flex items-center justify-center" id="video-wrapper" data-video-player-target="videoWrapper">
-      <div class="text-text-muted text-sm">Select a clip to preview</div>
-    </div>
-    <%= erb :_video_controls %>
+  <div class="flex-1 min-h-0 bg-black flex items-center justify-center" id="video-wrapper" data-video-player-target="videoWrapper">
+    <div class="text-text-muted text-sm">Select a clip to preview</div>
+  </div>
+  <%= erb :_video_controls %>
+  <div class="absolute inset-0 bg-surface-overlay/100 flex items-center justify-center z-10" data-video-player-target="placeholder">
+    <div class="text-text-muted text-lg font-medium">Select a clip to preview</div>
   </div>
 </div>

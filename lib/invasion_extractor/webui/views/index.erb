@@ -50,10 +50,10 @@
   </script>
   <script type="module" src="/stimulus.js"></script>
 </head>
-<body class="m-0 font-sans bg-app-bg text-text-primary h-screen flex flex-col overflow-hidden">
-  <div data-controller="navigation" data-navigation-current-view-value="all">
+<body class="m-0 font-sans bg-app-bg text-text-primary h-screen overflow-hidden">
+  <div class="h-full grid grid-rows-[auto_1fr]" data-controller="navigation" data-navigation-current-view-value="all">
     <%= erb :_header %>
-    <main class="flex flex-1 overflow-hidden min-h-0">
+    <main class="grid grid-cols-2 min-h-0 overflow-hidden">
       <%= erb :_clip_panel %>
       <%= erb :_preview_panel %>
     </main>
