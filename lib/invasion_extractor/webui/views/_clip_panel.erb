@@ -1,29 +1,29 @@
-<div class="clip-panel" id="clip-panel" data-controller="clip-list" data-clip-list-view-value="all" data-clip-list-filter-value="everything" data-clip-list-group-value="" data-clip-list-selected-clip-id-value="">
-  <div class="clip-panel-header">
-    <h2 id="panel-title" data-clip-list-target="panelTitle">All Clips</h2>
-    <div class="filter-dropdown" id="filter-dropdown" data-clip-list-target="filterDropdown">
-      <select id="clip-filter" data-clip-list-target="filterSelect" data-action="change->clip-list#setFilter">
+<div class="w-1/2 h-full min-h-0 flex flex-col overflow-hidden bg-app-bg" id="clip-panel" data-controller="clip-list" data-clip-list-view-value="all" data-clip-list-filter-value="everything" data-clip-list-group-value="" data-clip-list-selected-clip-id-value="">
+  <div class="px-4 py-3 border-b border-border flex justify-between items-center">
+    <h2 class="m-0 text-base text-text-muted" data-clip-list-target="panelTitle">All Clips</h2>
+    <div class="block" data-clip-list-target="filterDropdown" id="filter-dropdown">
+      <select class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="filterSelect" data-action="change->clip-list#setFilter" id="clip-filter">
         <option value="everything">Everything</option>
         <option value="unassigned">Unassigned</option>
         <option value="assigned">Assigned</option>
         <option value="deleted">Deleted</option>
       </select>
     </div>
-    <div id="group-export-controls" class="export-area" data-clip-list-target="groupExport" style="display:none">
-      <input type="text" id="export-filename" placeholder="combined (optional)">
-      <button class="primary" data-action="click->clip-list#exportGroup">Export</button>
+    <div class="hidden gap-2 items-center ml-auto" data-clip-list-target="groupExport" id="group-export-controls">
+      <input type="text" class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm w-40" id="export-filename" placeholder="combined (optional)">
+      <button class="bg-primary text-primary-fg border-none px-4 py-1.5 rounded text-sm font-semibold cursor-pointer hover:bg-primary-hover" data-action="click->clip-list#exportGroup">Export</button>
     </div>
   </div>
-  <div class="clip-list" id="clip-list" data-clip-list-target="container"></div>
-  <div class="group-grid" id="group-grid" data-controller="group-manager" data-group-manager-target="grid" data-navigation-target="groupGrid" style="display:none">
-    <div class="group-card new-group-card" id="new-group-card" data-group-manager-target="newGroupCard" data-navigation-target="newGroupCard" data-action="click->group-manager#showNewGroupForm">
-      <div class="name" style="color:var(--text-secondary); text-align:center; margin:8px 0">+ New Group</div>
+  <div class="flex-1 overflow-y-auto px-4 py-3 min-h-0" data-clip-list-target="container" id="clip-list"></div>
+  <div class="flex-1 overflow-y-auto p-4 grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 content-start hidden" data-controller="group-manager" data-group-manager-target="grid" data-navigation-target="groupGrid" id="group-grid">
+    <div class="border-2 border-dashed border-border bg-transparent flex items-center justify-center min-h-24 cursor-pointer hover:border-accent hover:translate-y-0" id="new-group-card" data-group-manager-target="newGroupCard" data-action="click->group-manager#showNewGroupForm">
+      <div class="text-base font-medium text-text-secondary">+ New Group</div>
     </div>
-    <div id="new-group-inline-form" data-group-manager-target="newGroupForm" data-navigation-target="newGroupForm" style="display:none; grid-column:1 / -1; margin-bottom:16px;">
-      <div class="new-group-form" style="display:flex; gap:8px;">
-        <input type="text" id="new-group-name" data-group-manager-target="newGroupInput" placeholder="Group name" data-action="keydown->group-manager#handleNewGroupKeydown">
-        <button data-action="click->group-manager#createGroup">Add</button>
-        <button class="secondary" data-action="click->group-manager#cancelNewGroupForm">Cancel</button>
+    <div class="hidden col-span-full mb-4" data-group-manager-target="newGroupForm" id="new-group-inline-form">
+      <div class="flex gap-2 items-center">
+        <input type="text" class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm w-36" data-group-manager-target="newGroupInput" placeholder="Group name" data-action="keydown->group-manager#handleNewGroupKeydown">
+        <button class="bg-surface-secondary text-text-primary border border-border px-4 py-1.5 rounded text-sm cursor-pointer hover:bg-surface-hover">Add</button>
+        <button class="bg-transparent border border-text-muted text-text-muted px-4 py-1.5 rounded text-sm cursor-pointer hover:border-text-primary hover:text-text-primary">Cancel</button>
       </div>
     </div>
   </div>

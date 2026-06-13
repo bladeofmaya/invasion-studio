@@ -4,7 +4,43 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Invasion Extractor</title>
-  <link rel="stylesheet" href="/app.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4/dist/index.global.js"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-app-bg: #1a171a;
+      --color-app-fg: #E8E8E0;
+      --color-surface: #242024;
+      --color-surface-secondary: #2D2429;
+      --color-surface-hover: #362A32;
+      --color-surface-active: rgba(102, 45, 109, 0.2);
+      --color-surface-overlay: #1E1A1E;
+      --color-border: #3D3540;
+      --color-border-subtle: #2D2830;
+      --color-border-active: #7B3D82;
+      --color-primary: #7B3D82;
+      --color-primary-hover: #955A9C;
+      --color-primary-fg: #ffffff;
+      --color-secondary: #5A1A3D;
+      --color-secondary-hover: #6B2348;
+      --color-secondary-fg: #ffffff;
+      --color-danger: #EF4444;
+      --color-danger-hover: #F87171;
+      --color-danger-fg: #ffffff;
+      --color-success: #22C55E;
+      --color-success-hover: #4ADE80;
+      --color-success-fg: #1a171a;
+      --color-text-primary: #E8E8E0;
+      --color-text-secondary: #D1D1C8;
+      --color-text-muted: #9CA3AF;
+      --color-text-disabled: #4B5563;
+      --color-input-bg: #2A252A;
+      --color-input-border: #4A4A52;
+      --color-input-focus-ring: #7B3D82;
+      --color-accent: #7B3D82;
+      --color-accent-hover: #955A9C;
+      --color-star-empty: #4A4A52;
+    }
+  </style>
   <script type="importmap">
   {
     "imports": {
@@ -14,10 +50,10 @@
   </script>
   <script type="module" src="/stimulus.js"></script>
 </head>
-<body>
+<body class="m-0 font-sans bg-app-bg text-text-primary h-screen flex flex-col overflow-hidden">
   <div data-controller="navigation" data-navigation-current-view-value="all">
     <%= erb :_header %>
-    <main>
+    <main class="flex flex-1 overflow-hidden min-h-0">
       <%= erb :_clip_panel %>
       <%= erb :_preview_panel %>
     </main>

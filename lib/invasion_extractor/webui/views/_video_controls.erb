@@ -1,21 +1,21 @@
-<div class="video-controls" id="video-controls" data-video-player-target="controls" style="display:none;">
-  <div class="video-meta-row">
-    <div class="audio-track-select">
+<div class="flex-shrink-0 bg-surface border-t border-border px-4 py-1.5 flex flex-col justify-center gap-2" id="video-controls" data-video-player-target="controls" style="display:none;">
+  <div class="flex gap-4 items-center text-sm text-text-muted">
+    <div class="flex items-center gap-1.5 text-sm text-text-muted">
       <label>Audio:</label>
-      <select id="audio-track" data-video-player-target="audioTrack" data-action="change->video-player#changeAudioTrack">
+      <select class="bg-input-bg text-text-primary border border-input-border px-2 py-1 rounded text-sm" data-video-player-target="audioTrack" data-action="change->video-player#changeAudioTrack">
         <option value="1">Track 1</option>
         <option value="2">Track 2</option>
         <option value="3">Track 3</option>
         <option value="4" selected>Track 4</option>
       </select>
     </div>
-    <div class="file-link" data-action="click->video-player#openFile" title="Click to open in external player">File: <span id="meta-filename" data-video-player-target="filename">—</span></div>
+    <div class="cursor-pointer underline text-text-secondary" data-action="click->video-player#openFile" title="Click to open in external player">File: <span class="text-text-muted" id="meta-filename" data-video-player-target="filename">—</span></div>
   </div>
-  <div class="cut-row">
-    <button class="secondary" data-action="click->video-player#markCutStart">[ Mark</button>
-    <button class="secondary" data-action="click->video-player#markCutEnd">] End</button>
-    <button class="secondary" data-action="click->video-player#clearCuts">Clear</button>
-    <div class="cut-timeline" id="cut-timeline" data-video-player-target="timeline"></div>
+  <div class="flex gap-2 items-center">
+    <button class="bg-surface-secondary text-text-primary border border-border px-2.5 py-0.5 rounded text-xs cursor-pointer hover:bg-surface-hover whitespace-nowrap" data-action="click->video-player#markCutStart">[ Mark</button>
+    <button class="bg-surface-secondary text-text-primary border border-border px-2.5 py-0.5 rounded text-xs cursor-pointer hover:bg-surface-hover whitespace-nowrap" data-action="click->video-player#markCutEnd">] End</button>
+    <button class="bg-surface-secondary text-text-primary border border-border px-2.5 py-0.5 rounded text-xs cursor-pointer hover:bg-surface-hover whitespace-nowrap" data-action="click->video-player#clearCuts">Clear</button>
+    <div class="flex-1 h-4 bg-surface-overlay rounded relative overflow-hidden min-w-20" data-video-player-target="timeline"></div>
   </div>
-  <div class="cut-list-inline" id="cut-list" data-video-player-target="cutList"></div>
+  <div class="flex gap-3 overflow-x-auto whitespace-nowrap text-xs text-text-muted" data-video-player-target="cutList"></div>
 </div>

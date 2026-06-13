@@ -1,8 +1,8 @@
-<header>
-  <div class="tabs" id="tabs">
-    <div class="tab active" data-navigation-target="tab" data-view="all" data-action="click->navigation#switchView">All Clips</div>
-    <div class="tab" data-navigation-target="tab" data-view="groups" data-action="click->navigation#switchView">Groups</div>
+<header class="bg-surface border-b border-border px-4 py-3 flex items-center gap-2 shrink-0">
+  <div class="flex gap-1">
+    <div class="px-4 py-2 rounded cursor-pointer bg-surface-secondary text-text-muted text-sm transition-all whitespace-nowrap hover:bg-surface-hover hover:text-text-primary data-[active]:bg-surface-hover data-[active]:text-text-primary data-[active]:font-semibold data-[active]:shadow-[inset_0_-2px_0_var(--color-accent)]" data-navigation-target="tab" data-view="all" data-action="click->navigation#switchView">All Clips</div>
+    <div class="px-4 py-2 rounded cursor-pointer bg-surface-secondary text-text-muted text-sm transition-all whitespace-nowrap hover:bg-surface-hover hover:text-text-primary data-[active]:bg-surface-hover data-[active]:text-text-primary data-[active]:font-semibold data-[active]:shadow-[inset_0_-2px_0_var(--color-accent)]" data-navigation-target="tab" data-view="groups" data-action="click->navigation#switchView">Groups</div>
   </div>
-  <button class="back-btn" id="back-btn" data-navigation-target="backBtn" data-action="click->navigation#goBack" style="display:none">&larr; Back</button>
-  <div class="tool-name" style="margin-left: auto; font-size: 1.1rem; font-weight: 700; color: var(--color-accent); letter-spacing: 0.02em;">Invasion Studio</div>
+  <button class="bg-surface-secondary text-text-primary border-none px-4 py-2 rounded text-sm cursor-pointer mr-2 hover:bg-surface-hover" data-navigation-target="backBtn" data-action="click->navigation#goBack" style="display:none">&larr; Back</button>
+  <div class="ml-auto text-lg font-bold text-accent tracking-wide">Invasion Studio</div>
 </header>
