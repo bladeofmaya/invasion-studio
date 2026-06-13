@@ -69,6 +69,34 @@ It then automatically cuts your video into individual invasion clips, adding a 1
 
 ---
 
+## Invasion Studio (WebUI)
+
+After extracting clips, organize, review, and export them with the built-in browser-based studio.
+
+![Invasion Studio](images/invasion-studio.png)
+
+### Features
+
+- **Browse & Organize** — View all clips with titles, notes, star ratings, and win/loss/dc tags
+- **Groups** — Create groups to organize invasions by theme, build, or session
+- **Video Preview** — Watch clips directly in the browser with audio track switching
+- **Cut Editor** — Mark start/end cut points and export only the best moments
+- **Export** — Export groups as a single spliced video with a Kdenlive timeline project
+
+### How to Run
+
+```bash
+# Start the studio from your clips folder
+bin/invasion_extractor webui ~/Videos/ER/clips
+
+# Start on a custom port
+bin/invasion_extractor webui -p 8080 ~/Videos/ER/clips
+```
+
+Then open `http://localhost:4567` (or your custom port) in your browser.
+
+---
+
 ## Full CLI Reference
 
 ### Command Structure
@@ -83,6 +111,9 @@ bin/invasion_extractor [COMMAND] [OPTIONS] [VIDEO_FILES...]
 |---------|-------------|
 | `extract` | Extract invasion clips (default) |
 | `scan` | Scan videos and show timestamps only |
+| `webui` | Start the Invasion Studio browser interface |
+| `export-kdenlive` | Export clips to a Kdenlive timeline |
+| `concat` | Concatenate clips into a single video |
 
 ### Complete Flag Reference
 
