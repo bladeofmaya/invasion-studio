@@ -1,6 +1,6 @@
 # Elden Ring Invasion Extractor
 
-Automatically detect and extract invasion clips from your Elden Ring gameplay footage. This Ruby gem scans your recordings using OCR (Optical Character Recognition) to find invasion start/end points and cuts them into separate video files — perfect for content creators who want to streamline their editing workflow.
+Automatically detect and extract invasion clips from your Elden Ring gameplay footage. This Ruby gem scans your recordings using OCR (Optical Character Recognition) to find invasion start/end points, cuts them into separate video files, and provides a browser-based studio to organize, review, and export them — perfect for content creators who want to streamline their editing workflow.
 
 [📺 Watch the demo](https://www.youtube.com/watch?v=-G9ARNrhMOI)
 
@@ -33,26 +33,18 @@ cd invasion_extractor
 bundle install
 ```
 
-### Basic Usage
+### Typical Workflow
 
 ```bash
-# Extract invasions from a single video
-bin/invasion_extractor video.mp4
-
-# Extract with custom prefix and output directory
+# 1. Extract invasions from your recordings
 bin/invasion_extractor --prefix ps-daggers-tt-04 --outdir ~/Videos/ER/clips ~/Videos/Capture/*.mp4
 
-# Scan only - find invasions without extracting
-bin/invasion_extractor scan ~/Videos/Capture/*.mp4
-```
+# 2. Open the Invasion Studio to organize, review, and tag clips
+bin/invasion_extractor webui ~/Videos/ER/clips
 
-**Output:**
-```
-~/Videos/ER/clips/
-├── ps-daggers-tt-04_00001.mp4
-├── ps-daggers-tt-04_00002.mp4
-├── ps-daggers-tt-04_00003.mp4
-└── ...
+# 3. Export a group to a single video + Kdenlive timeline
+# (Done from the studio UI — or via CLI)
+bin/invasion_extractor export-kdenlive ~/Videos/ER/clips
 ```
 
 **Pro tip:** If OBS splits your recordings into segments (e.g., 60-minute chunks), pass all files in order. The tool detects invasions that span across files and combines them automatically.
@@ -117,6 +109,8 @@ bin/invasion_extractor [COMMAND] [OPTIONS] [VIDEO_FILES...]
 
 ### Complete Flag Reference
 
+#### Extract / Scan Flags
+
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-h, --help` | — | Show help message and exit |
@@ -130,12 +124,24 @@ bin/invasion_extractor [COMMAND] [OPTIONS] [VIDEO_FILES...]
 | `--pad-start SECONDS` | `10.0` | Seconds to include before invasion start |
 | `--pad-end SECONDS` | `7.5` | Seconds to include after invasion end |
 | `--continue-on-error` | Off | Continue processing remaining videos if one fails |
+| `--ffmpeg-threads N` | `4` | ffmpeg encoding threads |
+| `--hwaccel` | Off | Enable VAAPI hardware acceleration |
+
+#### Export & WebUI Flags
+
+| Flag | Command | Description |
+|------|---------|-------------|
+| `-o, --output FILE` | `export-kdenlive`, `concat` | Output file path |
+| `-t, --transition SECONDS` | `export-kdenlive` | Transition duration (default: 2.5) |
+| `-p, --port PORT` | `webui` | Server port (default: 4567) |
 
 ### Flag Details
 
 **`--fps RATE`** — Controls how many frames per second are extracted from the video for OCR. The default `2` means one frame every 0.5 seconds. Increasing to `4` or `5` improves detection accuracy for very short invasions but increases processing time linearly. Decreasing to `1` speeds things up but may miss brief text flashes.
 
 **`--debug`** — Enables two things: (1) prints every matched start/end frame with its exact timestamp and raw OCR text so you can inspect why an invasion was missed, and (2) writes a `<video_hash>.debug.yml` file containing every extracted frame's timestamp and detected text.
+
+**`--hwaccel`** — Enables VAAPI hardware acceleration for faster ffmpeg encoding. Requires a compatible GPU and drivers.
 
 ---
 
@@ -183,16 +189,32 @@ bin/invasion_extractor -d ~/Videos/Capture/*.mp4
 # Plus a .debug.yml file with every frame's text
 ```
 
+### Export & Concatenate
+
+```bash
+# Export clips folder to a Kdenlive timeline
+bin/invasion_extractor export-kdenlive ~/Videos/ER/clips
+
+# Export with custom output path and transition duration
+bin/invasion_extractor export-kdenlive -o ~/Videos/ER/project.kdenlive -t 3.0 ~/Videos/ER/clips
+
+# Concatenate all clips into a single video (no re-encoding, with chapter markers)
+bin/invasion_extractor concat ~/Videos/ER/clips
+
+# Concat with custom output
+bin/invasion_extractor concat -o ~/Videos/ER/final.mp4 ~/Videos/ER/clips
+```
+
 ### Cache Management
 
-OCR results are cached automatically in `~/.invasion_extractor/cache/`. To force re-processing:
+OCR results are cached automatically in `/dev/shm/invasion_extractor_cache/`. To force re-processing:
 
 ```bash
 # Skip cache for this run
 bin/invasion_extractor --no-cache ~/Videos/Capture/*.mp4
 
 # Clear cache manually
-rm -rf ~/.invasion_extractor/cache/*.yml
+rm -rf /dev/shm/invasion_extractor_cache/*.yml
 ```
 
 ---
@@ -203,15 +225,16 @@ rm -rf ~/.invasion_extractor/cache/*.yml
 |------------|---------|
 | **Resolution** | Optimized for 1440p (2560×1440), works at 1080p and 720p |
 | **Framerate** | 30fps or 60fps |
-| **Platform** | macOS (tested), Linux & Windows should work |
+| **Platform** | macOS and Linux (tested), Windows should work |
 | **Language** | English only (for now) |
 | **Ruby** | 3.3+ |
+| **Browsers** | Any modern browser (Chrome, Firefox, Safari, Edge) |
 
 ### Known Limitations
 
 - **UI Overlays**: PSN quick menu or other overlays covering game text can cause missed detections
 - **Text Position**: Invasion text must be visible — if you're in a menu when it appears, detection may fail
-- **Performance**: Processing a 60-minute video takes ~30-60 seconds on CPU
+- **Performance**: OCR processing averages ~0.18s per frame on CPU. A 60-minute video at 2fps extracts ~7200 frames, taking approximately 20 minutes. Enable `--hwaccel` or use a faster machine for large batches.
 
 ---
 
@@ -223,7 +246,10 @@ lib/invasion_extractor/
 ├── cli.rb                   # CLI orchestrator (parses args, dispatches commands)
 ├── commands/
 │   ├── base.rb              # Abstract command base class
-│   └── extract.rb           # Extract/scan command implementation
+│   ├── extract.rb           # Extract/scan command implementation
+│   ├── export_kdenlive.rb # Kdenlive timeline export
+│   ├── concat.rb           # Concatenate clips into single video
+│   └── webui.rb            # WebUI server launcher
 ├── engine.rb                # High-level orchestration with 3-stage pipeline
 ├── video.rb                 # Video file representation & YAML caching
 ├── ocr_worker.rb            # Frame extraction (rawvideo pipe) and OCR processing
@@ -232,9 +258,16 @@ lib/invasion_extractor/
 ├── clip.rb                  # Video clip generation (ffmpeg)
 ├── time_helper.rb           # Time manipulation utilities
 ├── version.rb               # Version constant
-└── ocr/
-    ├── provider.rb          # Abstract OCR interface
-    └── tesseract_provider.rb# Tesseract OCR implementation (default)
+├── project.rb               # Project data model (clips, groups, metadata)
+├── project_exporter.rb      # Group export to spliced video + Kdenlive
+├── kdenlive_exporter.rb     # Kdenlive MLT XML project generator
+├── ocr/
+│   ├── provider.rb          # Abstract OCR interface
+│   └── tesseract_provider.rb # Tesseract OCR implementation (default)
+└── webui/                   # Browser-based studio
+    ├── server.rb            # Sinatra API and static file serving
+    ├── views/               # ERB templates
+    └── public/              # Stimulus.js controllers + CSS
 ```
 
 ### Data Flow
@@ -244,6 +277,8 @@ Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Outpu
      ↓            ↓          ↓         ↓          ↓       ↓
    ffmpeg    rawvideo    Cache    Regex     Struct   ffmpeg
    pipe        pipe     (YAML)
+
+Extracted Clips → Project.json → WebUI → Groups → Export (Spliced + Kdenlive)
 ```
 
 ---
@@ -272,9 +307,10 @@ puts result
 
 Contributions welcome! Areas that need help:
 
-- **Windows/Linux testing**: Currently only tested on macOS
+- **Windows testing**: Primarily tested on macOS and Linux
 - **Multi-language support**: Japanese, German, French, etc.
 - **OCR accuracy**: Tuning crop regions for better text detection
+- **GPU acceleration**: EasyOCR/ONNX providers for faster processing
 
 Open an issue or submit a PR at [github.com/bladeofmaya/invasion_extractor](https://github.com/bladeofmaya/invasion_extractor).
 
