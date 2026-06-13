@@ -38,6 +38,30 @@ lib/invasion_extractor/
     └── tesseract_provider.rb# Tesseract OCR implementation (default)
 ```
 
+### WebUI Components
+
+```
+lib/invasion_extractor/webui/
+├── server.rb                # Sinatra app, API routes, static file serving
+├── views/
+│   ├── index.erb            # Main page layout (import map, controller wrapper)
+│   ├── _header.erb          # Tab navigation (All Clips / Groups), back button
+│   ├── _clip_panel.erb      # Clip list, filter dropdown, group grid, export controls
+│   ├── _preview_panel.erb   # Editor + video player wrapper
+│   ├── _editor.erb          # Title, note, rating, result, delete/restore
+│   └── _video_controls.erb # Audio track, file link, cut markers, timeline
+├── public/
+│   ├── app.css              # Styling
+│   ├── stimulus.js          # Stimulus bootstrap (imports + registers all controllers)
+│   └── controllers/
+│       ├── application_controller.js    # Base class with shared utilities (getNavState, resetEditor, escapeHtml, formatDuration)
+│       ├── video_player_controller.js   # Video playback, audio track switching, cut management
+│       ├── editor_controller.js           # Title, note, rating, result CRUD
+│       ├── clip_list_controller.js       # Clip list rendering, filtering, drag-sort, group assignment, export
+│       ├── navigation_controller.js       # Tab switching, view management, visibility control
+│       └── group_manager_controller.js   # Group grid, create, rename, delete, inline rename
+```
+
 ### Data Flow
 
 ```
@@ -141,6 +165,108 @@ Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Outpu
 #### 8. OCR Providers (`ocr/`)
 - **Provider (Base)**: Abstract interface with `recognize(image_path)`
 - **TesseractProvider**: Default, uses RTesseract gem
+
+### WebUI Architecture
+
+The WebUI is a single-page application built with **Sinatra** and **Stimulus.js** (Hotwire stack). It uses an import map to load `@hotwired/stimulus` from CDN. No build step (esbuild, webpack) is required.
+
+#### Server (`server.rb`)
+- **Responsibility**: Sinatra API and static file serving
+- **Routes**:
+  - `GET /` — Renders the main page with embedded ERB partials
+  - `GET /api/clips` — Returns clips (with optional group/all/deleted filters)
+  - `GET /api/clip/:id` — Returns a single clip's metadata
+  - `POST /api/clip/:id/open` — Opens the clip file in the system's default video player
+  - `DELETE /api/clip/:id` — Deletes (moves to trash) or restores a clip
+  - `POST /api/reorder` — Reorders clips within a group (drag-and-drop)
+  - `POST /api/note` — Updates a clip's note
+  - `POST /api/rating` — Updates a clip's rating (1-5 stars)
+  - `POST /api/result` — Updates a clip's result (win/loss/dc/none)
+  - `POST /api/title` — Updates a clip's title
+  - `POST /api/cuts` — Updates a clip's cut markers
+  - `GET /api/groups` — Returns all groups
+  - `GET /api/groups/stats` — Returns group statistics (clip count, total duration)
+  - `POST /api/groups` — Creates a new group
+  - `POST /api/groups/rename` — Renames a group
+  - `DELETE /api/groups/:name` — Deletes a group
+  - `POST /api/group/:name/add` — Adds a clip to a group
+  - `POST /api/group/:name/remove` — Removes a clip from a group
+  - `POST /api/export` — Exports a group to spliced video + Kdenlive project
+  - `GET /clip/:filename` — Serves a clip video (with optional audio track selection)
+- **Design**: Stateless API with a `Project` instance holding data; all mutations return JSON
+
+#### Stimulus Controllers
+
+All controllers extend `ApplicationController` (base class with shared utilities).
+
+**1. `navigation` controller (orchestrates the app shell)**
+- **Targets**: `tab`, `backBtn`, `groupGrid`, `previewPanel`, `newGroupCard`, `newGroupForm`
+- **Values**: `currentView` (all/groups/group-detail), `selectedGroup`
+- **Actions**: `switchView`, `goBack`, `openGroup`
+- **Responsibilities**:
+  - Tab switching (All Clips / Groups)
+  - Back button navigation (group-detail → groups)
+  - Active tab styling
+  - Visibility control for all regions (group-grid, preview-panel, etc.)
+  - Clip-list sync when view changes
+  - Editor reset on view change
+  - `editor:refresh` event listener (handles deleted/restored clip refresh)
+
+**2. `clip-list` controller (manages the clip list panel)**
+- **Targets**: `container`, `panelTitle`, `filterDropdown`, `filterSelect`, `groupExport`
+- **Values**: `view`, `filter`, `group`, `selectedClipId`
+- **Actions**: `setFilter`, `selectClip`, `exportGroup`, `reorderClip`, `restoreClip`, `addToGroup`, `removeFromGroup`
+- **Responsibilities**:
+  - Fetches and renders clips from `/api/clips`
+  - Filtering (everything, unassigned, assigned, deleted)
+  - Selection management (updates selected class, triggers video-player + editor)
+  - Drag-and-drop reordering in group detail view
+  - Group assignment (with inline new group creation)
+  - Export group to spliced video + Kdenlive project
+  - Panel title and visibility updates
+
+**3. `editor` controller (manages the clip editor panel)**
+- **Targets**: `titleInput`, `noteInput`, `ratingContainer`, `resultContainer`, `deleteBtn`, `restoreBtn`, `saveStatus`
+- **Values**: `clipId`
+- **Actions**: `saveTitle`, `saveNote`, `setRating`, `setResult`, `deleteClip`, `restoreClip`
+- **Responsibilities**:
+  - Title/note auto-save on blur
+  - Star rating clicks (reads `data-value` from clicked star)
+  - Result toggle (win/loss/dc/none) via radio button change events
+  - Delete/Restore buttons with confirmation
+  - Save status with auto-clear timeout
+  - Dispatches `editor:refresh` events after saves/deletes/restores
+
+**4. `video-player` controller (manages the video preview)**
+- **Targets**: `videoWrapper`, `controls`, `audioTrack`, `filename`, `timeline`, `cutList`
+- **Values**: `clipId`, `src`, `cuts`
+- **Actions**: `changeAudioTrack`, `openFile`, `markCutStart`, `markCutEnd`, `clearCuts`, `deleteCut`
+- **Responsibilities**:
+  - Video loading with audio track switching (preserves playback time)
+  - Cut marking (start/end) and deletion
+  - Cut timeline rendering overlaid on a progress bar
+  - Server persistence of cuts via `/api/cuts`
+  - File opening in external player
+  - Status dispatching (custom events for save status)
+
+**5. `group-manager` controller (manages the group grid)**
+- **Targets**: `grid`, `newGroupCard`, `newGroupForm`, `newGroupInput`
+- **Actions**: `showNewGroupForm`, `cancelNewGroupForm`, `createGroup`, `handleNewGroupKeydown`, `deleteGroup`, `startRename`, `doRename`
+- **Responsibilities**:
+  - Fetches and renders group grid from `/api/groups` and `/api/groups/stats`
+  - Inline rename form with Enter/Escape key handling
+  - New group creation with inline form
+  - Group deletion with confirmation
+  - Group rename with navigation sync (updates selected group name if currently open)
+  - Group opening (dispatches to `navigation` controller via dataset value changes)
+  - `groups:refresh` and `nav:changed` event listeners
+
+#### Communication Pattern
+- **Custom events** for cross-controller communication:
+  - `editor:refresh` — Editor triggers after save/delete/restore; `navigation` listens to refresh clip list
+  - `groups:refresh` — Any controller triggers after group mutation; `group-manager` listens to re-render
+  - `nav:changed` — Navigation triggers on view change; `group-manager` and `clip-list` listen
+  - `clip-list:refresh` — Any controller triggers; `clip-list` listens to re-fetch and render
 
 ### Shared Utilities
 
@@ -256,9 +382,28 @@ bin/invasion_extractor concat -o ~/Videos/ER/final.mp4 ~/Videos/ER/clips
 │       │   ├── extract.rb
 │       │   └── export_kdenlive.rb
 │       ├── kdenlive_exporter.rb
-│       └── ocr/
-│           ├── provider.rb
-│           └── tesseract_provider.rb
+│       ├── ocr/
+│       │   ├── provider.rb
+│       │   └── tesseract_provider.rb
+│       └── webui/           # WebUI components
+│           ├── server.rb
+│           ├── views/
+│           │   ├── index.erb
+│           │   ├── _header.erb
+│           │   ├── _clip_panel.erb
+│           │   ├── _preview_panel.erb
+│           │   ├── _editor.erb
+│           │   └── _video_controls.erb
+│           └── public/
+│               ├── app.css
+│               ├── stimulus.js
+│               └── controllers/
+│                   ├── application_controller.js
+│                   ├── video_player_controller.js
+│                   ├── editor_controller.js
+│                   ├── clip_list_controller.js
+│                   ├── navigation_controller.js
+│                   └── group_manager_controller.js
 ├── test/
 │   ├── test_helper.rb
 │   ├── test_*.rb             # Test files

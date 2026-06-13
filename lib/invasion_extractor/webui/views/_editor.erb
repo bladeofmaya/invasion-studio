@@ -1,28 +1,34 @@
-<div class="editor">
+<div class="editor" data-controller="editor" data-editor-clip-id-value="">
   <div class="editor-header">
-    <input type="text" id="title-input" placeholder="Clip title (optional)" disabled onblur="saveTitle()" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--input-border); border-radius: 4px; padding: 4px 10px; font-size: 0.9rem; flex: 1; min-width: 0; margin-right: 10px;">
-    <button id="delete-btn" class="danger delete-btn-small" onclick="deleteSelected()" style="display:none">Delete</button>
-    <button id="restore-btn" class="secondary delete-btn-small" onclick="restoreSelected()" style="display:none">Restore</button>
+    <input type="text" id="title-input" data-editor-target="titleInput" placeholder="Clip title (optional)" disabled data-action="blur->editor#saveTitle">
+    <button id="delete-btn" class="danger delete-btn-small" data-editor-target="deleteBtn" data-action="click->editor#deleteClip" style="display:none">Delete</button>
+    <button id="restore-btn" class="secondary delete-btn-small" data-editor-target="restoreBtn" data-action="click->editor#restoreClip" style="display:none">Restore</button>
   </div>
-  <textarea id="note-input" placeholder="Add a note about this clip..." disabled onblur="saveNote()"></textarea>
+  <textarea id="note-input" data-editor-target="noteInput" placeholder="Add a note about this clip..." disabled data-action="blur->editor#saveNote"></textarea>
   <div class="meta">
-    <div class="star-rating" id="editor-rating" onclick="event.stopPropagation()"></div>
-    <div class="result-toggle" id="editor-result">
+    <div class="star-rating" id="editor-rating" data-editor-target="ratingContainer" data-action="click->editor#setRating">
+      <span class="star" data-value="1">★</span>
+      <span class="star" data-value="2">★</span>
+      <span class="star" data-value="3">★</span>
+      <span class="star" data-value="4">★</span>
+      <span class="star" data-value="5">★</span>
+    </div>
+    <div class="result-toggle" id="editor-result" data-editor-target="resultContainer" data-action="change->editor#setResult">
       <label class="result-win">
-        <input type="radio" name="result" value="win" onchange="setResult('win')"> Win
+        <input type="radio" name="result" value="win"> Win
       </label>
       <label class="result-loss">
-        <input type="radio" name="result" value="loss" onchange="setResult('loss')"> Loss
+        <input type="radio" name="result" value="loss"> Loss
       </label>
       <label class="result-dc">
-        <input type="radio" name="result" value="dc" onchange="setResult('dc')"> DC
+        <input type="radio" name="result" value="dc"> DC
       </label>
       <label>
-        <input type="radio" name="result" value="" onchange="setResult('')"> None
+        <input type="radio" name="result" value=""> None
       </label>
     </div>
   </div>
   <div class="editor-actions">
-    <div class="status" id="save-status"></div>
+    <div class="status" id="save-status" data-editor-target="saveStatus"></div>
   </div>
 </div>

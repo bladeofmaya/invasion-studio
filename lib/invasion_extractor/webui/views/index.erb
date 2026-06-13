@@ -5,13 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Invasion Extractor</title>
   <link rel="stylesheet" href="/app.css">
-  <script src="/app.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@hotwired/stimulus": "https://cdn.jsdelivr.net/npm/@hotwired/stimulus@3.2.2/dist/stimulus.js"
+    }
+  }
+  </script>
+  <script type="module" src="/stimulus.js"></script>
 </head>
 <body>
-  <%= erb :_header %>
-  <main>
-    <%= erb :_clip_panel %>
-    <%= erb :_preview_panel %>
-  </main>
+  <div data-controller="navigation" data-navigation-current-view-value="all">
+    <%= erb :_header %>
+    <main>
+      <%= erb :_clip_panel %>
+      <%= erb :_preview_panel %>
+    </main>
+  </div>
 </body>
 </html>

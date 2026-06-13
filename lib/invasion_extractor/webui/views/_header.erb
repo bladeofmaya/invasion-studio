@@ -1,8 +1,8 @@
 <header>
   <div class="tabs" id="tabs">
-    <div class="tab active" onclick="switchView('all')">All Clips</div>
-    <div class="tab" onclick="switchView('groups')">Groups</div>
+    <div class="tab active" data-navigation-target="tab" data-view="all" data-action="click->navigation#switchView">All Clips</div>
+    <div class="tab" data-navigation-target="tab" data-view="groups" data-action="click->navigation#switchView">Groups</div>
   </div>
-  <button class="back-btn" id="back-btn" onclick="goBack()" style="display:none">&larr; Back</button>
+  <button class="back-btn" id="back-btn" data-navigation-target="backBtn" data-action="click->navigation#goBack" style="display:none">&larr; Back</button>
   <div class="tool-name" style="margin-left: auto; font-size: 1.1rem; font-weight: 700; color: var(--color-accent); letter-spacing: 0.02em;">Invasion Studio</div>
 </header>
