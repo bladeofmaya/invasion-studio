@@ -1,10 +1,10 @@
 <div class="px-4 py-3 flex-shrink-0 flex flex-col bg-surface-overlay text-text-primary border-b border-border" data-controller="editor" data-editor-clip-id-value="">
   <div class="flex justify-between items-center mb-1.5">
-    <input type="text" class="flex-1 bg-transparent border-none text-text-primary font-semibold text-base focus:outline-none" id="title-input" data-editor-target="titleInput" placeholder="Clip title (optional)" disabled data-action="blur->editor#saveTitle">
+    <input type="text" class="flex-1 bg-transparent border-none text-text-primary font-semibold text-base focus:outline-none" id="title-input" data-editor-target="titleInput" placeholder="Clip title (optional)" disabled data-action="blur->editor#debouncedSaveTitle">
     <button class="bg-danger text-danger-fg border-none px-4 py-1.5 text-xs rounded cursor-pointer ml-auto hover:bg-danger-hover" id="delete-btn" data-editor-target="deleteBtn" data-action="click->editor#deleteClip" style="display:none">Delete</button>
     <button class="bg-transparent border border-text-muted text-text-muted px-4 py-1.5 text-xs rounded cursor-pointer ml-auto hover:border-text-primary hover:text-text-primary" id="restore-btn" data-editor-target="restoreBtn" data-action="click->editor#restoreClip" style="display:none">Restore</button>
   </div>
-  <textarea class="bg-input-bg text-text-primary border border-input-border rounded p-2.5 text-sm leading-snug resize-none mb-3 focus:outline-none focus:border-input-focus-ring" id="note-input" rows="2" data-editor-target="noteInput" placeholder="Add a note about this clip..." disabled data-action="blur->editor#saveNote"></textarea>
+    <textarea class="bg-input-bg text-text-primary border border-input-border rounded p-2.5 text-sm leading-snug resize-none mb-3 focus:outline-none focus:border-input-focus-ring" id="note-input" rows="2" data-editor-target="noteInput" placeholder="Add a note about this clip..." disabled data-action="blur->editor#debouncedSaveNote"></textarea>
   <div class="flex gap-4 mb-1.5 text-sm text-text-muted items-center">
     <div class="flex gap-0.5 cursor-pointer text-xl" id="editor-rating" data-editor-target="ratingContainer" data-action="click->editor#setRating">
       <span class="text-star-empty transition-colors hover:text-accent-hover" data-value="1">★</span>

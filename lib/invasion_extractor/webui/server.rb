@@ -7,6 +7,7 @@ module InvasionExtractor
       set :views, File.expand_path('views', __dir__)
       set :public_folder, File.expand_path('public', __dir__)
       set :static, true
+      set :host_authorization, { permitted_hosts: [] }
 
       def self.run!(folder_path, port: 4567, quiet: false)
         set :folder_path, folder_path
