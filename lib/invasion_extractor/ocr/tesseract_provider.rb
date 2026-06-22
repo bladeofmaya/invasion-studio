@@ -1,14 +1,13 @@
-require 'rtesseract'
-
 module InvasionExtractor
   module OCR
     class TesseractProvider < Provider
       def initialize(options = {})
-        @options = { psm: 6 }.merge(options)
+        @psm = options[:psm] || 6
       end
 
       def recognize(image_path)
-        RTesseract.new(image_path, @options).to_s.strip
+        # ponytail: direct CLI avoids rtesseract object overhead and lets us pass whitelist
+        `tesseract #{image_path} stdout --psm #{@psm} -c "tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ " 2>/dev/null`.strip
       rescue StandardError => e
         raise RecognitionError, "Tesseract failed to recognize #{image_path}: #{e.message}"
       end

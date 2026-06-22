@@ -55,7 +55,7 @@ module InvasionExtractor
       # Do a quick metadata pass to get frame count for the bars
       worker = OCRWorker.new(video.path)
       meta = worker.video_metadata
-      fps = @options[:fps] || 2
+      fps = @options[:fps] || 1
       total_frames = meta && meta[:duration] > 0 ? (meta[:duration] * fps).to_i : 0
 
       extract_bar = nil

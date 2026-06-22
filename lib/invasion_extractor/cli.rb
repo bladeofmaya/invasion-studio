@@ -8,7 +8,7 @@ module InvasionExtractor
       command: 'extract',
       prefix: 'invasion',
       outdir: 'invasion_clips',
-      fps: 2,
+      fps: 1,
       no_cache: false,
       quiet: false,
       debug: false,
@@ -100,7 +100,7 @@ module InvasionExtractor
       puts "    -o, --outdir DIRECTORY       Output directory (default: ./invasion_clips)"
       puts ""
   puts "  Processing:"
-  puts "    --fps RATE                   Frame extraction rate (default: 2)"
+  puts "    --fps RATE                   Frame extraction rate (default: 1)"
   puts "    --ffmpeg-threads N           ffmpeg encoding threads (default: 4)"
   puts "    --no-cache                   Skip OCR cache, force re-processing"
   puts "    --hwaccel                    Enable VAAPI hardware acceleration"

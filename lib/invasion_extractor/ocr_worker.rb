@@ -10,69 +10,77 @@ module InvasionExtractor
     end
 
     def run!
-      frames_dir = ensure_frames_dir
-      fps = @options[:fps] || 2
+      fps = @options[:fps] || 1
       extract_progress = @options[:extract_progress_callback]
 
-      unless frames_extracted?(frames_dir)
-        extract_frames(frames_dir, fps, extract_progress)
+      Dir.mktmpdir do |frames_dir|
+        ffmpeg_thread = extract_frames(frames_dir, fps, extract_progress)
+        results = run_ocr_pipeline(frames_dir, fps, ffmpeg_thread)
+        ffmpeg_thread.join
+        results.sort_by(&:number)
       end
-
-      frame_paths = Dir.glob(File.join(frames_dir, '*.jpg')).sort
-      total = frame_paths.length
-
-      # Fork-safe progress: each child appends a line to a temp file;
-      # parent monitors the line count and updates the bar.
-      progress_file = nil
-      monitor = nil
-
-      if @options[:progress_callback] && total > 0
-        require 'tempfile'
-        progress_file = Tempfile.new(['ocr_progress', '.txt'])
-        File.write(progress_file.path, "")
-
-        monitor = Thread.new do
-          loop do
-            count = File.readlines(progress_file.path).count rescue 0
-            break if count >= total
-            @options[:progress_callback].call(count, total)
-            sleep 0.3
-          end
-          @options[:progress_callback].call(total, total)
-        end
-      end
-
-      results = Parallel.map(frame_paths.each_with_index, in_processes: Etc.nprocessors) do |path, index|
-        text = @ocr_provider.recognize(path)
-        frame_number = extract_frame_number(path)
-        timestamp = frame_number_to_timestamp(frame_number, fps)
-
-        if progress_file
-          File.open(progress_file.path, 'a') { |f| f.puts "1" }
-        end
-
-        Frame.new(frame_number, text, timestamp, @video_path)
-      end
-
-      monitor&.join
-      progress_file&.close
-      progress_file&.unlink
-
-      results.sort_by(&:number)
     end
 
     private
 
-    def ensure_frames_dir
-      hash = VideoHasher.hash(@video_path)
-      dir = File.join(CACHE_DIR, 'frames', hash)
-      FileUtils.mkdir_p(dir)
-      dir
-    end
+    def run_ocr_pipeline(frames_dir, fps, ffmpeg_thread)
+      queue = Queue.new
+      results = []
+      mutex = Mutex.new
+      total_frames = estimated_total_frames(fps)
 
-    def frames_extracted?(frames_dir)
-      return false if @options[:no_cache]
-      Dir.glob(File.join(frames_dir, '*.jpg')).length > 0
+      # ponytail: manual thread pool instead of Parallel gem; tesseract shell-out
+      # releases the GIL, so threads parallelize nearly as well as processes
+      # without fork overhead. ceiling: GIL contention on pure Ruby work.
+      workers = Etc.nprocessors.times.map do
+        Thread.new do
+          loop do
+            item = queue.pop
+            break if item == :done
+
+            path, _index = item
+            text = @ocr_provider.recognize(path)
+            frame_number = extract_frame_number(path)
+            timestamp = frame_number_to_timestamp(frame_number, fps)
+
+            mutex.synchronize do
+              results << Frame.new(frame_number, text, timestamp, @video_path)
+              @ocr_progress += 1 if @options[:progress_callback]
+            end
+          end
+        end
+      end
+
+      @ocr_progress = 0 if @options[:progress_callback]
+
+      monitor = if @options[:progress_callback] && total_frames > 0
+        Thread.new do
+          loop do
+            @options[:progress_callback].call(@ocr_progress, total_frames)
+            break if @ocr_progress >= total_frames
+            sleep 0.3
+          end
+        end
+      end
+
+      last_count = 0
+      loop do
+        frame_paths = Dir.glob(File.join(frames_dir, '*.jpg')).sort
+        new_paths = frame_paths[last_count..]
+        new_paths.each do |path|
+          queue << [path, last_count]
+          last_count += 1
+        end
+
+        break if !ffmpeg_thread.alive? && last_count >= frame_paths.length
+        sleep 0.1 if new_paths.empty?
+      end
+
+      workers.each { queue << :done }
+      workers.each(&:join)
+      monitor&.join
+
+      results
     end
 
     def extract_frames(frames_dir, fps, progress)
@@ -85,23 +93,17 @@ module InvasionExtractor
         filter = "fps=#{fps},hwdownload,format=nv12,crop=#{crop[:width]}:#{crop[:height]}:#{crop[:x]}:#{crop[:y]}"
       end
 
-      # Clean old frames first
-      FileUtils.rm_f(Dir.glob(File.join(frames_dir, '*.jpg')))
-
-      total_frames = @video_metadata && @video_metadata[:duration] > 0 ?
-        (@video_metadata[:duration] * fps).to_i : 0
+      total_frames = estimated_total_frames(fps)
 
       threads = @options[:ffmpeg_threads] || 4
       cmd = "ffmpeg -threads #{threads} #{hwaccel_args} -i #{@video_path} -vf '#{filter}' -qscale:v 5 #{frames_dir}/frame_%06d.jpg 2>/dev/null"
 
-      # Start ffmpeg in a separate thread
       ffmpeg_done = false
       ffmpeg_thread = Thread.new do
         system(cmd)
         ffmpeg_done = true
       end
 
-      # Poll frame count and update progress bar
       if progress && total_frames > 0
         Thread.new do
           last_count = 0
@@ -113,16 +115,20 @@ module InvasionExtractor
               last_count = count
             end
           end
-          # Ensure bar reaches 100%
           progress.call(total_frames, total_frames)
         end
       end
 
-      ffmpeg_thread.join
+      ffmpeg_thread
     end
 
     def extract_frame_number(path)
       File.basename(path).scan(/\d+/).first.to_i
+    end
+
+    def estimated_total_frames(fps)
+      @video_metadata && @video_metadata[:duration] > 0 ?
+        (@video_metadata[:duration] * fps).to_i : 0
     end
 
     def calculate_crop
