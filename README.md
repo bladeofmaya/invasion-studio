@@ -119,7 +119,7 @@ bin/invasion_extractor [COMMAND] [OPTIONS] [VIDEO_FILES...]
 | `-q, --quiet` | Off | Suppress all non-error output |
 | `-p, --prefix PREFIX` | `invasion` | Prefix for output clip filenames |
 | `-o, --outdir DIRECTORY` | `./invasion_clips` | Output directory for extracted clips |
-| `--fps RATE` | `2` | Frames per second to extract for OCR |
+| `--fps RATE` | `1` | Frames per second to extract for OCR |
 | `--no-cache` | Off | Skip OCR cache and force re-processing |
 | `--pad-start SECONDS` | `10.0` | Seconds to include before invasion start |
 | `--pad-end SECONDS` | `7.5` | Seconds to include after invasion end |
@@ -137,7 +137,7 @@ bin/invasion_extractor [COMMAND] [OPTIONS] [VIDEO_FILES...]
 
 ### Flag Details
 
-**`--fps RATE`** — Controls how many frames per second are extracted from the video for OCR. The default `2` means one frame every 0.5 seconds. Increasing to `4` or `5` improves detection accuracy for very short invasions but increases processing time linearly. Decreasing to `1` speeds things up but may miss brief text flashes.
+**`--fps RATE`** — Controls how many frames per second are extracted from the video for OCR. The default `1` means one frame every 1 second. Increasing to `2` or `4` improves detection accuracy for very short invasions but increases processing time linearly.
 
 **`--debug`** — Enables two things: (1) prints every matched start/end frame with its exact timestamp and raw OCR text so you can inspect why an invasion was missed, and (2) writes a `<video_hash>.debug.yml` file containing every extracted frame's timestamp and detected text.
 
@@ -234,7 +234,7 @@ rm -rf /dev/shm/invasion_extractor_cache/*.yml
 
 - **UI Overlays**: PSN quick menu or other overlays covering game text can cause missed detections
 - **Text Position**: Invasion text must be visible — if you're in a menu when it appears, detection may fail
-- **Performance**: OCR processing averages ~0.18s per frame on CPU. A 60-minute video at 2fps extracts ~7200 frames, taking approximately 20 minutes. Enable `--hwaccel` or use a faster machine for large batches.
+- **Performance**: OCR processing averages ~0.18s per frame on CPU. With the default of 1fps, a 60-minute video extracts ~3600 frames. The pipeline now runs extraction and OCR concurrently using a multi-threaded worker pool, and the direct Tesseract CLI call (with a character whitelist) removes Ruby wrapper overhead. On a typical multi-core machine, a 60-minute video processes in roughly 8–12 minutes — a major improvement over earlier versions. Enable `--hwaccel` for even faster encoding on supported GPUs.
 
 ---
 
