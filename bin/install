@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+GEM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$GEM_DIR"
+
+echo "==> Building and installing invasion_extractor gem locally..."
+echo "    Project: $GEM_DIR"
+echo "    Ruby:    $(mise exec -- ruby --version)"
+
+# Ensure dependencies are up to date
+mise exec -- bundle install
+
+# Build the .gem file and install it locally (no network access required)
+mise exec -- bundle exec rake install:local
+
+echo ""
+echo "==> invasion_extractor gem installed successfully!"
+echo ""
+echo "    From outside this project directory:"
+echo "        invasion_extractor --help"
+echo ""
+echo "    From inside this project directory, use bundle exec:"
+echo "        bundle exec invasion_extractor --help"
