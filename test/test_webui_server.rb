@@ -43,7 +43,58 @@ class TestWebuiServer < Minitest::Test
     assert last_response.body.include?('data-controller="clip-list"')
     assert last_response.body.include?('data-controller="video-player"')
     assert last_response.body.include?('data-controller="editor"')
-    assert last_response.body.include?('data-controller="navigation"')
+    assert last_response.body.include?('data-controller="router navigation"')
+  end
+
+  # ========== SPA Deep-Link Routes ==========
+
+  def test_get_clips_deep_link_returns_shell
+    get '/clips/clip1'
+    assert last_response.ok?
+    assert last_response.body.include?('Invasion Studio')
+    assert last_response.body.include?('data-controller="router navigation"')
+  end
+
+  def test_get_groups_deep_link_returns_shell
+    get '/groups'
+    assert last_response.ok?
+    assert last_response.body.include?('Invasion Studio')
+  end
+
+  def test_get_group_detail_deep_link_returns_shell
+    get '/groups/Group1'
+    assert last_response.ok?
+    assert last_response.body.include?('Invasion Studio')
+  end
+
+  def test_get_group_detail_deep_link_with_encoded_name_returns_shell
+    get '/groups/My%20Group%2FSub'
+    assert last_response.ok?
+    assert last_response.body.include?('Invasion Studio')
+  end
+
+  def test_get_group_clip_deep_link_returns_shell
+    get '/groups/Group1/clips/clip1'
+    assert last_response.ok?
+    assert last_response.body.include?('Invasion Studio')
+  end
+
+  def test_deep_link_catch_all_does_not_shadow_api_clips
+    get '/api/clips?all=true'
+    assert last_response.ok?
+    assert last_response.content_type.include?('application/json')
+  end
+
+  def test_deep_link_catch_all_does_not_shadow_api_groups
+    get '/api/groups'
+    assert last_response.ok?
+    assert last_response.content_type.include?('application/json')
+  end
+
+  def test_deep_link_catch_all_does_not_shadow_clip_stream
+    get '/clip/clip1.mp4'
+    assert last_response.ok?
+    refute last_response.body.include?('Invasion Studio')
   end
 
   # ========== API Routes ==========

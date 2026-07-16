@@ -314,6 +314,14 @@ module InvasionExtractor
         send_file(path, type: 'video/mp4', disposition: 'inline')
       end
 
+      # SPA shell — serve index.erb for client-routed paths so deep links /
+      # hard refresh work. Must be declared AFTER /api/*, /clip/:filename,
+      # and static file handling so it never shadows them.
+      # (Mustermann anchors route regexes itself — no ^/$ allowed.)
+      get %r{/(clips|groups)(/.*)?} do
+        erb :index
+      end
+
       private
 
       def remux_audio_track(original_path, track_number)
