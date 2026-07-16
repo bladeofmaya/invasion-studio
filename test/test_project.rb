@@ -180,4 +180,125 @@ class TestProject < Minitest::Test
     project2 = InvasionExtractor::Project.new(@tmp_dir)
     assert_equal [], project2.all_clips
   end
+
+  def test_finalize_cuts_returns_false_when_no_cuts
+    create_clip_file('test.mp4')
+    project = InvasionExtractor::Project.new(@tmp_dir)
+    refute project.finalize_cuts('test')
+  end
+
+  def test_finalize_cuts_returns_false_for_invalid_clip
+    project = InvasionExtractor::Project.new(@tmp_dir)
+    refute project.finalize_cuts('nonexistent')
+  end
+
+  def test_finalize_cuts_applies_cuts_and_clears_them
+    create_clip_file('test.mp4')
+    project = InvasionExtractor::Project.new(@tmp_dir)
+    project.update_cuts('test', [{ 'start' => 2.0, 'end' => 4.0 }])
+
+    meta = { duration: 10.0, width: 1920, height: 1080, fps: 30 }
+    mock_video = Struct.new(:path).new('test.mp4')
+    def mock_video.metadata; { duration: 10.0, width: 1920, height: 1080, fps: 30 }; end
+
+    orig_new = InvasionExtractor::Video.method(:new)
+    InvasionExtractor::Video.define_singleton_method(:new) { |path| mock_video }
+
+    finalizer = ->(_source, _segments, output) {
+      File.write(output, 'finalized')
+      true
+    }
+
+    assert project.finalize_cuts('test', finalizer: finalizer)
+    assert_equal [], project.find_clip('test')['cuts']
+    assert File.exist?(File.join(@tmp_dir, '.backup', 'test.mp4'))
+    assert_equal 'finalized', File.read(File.join(@tmp_dir, 'test.mp4'))
+  ensure
+    InvasionExtractor::Video.define_singleton_method(:new, orig_new) if orig_new
+  end
+
+  def test_finalize_cuts_returns_false_when_finalizer_fails
+    create_clip_file('test.mp4')
+    project = InvasionExtractor::Project.new(@tmp_dir)
+    project.update_cuts('test', [{ 'start' => 2.0, 'end' => 4.0 }])
+
+    mock_video = Struct.new(:path).new('test.mp4')
+    def mock_video.metadata; { duration: 10.0, width: 1920, height: 1080, fps: 30 }; end
+
+    orig_new = InvasionExtractor::Video.method(:new)
+    InvasionExtractor::Video.define_singleton_method(:new) { |path| mock_video }
+
+    finalizer = ->(_source, _segments, _output) { false }
+
+    refute project.finalize_cuts('test', finalizer: finalizer)
+    assert_equal [{ 'start' => 2.0, 'end' => 4.0 }], project.find_clip('test')['cuts']
+    assert_equal 'dummy', File.read(File.join(@tmp_dir, 'test.mp4'))
+  ensure
+    InvasionExtractor::Video.define_singleton_method(:new, orig_new) if orig_new
+  end
+
+  def test_finalize_cuts_handles_cut_at_start
+    create_clip_file('test.mp4')
+    project = InvasionExtractor::Project.new(@tmp_dir)
+    project.update_cuts('test', [{ 'start' => 0.0, 'end' => 3.0 }])
+
+    mock_video = Struct.new(:path).new('test.mp4')
+    def mock_video.metadata; { duration: 10.0, width: 1920, height: 1080, fps: 30 }; end
+
+    orig_new = InvasionExtractor::Video.method(:new)
+    InvasionExtractor::Video.define_singleton_method(:new) { |path| mock_video }
+
+    captured_segments = nil
+    finalizer = ->(_source, segments, output) {
+      captured_segments = segments
+      File.write(output, 'finalized')
+      true
+    }
+
+    assert project.finalize_cuts('test', finalizer: finalizer)
+    assert_equal [{ start: 3.0, end: 10.0 }], captured_segments
+  ensure
+    InvasionExtractor::Video.define_singleton_method(:new, orig_new) if orig_new
+  end
+
+  def test_finalize_cuts_handles_cut_at_end
+    create_clip_file('test.mp4')
+    project = InvasionExtractor::Project.new(@tmp_dir)
+    project.update_cuts('test', [{ 'start' => 7.0, 'end' => 10.0 }])
+
+    mock_video = Struct.new(:path).new('test.mp4')
+    def mock_video.metadata; { duration: 10.0, width: 1920, height: 1080, fps: 30 }; end
+
+    orig_new = InvasionExtractor::Video.method(:new)
+    InvasionExtractor::Video.define_singleton_method(:new) { |path| mock_video }
+
+    captured_segments = nil
+    finalizer = ->(_source, segments, output) {
+      captured_segments = segments
+      File.write(output, 'finalized')
+      true
+    }
+
+    assert project.finalize_cuts('test', finalizer: finalizer)
+    assert_equal [{ start: 0.0, end: 7.0 }], captured_segments
+  ensure
+    InvasionExtractor::Video.define_singleton_method(:new, orig_new) if orig_new
+  end
+
+  def test_finalize_cuts_returns_false_when_all_video_is_cut
+    create_clip_file('test.mp4')
+    project = InvasionExtractor::Project.new(@tmp_dir)
+    project.update_cuts('test', [{ 'start' => 0.0, 'end' => 10.0 }])
+
+    mock_video = Struct.new(:path).new('test.mp4')
+    def mock_video.metadata; { duration: 10.0, width: 1920, height: 1080, fps: 30 }; end
+
+    orig_new = InvasionExtractor::Video.method(:new)
+    InvasionExtractor::Video.define_singleton_method(:new) { |path| mock_video }
+
+    refute project.finalize_cuts('test')
+    assert_equal [{ 'start' => 0.0, 'end' => 10.0 }], project.find_clip('test')['cuts']
+  ensure
+    InvasionExtractor::Video.define_singleton_method(:new, orig_new) if orig_new
+  end
 end

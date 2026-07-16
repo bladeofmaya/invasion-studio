@@ -10,6 +10,10 @@ module InvasionExtractor
       set :host_authorization, { permitted_hosts: [] }
 
       def self.run!(folder_path, port: 4567, quiet: false)
+        # Clean up legacy preview cache to avoid serving stale files
+        preview_cache = File.join(folder_path, '.preview_cache')
+        FileUtils.rm_rf(preview_cache) if File.directory?(preview_cache)
+
         set :folder_path, folder_path
         set :project, InvasionExtractor::Project.new(folder_path)
         set :quiet, quiet
@@ -174,6 +178,18 @@ module InvasionExtractor
         end
       end
 
+      post '/api/clip/:id/finalize' do
+        clip = project.all_clips.find { |c| c['id'] == params[:id] }
+        halt 404, json_response({ error: 'Clip not found' }) unless clip
+
+        if project.finalize_cuts(params[:id])
+          json_response({ success: true })
+        else
+          status 422
+          json_response({ error: 'Failed to finalize cuts' })
+        end
+      end
+
       get '/api/groups' do
         json_response(project.groups)
       end
@@ -287,24 +303,28 @@ module InvasionExtractor
         end
 
         audio_track = params['audio_track']
-        if audio_track && audio_track.match?(/^\d+$/)
-          preview_path = preview_with_audio_track(path, audio_track.to_i)
-          return send_file(preview_path, type: 'video/mp4', disposition: 'inline')
-        end
+        # Track 4 is the default; serve original file directly without remuxing
+        if audio_track && audio_track.match?(/^\d+$/) && audio_track.to_i != 4
+          temp_file = remux_audio_track(path, audio_track.to_i)
+          halt 500, 'Failed to remux audio track' unless temp_file
 
-        send_file(path, type: 'video/mp4', disposition: 'inline')
+          begin
+            send_file(temp_file.path, type: 'video/mp4', disposition: 'inline')
+          ensure
+            temp_file.close
+            temp_file.unlink
+          end
+        else
+          send_file(path, type: 'video/mp4', disposition: 'inline')
+        end
       end
 
       private
 
-      def preview_with_audio_track(original_path, track_number)
-        preview_dir = File.join(settings.folder_path, '.preview_cache')
-        FileUtils.mkdir_p(preview_dir)
-
-        basename = File.basename(original_path, '.*')
-        preview_path = File.join(preview_dir, "#{basename}_audio#{track_number}.mp4")
-
-        return preview_path if File.exist?(preview_path)
+      def remux_audio_track(original_path, track_number)
+        require 'tempfile'
+        temp = Tempfile.new(['remux', '.mp4'])
+        temp.close
 
         # ffmpeg uses 0-based audio track indexing, so track 4 is 0:a:3
         audio_index = track_number - 1
@@ -314,11 +334,17 @@ module InvasionExtractor
           '-map', '0:v:0',
           '-map', "0:a:#{audio_index}",
           '-c', 'copy',
-          preview_path
+          temp.path
         ]
 
         system(*cmd)
-        preview_path
+
+        if $?.success? && File.exist?(temp.path) && File.size(temp.path) > 0
+          temp
+        else
+          temp.unlink
+          nil
+        end
       end
     end
   end
