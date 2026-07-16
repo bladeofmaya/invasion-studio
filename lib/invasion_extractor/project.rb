@@ -355,8 +355,8 @@ module InvasionExtractor
         seg = keep_segments[0]
         cmd = [
           'ffmpeg', '-y',
-          '-i', source_path,
           '-ss', seg[:start].to_s,
+          '-i', source_path,
           '-to', seg[:end].to_s,
           '-c', 'copy',
           '-map', '0',
@@ -370,8 +370,8 @@ module InvasionExtractor
           seg_file = File.join(temp_dir, "seg_#{i}.mp4")
           cmd = [
             'ffmpeg', '-y',
-            '-i', source_path,
             '-ss', seg[:start].to_s,
+            '-i', source_path,
             '-to', seg[:end].to_s,
             '-c', 'copy',
             '-map', '0',
@@ -379,10 +379,22 @@ module InvasionExtractor
             seg_file
           ]
           system(*cmd)
-          segment_files << seg_file if File.exist?(seg_file) && File.size(seg_file) > 0
+
+          next unless File.exist?(seg_file) && File.size(seg_file) > 0
+
+          seg_meta = Video.new(seg_file).metadata
+          next unless seg_meta && seg_meta[:duration] && seg_meta[:duration] > 0.1
+
+          segment_files << seg_file
         end
 
         return false if segment_files.empty?
+
+        # If only one valid segment, copy it directly (avoid concat overhead)
+        if segment_files.length == 1
+          FileUtils.cp(segment_files[0], output_path)
+          return File.exist?(output_path) && File.size(output_path) > 0
+        end
 
         concat_list = File.join(temp_dir, 'concat_list.txt')
         File.write(concat_list, segment_files.map { |f| "file '#{f}'" }.join("\n"))
@@ -392,7 +404,6 @@ module InvasionExtractor
           '-f', 'concat', '-safe', '0',
           '-i', concat_list,
           '-c', 'copy',
-          '-map', '0',
           output_path
         ]
         system(*cmd)
