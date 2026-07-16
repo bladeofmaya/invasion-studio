@@ -109,7 +109,12 @@ module InvasionExtractor
       xml << "    <property name=\"set.test_audio\">0</property>\n"
       xml << "  </producer>\n"
 
-      # Create 6 chains for the spliced video (5 timeline + 1 bin)
+      # Create 6 chains for the spliced video (5 timeline + 1 bin).
+      # Chains 0-3 back the four audio tracks; each must select a different
+      # audio stream of the spliced file (stream 0 is video, audio streams
+      # follow at 1-4). Without an explicit audio_index/astream every chain
+      # decodes the default (first) audio stream, so all four kdenlive audio
+      # tracks would play identical audio.
       6.times do |i|
         xml << "  <chain id=\"chain#{i}\" out=\"#{duration_tc}\">\n"
         xml << "    <property name=\"length\">#{duration_frames}</property>\n"
@@ -122,6 +127,20 @@ module InvasionExtractor
         xml << "    <property name=\"kdenlive:control_uuid\">#{control_uuid}</property>\n"
         xml << "    <property name=\"mute_on_pause\">0</property>\n"
         xml << "    <property name=\"kdenlive:clip_type\">0</property>\n"
+        if i <= 3
+          # Audio-only timeline instance for audio track i+1
+          xml << "    <property name=\"video_index\">-1</property>\n"
+          xml << "    <property name=\"audio_index\">#{i + 1}</property>\n"
+          xml << "    <property name=\"astream\">#{i}</property>\n"
+          xml << "    <property name=\"set.test_image\">1</property>\n"
+        elsif i == 4
+          # Video-only timeline instance
+          xml << "    <property name=\"audio_index\">-1</property>\n"
+          xml << "    <property name=\"video_index\">0</property>\n"
+          xml << "    <property name=\"vstream\">0</property>\n"
+          xml << "    <property name=\"set.test_audio\">1</property>\n"
+        end
+        # chain5 (bin clip) keeps default stream selection
         xml << "  </chain>\n"
       end
 
