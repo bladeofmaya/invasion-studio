@@ -57,6 +57,36 @@ class TestKdenliveExporter < Minitest::Test
     assert_includes content, '<property name="kdenlive:projectTractor">1</property>'
   end
 
+  def test_audio_chains_map_to_distinct_audio_streams
+    exporter = InvasionExtractor::KdenliveExporter.new(@folder)
+
+    def exporter.gather_metadata_for(path)
+      { duration: 5.0, width: 320, height: 240, fps: 30 }
+    end
+
+    output_path = File.join(@folder, 'test.kdenlive')
+    exporter.run!(output_path)
+    content = File.read(output_path)
+
+    chains = content.scan(/<chain id="chain(\d)".*?<\/chain>/m).to_h { |m| [m[0].to_i, content[/<chain id="chain#{m[0]}".*?<\/chain>/m]] }
+
+    # Audio chains 0-3: each selects its own audio stream (video stream is 0,
+    # audio streams follow at 1-4), video disabled
+    4.times do |i|
+      assert_includes chains[i], "<property name=\"audio_index\">#{i + 1}</property>",
+                      "chain#{i} should select audio stream #{i + 1}"
+      assert_includes chains[i], "<property name=\"astream\">#{i}</property>"
+      assert_includes chains[i], '<property name="video_index">-1</property>'
+    end
+
+    # Video chain 4: video only
+    assert_includes chains[4], '<property name="video_index">0</property>'
+    assert_includes chains[4], '<property name="audio_index">-1</property>'
+
+    # Bin chain 5: default stream selection
+    refute_includes chains[5], '<property name="audio_index">'
+  end
+
   def test_run_uses_default_output_path
     exporter = InvasionExtractor::KdenliveExporter.new(@folder)
 
