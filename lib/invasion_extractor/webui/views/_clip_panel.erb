@@ -1,13 +1,22 @@
-<div class="flex flex-col min-h-0 overflow-hidden bg-app-bg" id="clip-panel" data-controller="clip-list" data-clip-list-view-value="all" data-clip-list-filter-value="everything" data-clip-list-group-value="" data-clip-list-selected-clip-id-value="">
+<div class="flex flex-col min-h-0 overflow-hidden bg-app-bg" id="clip-panel" data-controller="clip-list" data-clip-list-view-value="all" data-clip-list-filter-value="unassigned" data-clip-list-sort-value="" data-clip-list-group-value="" data-clip-list-selected-clip-id-value="">
   <div class="px-4 py-3 border-b border-border flex justify-between items-center">
     <h2 class="m-0 text-base text-text-muted" data-clip-list-target="panelTitle">All Clips</h2>
-    <div class="block" data-clip-list-target="filterDropdown" id="filter-dropdown">
-      <select class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="filterSelect" data-action="change->clip-list#setFilter" id="clip-filter">
-        <option value="everything">Everything</option>
-        <option value="unassigned">Unassigned</option>
-        <option value="assigned">Assigned</option>
-        <option value="deleted">Deleted</option>
-      </select>
+    <div class="flex gap-2 items-center" id="list-controls">
+      <div class="block" data-clip-list-target="filterDropdown" id="filter-dropdown">
+        <select class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="filterSelect" data-action="change->clip-list#setFilter" id="clip-filter">
+          <option value="everything">Everything</option>
+          <option value="unassigned" selected>Unassigned</option>
+          <option value="assigned">Assigned</option>
+          <option value="deleted">Deleted</option>
+        </select>
+      </div>
+      <div class="block" data-clip-list-target="sortDropdown" id="sort-dropdown">
+        <select class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="sortSelect" data-action="change->clip-list#setSort" id="clip-sort">
+          <option value="" selected>Default order</option>
+          <option value="rating-desc">Rating &#8595;</option>
+          <option value="rating-asc">Rating &#8593;</option>
+        </select>
+      </div>
     </div>
     <div class="hidden gap-2 items-center ml-auto" data-clip-list-target="groupExport" id="group-export-controls">
       <input type="text" class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm w-40" id="export-filename" placeholder="combined (optional)">
