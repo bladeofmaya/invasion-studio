@@ -133,6 +133,59 @@ module InvasionExtractor
       true
     end
 
+    def finalize_cuts(clip_id, finalizer: nil)
+      clip = find_clip(clip_id)
+      return false unless clip
+
+      cuts = clip['cuts']
+      return false if cuts.nil? || cuts.empty?
+
+      source_path = resolve_clip_path(clip)
+      return false unless source_path && File.exist?(source_path)
+
+      # Backup original
+      backup_dir = File.join(@folder_path, '.backup')
+      FileUtils.mkdir_p(backup_dir)
+      backup_path = File.join(backup_dir, clip['filename'])
+
+      # Don't overwrite existing backup
+      if File.exist?(backup_path)
+        backup_path = File.join(
+          backup_dir,
+          "#{File.basename(clip['filename'], '.*')}_#{Time.now.to_i}#{File.extname(clip['filename'])}"
+        )
+      end
+
+      FileUtils.cp(source_path, backup_path)
+
+      # Get video duration
+      video = Video.new(backup_path)
+      meta = video.metadata
+      duration = meta[:duration]
+      return false unless duration && duration > 0
+
+      # Build keep segments by inverting cuts
+      keep_segments = build_keep_segments(cuts, duration)
+      return false if keep_segments.empty?
+
+      temp_dir = Dir.mktmpdir
+      temp_output = File.join(temp_dir, "finalized#{File.extname(clip['filename'])}")
+
+      finalizer ||= method(:run_ffmpeg_finalize)
+      success = finalizer.call(backup_path, keep_segments, temp_output)
+
+      if success && File.exist?(temp_output) && File.size(temp_output) > 0
+        FileUtils.mv(temp_output, source_path)
+        clip['cuts'] = []
+        save!
+        true
+      else
+        false
+      end
+    ensure
+      FileUtils.rm_rf(temp_dir) if temp_dir
+    end
+
     def delete_clip(clip_id)
       clip = find_clip(clip_id)
       return false unless clip
@@ -267,6 +320,85 @@ module InvasionExtractor
       Dir.glob(File.join(@folder_path, '*'))
          .select { |f| VIDEO_EXTENSIONS.include?(File.extname(f).downcase) }
          .sort
+    end
+
+    def build_keep_segments(cuts, duration)
+      sorted = cuts.sort_by { |c| c['start'] || c[:start] }
+      segments = []
+      current_pos = 0.0
+
+      sorted.each do |cut|
+        start_time = cut['start'] || cut[:start]
+        end_time = cut['end'] || cut[:end]
+
+        next if start_time.nil? || end_time.nil?
+        next if start_time >= end_time
+
+        if current_pos < start_time
+          segments << { start: current_pos, end: [start_time, duration].min }
+        end
+
+        current_pos = [current_pos, end_time].max
+      end
+
+      if current_pos < duration
+        segments << { start: current_pos, end: duration }
+      end
+
+      segments
+    end
+
+    def run_ffmpeg_finalize(source_path, keep_segments, output_path)
+      temp_dir = File.dirname(output_path)
+
+      if keep_segments.length == 1
+        seg = keep_segments[0]
+        cmd = [
+          'ffmpeg', '-y',
+          '-i', source_path,
+          '-ss', seg[:start].to_s,
+          '-to', seg[:end].to_s,
+          '-c', 'copy',
+          '-map', '0',
+          '-avoid_negative_ts', 'make_zero',
+          output_path
+        ]
+        system(*cmd)
+      else
+        segment_files = []
+        keep_segments.each_with_index do |seg, i|
+          seg_file = File.join(temp_dir, "seg_#{i}.mp4")
+          cmd = [
+            'ffmpeg', '-y',
+            '-i', source_path,
+            '-ss', seg[:start].to_s,
+            '-to', seg[:end].to_s,
+            '-c', 'copy',
+            '-map', '0',
+            '-avoid_negative_ts', 'make_zero',
+            seg_file
+          ]
+          system(*cmd)
+          segment_files << seg_file if File.exist?(seg_file) && File.size(seg_file) > 0
+        end
+
+        return false if segment_files.empty?
+
+        concat_list = File.join(temp_dir, 'concat_list.txt')
+        File.write(concat_list, segment_files.map { |f| "file '#{f}'" }.join("\n"))
+
+        cmd = [
+          'ffmpeg', '-y',
+          '-f', 'concat', '-safe', '0',
+          '-i', concat_list,
+          '-c', 'copy',
+          '-map', '0',
+          output_path
+        ]
+        system(*cmd)
+      end
+
+      $?.success? && File.exist?(output_path) && File.size(output_path) > 0
     end
   end
 end

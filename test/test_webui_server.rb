@@ -200,4 +200,36 @@ class TestWebuiServer < Minitest::Test
     post '/api/export', JSON.generate({ group: nil }), 'CONTENT_TYPE' => 'application/json'
     assert_equal 400, last_response.status
   end
+
+  def test_post_api_finalize_cuts_success
+    # Set up a clip with cuts
+    project = InvasionExtractor::Webui::Server.settings.project
+    project.update_cuts('clip1', [{ 'start' => 1.0, 'end' => 2.0 }])
+
+    # Mock finalize_cuts on the project instance to avoid ffmpeg
+    orig_finalize = project.method(:finalize_cuts)
+    project.define_singleton_method(:finalize_cuts) { |_clip_id| true }
+
+    post '/api/clip/clip1/finalize', '', 'CONTENT_TYPE' => 'application/json'
+    assert last_response.ok?
+    data = JSON.parse(last_response.body)
+    assert_equal true, data['success']
+  ensure
+    project.define_singleton_method(:finalize_cuts, orig_finalize) if orig_finalize
+  end
+
+  def test_post_api_finalize_cuts_not_found
+    post '/api/clip/nonexistent/finalize', '', 'CONTENT_TYPE' => 'application/json'
+    assert_equal 404, last_response.status
+  end
+
+  def test_post_api_finalize_cuts_no_cuts
+    project = InvasionExtractor::Webui::Server.settings.project
+    project.update_cuts('clip1', [])
+
+    post '/api/clip/clip1/finalize', '', 'CONTENT_TYPE' => 'application/json'
+    assert_equal 422, last_response.status
+    data = JSON.parse(last_response.body)
+    assert_equal 'Failed to finalize cuts', data['error']
+  end
 end
