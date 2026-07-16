@@ -357,7 +357,9 @@ module InvasionExtractor
           'ffmpeg', '-y',
           '-ss', seg[:start].to_s,
           '-i', source_path,
-          '-to', seg[:end].to_s,
+          # -t (duration), not -to: input -ss resets timestamps, so -to would
+          # be relative to the seek point and overshoot the segment end
+          '-t', (seg[:end] - seg[:start]).to_s,
           '-c', 'copy',
           '-map', '0',
           '-avoid_negative_ts', 'make_zero',
@@ -372,7 +374,8 @@ module InvasionExtractor
             'ffmpeg', '-y',
             '-ss', seg[:start].to_s,
             '-i', source_path,
-            '-to', seg[:end].to_s,
+            # -t (duration), not -to: see single-segment branch above
+            '-t', (seg[:end] - seg[:start]).to_s,
             '-c', 'copy',
             '-map', '0',
             '-avoid_negative_ts', 'make_zero',
