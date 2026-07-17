@@ -33,6 +33,11 @@ class TestKdenliveExporter < Minitest::Test
     assert_includes content, "<?xml version='1.0' encoding='utf-8'?>"
     assert_includes content, '<mlt LC_NUMERIC="C" producer="main_bin"'
 
+    # Project profile is pinned to 2K regardless of source resolution
+    assert content =~ /<profile [^>]*width="2560" height="1440"/,
+           "profile should be 2560x1440"
+    assert_includes content, '<property name="kdenlive:docproperties.profile">2560x1440_30fps</property>'
+
     # Single video source referenced
     assert_includes content, '<chain id="chain0"'
     assert_includes content, '<chain id="chain5"'
@@ -71,11 +76,13 @@ class TestKdenliveExporter < Minitest::Test
     chains = content.scan(/<chain id="chain(\d)".*?<\/chain>/m).to_h { |m| [m[0].to_i, content[/<chain id="chain#{m[0]}".*?<\/chain>/m]] }
 
     # Audio chains 0-3: each selects its own audio stream (video stream is 0,
-    # audio streams follow at 1-4), video disabled
+    # audio streams follow at 1-4), video disabled. Mapping is inverted:
+    # MLT tracks are listed bottom-to-top, so chain0 is kdenlive's A4 and
+    # must play source audio track 4; chain3 is A1 and plays track 1.
     4.times do |i|
-      assert_includes chains[i], "<property name=\"audio_index\">#{i + 1}</property>",
-                      "chain#{i} should select audio stream #{i + 1}"
-      assert_includes chains[i], "<property name=\"astream\">#{i}</property>"
+      assert_includes chains[i], "<property name=\"audio_index\">#{4 - i}</property>",
+                      "chain#{i} should select audio stream #{4 - i}"
+      assert_includes chains[i], "<property name=\"astream\">#{3 - i}</property>"
       assert_includes chains[i], '<property name="video_index">-1</property>'
     end
 
