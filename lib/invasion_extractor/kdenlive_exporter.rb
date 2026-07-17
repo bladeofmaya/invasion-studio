@@ -11,7 +11,11 @@ module InvasionExtractor
     def initialize(folder_path, options = {})
       @folder_path = folder_path
       @options = {
-        transition_duration: 2.5
+        transition_duration: 2.5,
+        # Kdenlive project profile is pinned to 2K regardless of source
+        # resolution; clips are scaled into the profile by kdenlive.
+        profile_width: 2560,
+        profile_height: 1440
       }.merge(options)
     end
 
@@ -83,7 +87,7 @@ module InvasionExtractor
       duration_tc = frames_to_timecode(duration_frames, fps)
       total_timecode = duration_tc
       total_frames = duration_frames
-      profile_name = "#{meta[:width]}x#{meta[:height]}_#{fps}fps"
+      profile_name = "#{@options[:profile_width]}x#{@options[:profile_height]}_#{fps}fps"
 
       # Generate UUIDs
       sequence_uuid = "{#{SecureRandom.uuid}}"
@@ -128,10 +132,13 @@ module InvasionExtractor
         xml << "    <property name=\"mute_on_pause\">0</property>\n"
         xml << "    <property name=\"kdenlive:clip_type\">0</property>\n"
         if i <= 3
-          # Audio-only timeline instance for audio track i+1
+          # Audio-only timeline instance. MLT lists tracks bottom-to-top, so
+          # chain0/tractor0 is the BOTTOM timeline track, which kdenlive
+          # labels A4 — invert the mapping so A1 (last tractor) gets source
+          # audio track 1 and A4 (first tractor) gets track 4.
           xml << "    <property name=\"video_index\">-1</property>\n"
-          xml << "    <property name=\"audio_index\">#{i + 1}</property>\n"
-          xml << "    <property name=\"astream\">#{i}</property>\n"
+          xml << "    <property name=\"audio_index\">#{4 - i}</property>\n"
+          xml << "    <property name=\"astream\">#{3 - i}</property>\n"
           xml << "    <property name=\"set.test_image\">1</property>\n"
         elsif i == 4
           # Video-only timeline instance
@@ -409,8 +416,8 @@ module InvasionExtractor
     end
 
     def build_profile(meta)
-      width = meta[:width] || 1920
-      height = meta[:height] || 1080
+      width = @options[:profile_width]
+      height = @options[:profile_height]
       fps_num = meta[:fps] || 30
       fps_den = 1
 
