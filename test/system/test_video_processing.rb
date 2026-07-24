@@ -20,7 +20,7 @@ class TestVideoProcessing < Minitest::Test
 
     engine = nil
     bm = Benchmark.measure do
-      engine = InvasionExtractor::Engine.new([video], outdir: @outdir, quiet: true, no_cache: true)
+      engine = InvasionStudio::Engine.new([video], outdir: @outdir, quiet: true, no_cache: true)
       engine.run!
     end
 
@@ -41,7 +41,7 @@ class TestVideoProcessing < Minitest::Test
 
     engine = nil
     bm = Benchmark.measure do
-      engine = InvasionExtractor::Engine.new([video], outdir: @outdir, quiet: true, no_cache: true)
+      engine = InvasionStudio::Engine.new([video], outdir: @outdir, quiet: true, no_cache: true)
       engine.run!
     end
 

@@ -1,7 +1,0 @@
-#!/usr/bin/env ruby
-# frozen_string_literal: true
-
-# require 'bundler/setup'
-require 'invasion_extractor'
-
-InvasionExtractor::CLI.new(ARGV).run

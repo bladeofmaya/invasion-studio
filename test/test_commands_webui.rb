@@ -4,7 +4,7 @@ class TestCommandsWebui < Minitest::Test
   def test_build_parser_sets_port
     options = { command: 'webui' }
     argv = ['-p', '8080', '/tmp/clips']
-    cmd = InvasionExtractor::Commands::Webui.new(options, argv)
+    cmd = InvasionStudio::Commands::Webui.new(options, argv)
     cmd.send(:parse_options!)
 
     assert_equal 8080, options[:port]
@@ -13,7 +13,7 @@ class TestCommandsWebui < Minitest::Test
   def test_validate_exits_when_no_folder
     options = { command: 'webui' }
     argv = []
-    cmd = InvasionExtractor::Commands::Webui.new(options, argv)
+    cmd = InvasionStudio::Commands::Webui.new(options, argv)
 
     error = assert_raises(SystemExit) { cmd.send(:validate!) }
     assert_equal 1, error.status
@@ -22,7 +22,7 @@ class TestCommandsWebui < Minitest::Test
   def test_validate_exits_when_invalid_folder
     options = { command: 'webui' }
     argv = ['/nonexistent/folder']
-    cmd = InvasionExtractor::Commands::Webui.new(options, argv)
+    cmd = InvasionStudio::Commands::Webui.new(options, argv)
 
     error = assert_raises(SystemExit) { cmd.send(:validate!) }
     assert_equal 1, error.status
@@ -33,7 +33,7 @@ class TestCommandsWebui < Minitest::Test
     options = { command: 'webui' }
     dir = Dir.mktmpdir
     argv = [dir]
-    cmd = InvasionExtractor::Commands::Webui.new(options, argv)
+    cmd = InvasionStudio::Commands::Webui.new(options, argv)
 
     # Should not raise
     cmd.send(:validate!)

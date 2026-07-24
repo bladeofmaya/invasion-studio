@@ -19,7 +19,7 @@ class TestProject < Minitest::Test
   end
 
   def test_initializes_with_empty_folder
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     assert File.exist?(@project_file)
     assert_equal File.basename(@tmp_dir), project.data['project']
     assert_equal [], project.clips
@@ -28,7 +28,7 @@ class TestProject < Minitest::Test
   def test_discovers_clips_on_disk
     create_clip_file('invasion_00001.mp4')
     create_clip_file('invasion_00002.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
 
     assert_equal 2, project.clips.length
     assert_equal 'invasion_00001', project.clips[0]['id']
@@ -36,25 +36,25 @@ class TestProject < Minitest::Test
   end
 
   def test_creates_default_group
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     assert_equal 1, project.groups.length
     assert_equal 'Video 1', project.groups[0]['name']
   end
 
   def test_create_group
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     assert project.create_group('Video 2')
     assert_equal 2, project.groups.length
     assert_equal 'Video 2', project.groups[1]['name']
   end
 
   def test_create_duplicate_group_fails
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     refute project.create_group('Video 1')
   end
 
   def test_delete_group
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     project.create_group('Video 2')
     project.delete_group('Video 2')
     assert_equal 1, project.groups.length
@@ -62,7 +62,7 @@ class TestProject < Minitest::Test
 
   def test_add_and_remove_clip_from_group
     create_clip_file('invasion_00001.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     project.create_group('Best')
 
     assert project.add_clip_to_group('Best', 'invasion_00001')
@@ -76,7 +76,7 @@ class TestProject < Minitest::Test
     create_clip_file('a.mp4')
     create_clip_file('b.mp4')
     create_clip_file('c.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
 
     project.add_clip_to_group('Video 1', 'a')
     project.add_clip_to_group('Video 1', 'b')
@@ -89,21 +89,21 @@ class TestProject < Minitest::Test
 
   def test_reorder_group_invalid_index
     create_clip_file('a.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     project.add_clip_to_group('Video 1', 'a')
     refute project.reorder_group('Video 1', 0, 5)
   end
 
   def test_update_note
     create_clip_file('invasion_00001.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     assert project.update_note('invasion_00001', 'Great parry')
     assert_equal 'Great parry', project.find_clip('invasion_00001')['note']
   end
 
   def test_delete_clip_moves_to_trash
     create_clip_file('invasion_00001.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     clip = project.clips[0]
     resolved_path = project.resolve_clip_path(clip)
 
@@ -116,7 +116,7 @@ class TestProject < Minitest::Test
 
   def test_restore_clip
     create_clip_file('invasion_00001.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     clip = project.clips[0]
     resolved_path = project.resolve_clip_path(clip)
 
@@ -130,7 +130,7 @@ class TestProject < Minitest::Test
   def test_group_clips
     create_clip_file('a.mp4')
     create_clip_file('b.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     project.create_group('Best')
     project.add_clip_to_group('Best', 'a')
     project.add_clip_to_group('Best', 'b')
@@ -143,7 +143,7 @@ class TestProject < Minitest::Test
 
   def test_group_clip_paths
     create_clip_file('a.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     project.add_clip_to_group('Video 1', 'a')
 
     paths = project.group_clip_paths('Video 1')
@@ -152,7 +152,7 @@ class TestProject < Minitest::Test
 
   def test_persists_to_json
     create_clip_file('a.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     project.update_note('a', 'note')
 
     data = JSON.parse(File.read(@project_file))
@@ -162,47 +162,47 @@ class TestProject < Minitest::Test
   def test_sync_removes_missing_clips
     create_clip_file('a.mp4')
     create_clip_file('b.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     assert_equal 2, project.clips.length
 
     File.delete(File.join(@tmp_dir, 'a.mp4'))
     File.delete(File.join(@tmp_dir, 'b.mp4'))
-    project2 = InvasionExtractor::Project.new(@tmp_dir)
+    project2 = InvasionStudio::Project.new(@tmp_dir)
     assert_equal [], project2.clips
   end
 
   def test_sync_keeps_trashed_clips_in_json
     create_clip_file('a.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     project.delete_clip('a')
     File.delete(File.join(@tmp_dir, '.trashed', 'a.mp4'))
 
-    project2 = InvasionExtractor::Project.new(@tmp_dir)
+    project2 = InvasionStudio::Project.new(@tmp_dir)
     assert_equal [], project2.all_clips
   end
 
   def test_finalize_cuts_returns_false_when_no_cuts
     create_clip_file('test.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     refute project.finalize_cuts('test')
   end
 
   def test_finalize_cuts_returns_false_for_invalid_clip
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     refute project.finalize_cuts('nonexistent')
   end
 
   def test_finalize_cuts_applies_cuts_and_clears_them
     create_clip_file('test.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     project.update_cuts('test', [{ 'start' => 2.0, 'end' => 4.0 }])
 
     meta = { duration: 10.0, width: 1920, height: 1080, fps: 30 }
     mock_video = Struct.new(:path).new('test.mp4')
     def mock_video.metadata; { duration: 10.0, width: 1920, height: 1080, fps: 30 }; end
 
-    orig_new = InvasionExtractor::Video.method(:new)
-    InvasionExtractor::Video.define_singleton_method(:new) { |path| mock_video }
+    orig_new = InvasionStudio::Video.method(:new)
+    InvasionStudio::Video.define_singleton_method(:new) { |path| mock_video }
 
     finalizer = ->(_source, _segments, output) {
       File.write(output, 'finalized')
@@ -214,19 +214,19 @@ class TestProject < Minitest::Test
     assert File.exist?(File.join(@tmp_dir, '.backup', 'test.mp4'))
     assert_equal 'finalized', File.read(File.join(@tmp_dir, 'test.mp4'))
   ensure
-    InvasionExtractor::Video.define_singleton_method(:new, orig_new) if orig_new
+    InvasionStudio::Video.define_singleton_method(:new, orig_new) if orig_new
   end
 
   def test_finalize_cuts_returns_false_when_finalizer_fails
     create_clip_file('test.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     project.update_cuts('test', [{ 'start' => 2.0, 'end' => 4.0 }])
 
     mock_video = Struct.new(:path).new('test.mp4')
     def mock_video.metadata; { duration: 10.0, width: 1920, height: 1080, fps: 30 }; end
 
-    orig_new = InvasionExtractor::Video.method(:new)
-    InvasionExtractor::Video.define_singleton_method(:new) { |path| mock_video }
+    orig_new = InvasionStudio::Video.method(:new)
+    InvasionStudio::Video.define_singleton_method(:new) { |path| mock_video }
 
     finalizer = ->(_source, _segments, _output) { false }
 
@@ -234,19 +234,19 @@ class TestProject < Minitest::Test
     assert_equal [{ 'start' => 2.0, 'end' => 4.0 }], project.find_clip('test')['cuts']
     assert_equal 'dummy', File.read(File.join(@tmp_dir, 'test.mp4'))
   ensure
-    InvasionExtractor::Video.define_singleton_method(:new, orig_new) if orig_new
+    InvasionStudio::Video.define_singleton_method(:new, orig_new) if orig_new
   end
 
   def test_finalize_cuts_handles_cut_at_start
     create_clip_file('test.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     project.update_cuts('test', [{ 'start' => 0.0, 'end' => 3.0 }])
 
     mock_video = Struct.new(:path).new('test.mp4')
     def mock_video.metadata; { duration: 10.0, width: 1920, height: 1080, fps: 30 }; end
 
-    orig_new = InvasionExtractor::Video.method(:new)
-    InvasionExtractor::Video.define_singleton_method(:new) { |path| mock_video }
+    orig_new = InvasionStudio::Video.method(:new)
+    InvasionStudio::Video.define_singleton_method(:new) { |path| mock_video }
 
     captured_segments = nil
     finalizer = ->(_source, segments, output) {
@@ -258,19 +258,19 @@ class TestProject < Minitest::Test
     assert project.finalize_cuts('test', finalizer: finalizer)
     assert_equal [{ start: 3.0, end: 10.0 }], captured_segments
   ensure
-    InvasionExtractor::Video.define_singleton_method(:new, orig_new) if orig_new
+    InvasionStudio::Video.define_singleton_method(:new, orig_new) if orig_new
   end
 
   def test_finalize_cuts_handles_cut_at_end
     create_clip_file('test.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     project.update_cuts('test', [{ 'start' => 7.0, 'end' => 10.0 }])
 
     mock_video = Struct.new(:path).new('test.mp4')
     def mock_video.metadata; { duration: 10.0, width: 1920, height: 1080, fps: 30 }; end
 
-    orig_new = InvasionExtractor::Video.method(:new)
-    InvasionExtractor::Video.define_singleton_method(:new) { |path| mock_video }
+    orig_new = InvasionStudio::Video.method(:new)
+    InvasionStudio::Video.define_singleton_method(:new) { |path| mock_video }
 
     captured_segments = nil
     finalizer = ->(_source, segments, output) {
@@ -282,23 +282,23 @@ class TestProject < Minitest::Test
     assert project.finalize_cuts('test', finalizer: finalizer)
     assert_equal [{ start: 0.0, end: 7.0 }], captured_segments
   ensure
-    InvasionExtractor::Video.define_singleton_method(:new, orig_new) if orig_new
+    InvasionStudio::Video.define_singleton_method(:new, orig_new) if orig_new
   end
 
   def test_finalize_cuts_returns_false_when_all_video_is_cut
     create_clip_file('test.mp4')
-    project = InvasionExtractor::Project.new(@tmp_dir)
+    project = InvasionStudio::Project.new(@tmp_dir)
     project.update_cuts('test', [{ 'start' => 0.0, 'end' => 10.0 }])
 
     mock_video = Struct.new(:path).new('test.mp4')
     def mock_video.metadata; { duration: 10.0, width: 1920, height: 1080, fps: 30 }; end
 
-    orig_new = InvasionExtractor::Video.method(:new)
-    InvasionExtractor::Video.define_singleton_method(:new) { |path| mock_video }
+    orig_new = InvasionStudio::Video.method(:new)
+    InvasionStudio::Video.define_singleton_method(:new) { |path| mock_video }
 
     refute project.finalize_cuts('test')
     assert_equal [{ 'start' => 0.0, 'end' => 10.0 }], project.find_clip('test')['cuts']
   ensure
-    InvasionExtractor::Video.define_singleton_method(:new, orig_new) if orig_new
+    InvasionStudio::Video.define_singleton_method(:new, orig_new) if orig_new
   end
 end

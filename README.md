@@ -1,10 +1,10 @@
-# Elden Ring Invasion Extractor
+# Elden Ring Invasion Studio
 
 Automatically detect and extract invasion clips from your Elden Ring gameplay footage. This Ruby gem scans your recordings using OCR (Optical Character Recognition) to find invasion start/end points, cuts them into separate video files, and provides a browser-based studio to organize, review, and export them — perfect for content creators who want to streamline their editing workflow.
 
 [📺 Watch the demo](https://www.youtube.com/watch?v=-G9ARNrhMOI)
 
-![](images/invasion-extractor.jpg)
+![Invasion Studio](images/invasion-studio.png)
 
 ---
 
@@ -28,23 +28,21 @@ sudo pacman -S ffmpeg tesseract tesseract-data-eng
 ### Installation
 
 ```bash
-git clone https://github.com/bladeofmaya/invasion_extractor.git
-cd invasion_extractor
-bundle install
+gem install invasion-studio
 ```
 
 ### Typical Workflow
 
 ```bash
 # 1. Extract invasions from your recordings
-bin/invasion_extractor --prefix ps-daggers-tt-04 --outdir ~/Videos/ER/clips ~/Videos/Capture/*.mp4
+invasion-studio --prefix ps-daggers-tt-04 --outdir ~/Videos/ER/clips ~/Videos/Capture/*.mp4
 
 # 2. Open the Invasion Studio to organize, review, and tag clips
-bin/invasion_extractor webui ~/Videos/ER/clips
+invasion-studio webui ~/Videos/ER/clips
 
 # 3. Export a group to a single video + Kdenlive timeline
 # (Done from the studio UI — or via CLI)
-bin/invasion_extractor export-kdenlive ~/Videos/ER/clips
+invasion-studio export-kdenlive ~/Videos/ER/clips
 ```
 
 **Pro tip:** If OBS splits your recordings into segments (e.g., 60-minute chunks), pass all files in order. The tool detects invasions that span across files and combines them automatically.
@@ -79,10 +77,10 @@ After extracting clips, organize, review, and export them with the built-in brow
 
 ```bash
 # Start the studio from your clips folder
-bin/invasion_extractor webui ~/Videos/ER/clips
+invasion-studio webui ~/Videos/ER/clips
 
 # Start on a custom port
-bin/invasion_extractor webui -p 8080 ~/Videos/ER/clips
+invasion-studio webui -p 8080 ~/Videos/ER/clips
 ```
 
 Then open `http://localhost:4567` (or your custom port) in your browser.
@@ -94,7 +92,7 @@ Then open `http://localhost:4567` (or your custom port) in your browser.
 ### Command Structure
 
 ```
-bin/invasion_extractor [COMMAND] [OPTIONS] [VIDEO_FILES...]
+invasion-studio [COMMAND] [OPTIONS] [VIDEO_FILES...]
 ```
 
 ### Commands
@@ -151,20 +149,20 @@ bin/invasion_extractor [COMMAND] [OPTIONS] [VIDEO_FILES...]
 
 ```bash
 # Extract from a single video
-bin/invasion_extractor video.mp4
+invasion-studio video.mp4
 
 # Extract from multiple videos with prefix
-bin/invasion_extractor --prefix my-invasions ~/Videos/Capture/*.mp4
+invasion-studio --prefix my-invasions ~/Videos/Capture/*.mp4
 
 # Specify output directory
-bin/invasion_extractor -o ~/Desktop/clips ~/Videos/Capture/*.mp4
+invasion-studio -o ~/Desktop/clips ~/Videos/Capture/*.mp4
 ```
 
 ### Scan Mode (Preview Invasions)
 
 ```bash
 # Scan only - shows timestamps without extracting
-bin/invasion_extractor scan ~/Videos/Capture/*.mp4
+invasion-studio scan ~/Videos/Capture/*.mp4
 
 # Output:
 # Detected Invasions:
@@ -180,7 +178,7 @@ bin/invasion_extractor scan ~/Videos/Capture/*.mp4
 
 ```bash
 # See exactly what OCR detected at every timestamp
-bin/invasion_extractor -d ~/Videos/Capture/*.mp4
+invasion-studio -d ~/Videos/Capture/*.mp4
 
 # Output includes:
 #   [START] 00:01:23.500 => "Defeat the Host of Fingers"
@@ -193,29 +191,43 @@ bin/invasion_extractor -d ~/Videos/Capture/*.mp4
 
 ```bash
 # Export clips folder to a Kdenlive timeline
-bin/invasion_extractor export-kdenlive ~/Videos/ER/clips
+invasion-studio export-kdenlive ~/Videos/ER/clips
 
 # Export with custom output path and transition duration
-bin/invasion_extractor export-kdenlive -o ~/Videos/ER/project.kdenlive -t 3.0 ~/Videos/ER/clips
+invasion-studio export-kdenlive -o ~/Videos/ER/project.kdenlive -t 3.0 ~/Videos/ER/clips
 
 # Concatenate all clips into a single video (no re-encoding, with chapter markers)
-bin/invasion_extractor concat ~/Videos/ER/clips
+invasion-studio concat ~/Videos/ER/clips
 
 # Concat with custom output
-bin/invasion_extractor concat -o ~/Videos/ER/final.mp4 ~/Videos/ER/clips
+invasion-studio concat -o ~/Videos/ER/final.mp4 ~/Videos/ER/clips
 ```
 
 ### Cache Management
 
-OCR results are cached automatically in `/dev/shm/invasion_extractor_cache/`. To force re-processing:
+OCR results follow the XDG Base Directory Specification and are cached in
+`${XDG_CACHE_HOME:-$HOME/.cache}/invasion-studio`. To force re-processing:
 
 ```bash
 # Skip cache for this run
-bin/invasion_extractor --no-cache ~/Videos/Capture/*.mp4
+invasion-studio --no-cache ~/Videos/Capture/*.mp4
 
-# Clear cache manually
-rm -rf /dev/shm/invasion_extractor_cache/*.yml
+# Clear the current cache manually
+rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/invasion-studio"
 ```
+
+### Upgrading from versions before 0.5.0
+
+Version 0.5.0 is a clean, breaking rename. It does not migrate settings or cache
+data from Invasion Extractor. The old Linux OCR cache is no longer read and can
+be removed manually:
+
+```bash
+rm -rf /dev/shm/invasion_extractor_cache
+```
+
+This command removes only the obsolete global OCR cache. Do not remove your clip
+or project folders; they contain user-created videos and project metadata.
 
 ---
 
@@ -241,8 +253,8 @@ rm -rf /dev/shm/invasion_extractor_cache/*.yml
 ## Architecture
 
 ```
-lib/invasion_extractor/
-├── invasion_extractor.rb    # Main entry point, dependency checks
+lib/invasion_studio/
+├── invasion_studio.rb    # Main entry point, dependency checks
 ├── cli.rb                   # CLI orchestrator (parses args, dispatches commands)
 ├── commands/
 │   ├── base.rb              # Abstract command base class
@@ -296,7 +308,7 @@ All tests run against sample video files in `test/samples/`.
 ### Using the OCR Provider Directly
 
 ```ruby
-provider = InvasionExtractor::OCR::TesseractProvider.new
+provider = InvasionStudio::OCR::TesseractProvider.new
 result = provider.recognize('test/samples/invasion_start.jpg')
 puts result
 ```
@@ -312,7 +324,7 @@ Contributions welcome! Areas that need help:
 - **OCR accuracy**: Tuning crop regions for better text detection
 - **GPU acceleration**: EasyOCR/ONNX providers for faster processing
 
-Open an issue or submit a PR at [github.com/bladeofmaya/invasion_extractor](https://github.com/bladeofmaya/invasion_extractor).
+Project links will be published at [bladeofmaya.com](https://bladeofmaya.com).
 
 ---
 

@@ -1,0 +1,421 @@
+require 'json'
+require 'fileutils'
+
+module InvasionStudio
+  class Project
+    VIDEO_EXTENSIONS = %w[.mp4 .mkv .avi .mov .webm .flv .wmv .m4v .mpeg .mpg].freeze
+
+    attr_reader :folder_path, :data
+
+    def initialize(folder_path)
+      @folder_path = File.expand_path(folder_path)
+      @project_file = File.join(@folder_path, 'project.json')
+      @data = load_or_initialize
+      sync_clips!
+    end
+
+    def clips
+      @data['clips'].select { |c| !c['deleted'] }
+    end
+
+    def all_clips
+      @data['clips']
+    end
+
+    def deleted_clips
+      @data['clips'].select { |c| c['deleted'] }
+    end
+
+    def groups
+      @data['groups'] || []
+    end
+
+    def create_group(name)
+      return false if groups.any? { |g| g['name'] == name }
+
+      @data['groups'] ||= []
+      @data['groups'] << { 'name' => name, 'clip_ids' => [] }
+      save!
+      true
+    end
+
+    def rename_group(old_name, new_name)
+      return false if old_name == new_name
+      return false if groups.any? { |g| g['name'] == new_name }
+
+      group = @data['groups'].find { |g| g['name'] == old_name }
+      return false unless group
+
+      group['name'] = new_name
+      save!
+      true
+    end
+
+    def delete_group(name)
+      @data['groups'].reject! { |g| g['name'] == name }
+      save!
+    end
+
+    def add_clip_to_group(group_name, clip_id)
+      group = @data['groups'].find { |g| g['name'] == group_name }
+      return false unless group
+
+      group['clip_ids'] << clip_id unless group['clip_ids'].include?(clip_id)
+      save!
+      true
+    end
+
+    def remove_clip_from_group(group_name, clip_id)
+      group = @data['groups'].find { |g| g['name'] == group_name }
+      return false unless group
+
+      group['clip_ids'].delete(clip_id)
+      save!
+      true
+    end
+
+    def reorder_group(group_name, old_index, new_index)
+      group = @data['groups'].find { |g| g['name'] == group_name }
+      return false unless group
+
+      clip_ids = group['clip_ids']
+      return false if old_index < 0 || old_index >= clip_ids.length
+      return false if new_index < 0 || new_index >= clip_ids.length
+
+      id = clip_ids.delete_at(old_index)
+      clip_ids.insert(new_index, id)
+      save!
+      true
+    end
+
+    def update_note(clip_id, note)
+      clip = find_clip(clip_id)
+      return false unless clip
+
+      clip['note'] = note
+      save!
+      true
+    end
+
+    def update_rating(clip_id, rating)
+      clip = find_clip(clip_id)
+      return false unless clip
+
+      clip['rating'] = rating.to_i.clamp(0, 5)
+      save!
+      true
+    end
+
+    def update_result(clip_id, result)
+      clip = find_clip(clip_id)
+      return false unless clip
+
+      clip['result'] = %w[win loss dc].include?(result) ? result : nil
+      save!
+      true
+    end
+
+    def update_title(clip_id, title)
+      clip = find_clip(clip_id)
+      return false unless clip
+
+      clip['title'] = title.to_s.strip.empty? ? nil : title.to_s.strip
+      save!
+      true
+    end
+
+    def update_cuts(clip_id, cuts)
+      clip = find_clip(clip_id)
+      return false unless clip
+
+      clip['cuts'] = cuts
+      save!
+      true
+    end
+
+    def finalize_cuts(clip_id, finalizer: nil)
+      clip = find_clip(clip_id)
+      return false unless clip
+
+      cuts = clip['cuts']
+      return false if cuts.nil? || cuts.empty?
+
+      source_path = resolve_clip_path(clip)
+      return false unless source_path && File.exist?(source_path)
+
+      # Backup original
+      backup_dir = File.join(@folder_path, '.backup')
+      FileUtils.mkdir_p(backup_dir)
+      backup_path = File.join(backup_dir, clip['filename'])
+
+      # Don't overwrite existing backup
+      if File.exist?(backup_path)
+        backup_path = File.join(
+          backup_dir,
+          "#{File.basename(clip['filename'], '.*')}_#{Time.now.to_i}#{File.extname(clip['filename'])}"
+        )
+      end
+
+      FileUtils.cp(source_path, backup_path)
+
+      # Get video duration
+      video = Video.new(backup_path)
+      meta = video.metadata
+      duration = meta[:duration]
+      return false unless duration && duration > 0
+
+      # Build keep segments by inverting cuts
+      keep_segments = build_keep_segments(cuts, duration)
+      return false if keep_segments.empty?
+
+      temp_dir = Dir.mktmpdir
+      temp_output = File.join(temp_dir, "finalized#{File.extname(clip['filename'])}")
+
+      finalizer ||= method(:run_ffmpeg_finalize)
+      success = finalizer.call(backup_path, keep_segments, temp_output)
+
+      if success && File.exist?(temp_output) && File.size(temp_output) > 0
+        FileUtils.mv(temp_output, source_path)
+        clip['cuts'] = []
+        save!
+        true
+      else
+        false
+      end
+    ensure
+      FileUtils.rm_rf(temp_dir) if temp_dir
+    end
+
+    def delete_clip(clip_id)
+      clip = find_clip(clip_id)
+      return false unless clip
+
+      source_path = resolve_clip_path(clip)
+      if source_path && File.exist?(source_path)
+        trash_dir = File.join(@folder_path, '.trashed')
+        FileUtils.mkdir_p(trash_dir)
+        FileUtils.mv(source_path, File.join(trash_dir, clip['filename']))
+      end
+
+      clip['deleted'] = true
+      save!
+      true
+    end
+
+    def restore_clip(clip_id)
+      clip = find_clip(clip_id)
+      return false unless clip
+
+      trash_path = File.join(@folder_path, '.trashed', clip['filename'])
+      source_path = resolve_clip_path(clip)
+
+      if File.exist?(trash_path) && source_path
+        FileUtils.mv(trash_path, source_path)
+      end
+
+      clip['deleted'] = false
+      save!
+      true
+    end
+
+    def group_clips(group_name)
+      group = @data['groups'].find { |g| g['name'] == group_name }
+      return [] unless group
+
+      group['clip_ids'].map { |id| find_clip(id) }.compact.select { |c| !c['deleted'] }
+    end
+
+    def group_clip_paths(group_name)
+      group_clips(group_name).map { |c| resolve_clip_path(c) }.compact
+    end
+
+    def clip_groups(clip_id)
+      @data['groups'].select { |g| g['clip_ids'].include?(clip_id) }.map { |g| g['name'] }
+    end
+
+    def find_clip(clip_id)
+      @data['clips'].find { |c| c['id'] == clip_id }
+    end
+
+    def resolve_clip_path(clip)
+      path = clip['path']
+      return nil if path.nil? || path.empty?
+      return path if path.start_with?('/')
+      File.join(@folder_path, path)
+    end
+
+    def save!
+      @data['updated_at'] = Time.now.iso8601
+      File.write(@project_file, JSON.pretty_generate(@data))
+    end
+
+    private
+
+    def make_relative_path(path)
+      return path if path.nil? || path.empty?
+      # If already relative, return as-is
+      return path unless path.start_with?('/')
+      # Make relative to project folder
+      path.sub(@folder_path + '/', '')
+    end
+
+    def load_or_initialize
+      if File.exist?(@project_file)
+        JSON.parse(File.read(@project_file))
+      else
+        {
+          'project' => File.basename(@folder_path),
+          'created_at' => Time.now.iso8601,
+          'updated_at' => Time.now.iso8601,
+          'clips' => [],
+          'groups' => [
+            { 'name' => 'Video 1', 'clip_ids' => [] }
+          ]
+        }
+      end
+    end
+
+    def sync_clips!
+      disk_files = discover_video_files
+      known_filenames = @data['clips'].map { |c| c['filename'] }
+
+      # Add new clips found on disk
+      disk_files.each do |path|
+        filename = File.basename(path)
+        next if known_filenames.include?(filename)
+
+        @data['clips'] << {
+          'id' => File.basename(filename, '.*'),
+          'filename' => filename,
+          'path' => make_relative_path(path),
+          'title' => nil,
+          'note' => '',
+          'rating' => 0,
+          'result' => nil,
+          'cuts' => [],
+          'deleted' => false
+        }
+      end
+
+      # Ensure all clips have required fields and migrate absolute paths to relative
+      @data['clips'].each do |clip|
+        clip['title'] = nil unless clip.key?('title')
+        clip['rating'] = 0 unless clip.key?('rating')
+        clip['result'] = nil unless clip.key?('result')
+        clip['cuts'] = [] unless clip.key?('cuts')
+        clip['path'] = make_relative_path(clip['path'])
+      end
+
+      # Remove entries for files that no longer exist anywhere
+      @data['clips'].reject! do |clip|
+        resolved = resolve_clip_path(clip)
+        trash_path = File.join(@folder_path, '.trashed', clip['filename'])
+        !File.exist?(resolved) && !File.exist?(trash_path)
+      end
+
+      save!
+    end
+
+    def discover_video_files
+      Dir.glob(File.join(@folder_path, '*'))
+         .select { |f| VIDEO_EXTENSIONS.include?(File.extname(f).downcase) }
+         .sort
+    end
+
+    def build_keep_segments(cuts, duration)
+      sorted = cuts.sort_by { |c| c['start'] || c[:start] }
+      segments = []
+      current_pos = 0.0
+
+      sorted.each do |cut|
+        start_time = cut['start'] || cut[:start]
+        end_time = cut['end'] || cut[:end]
+
+        next if start_time.nil? || end_time.nil?
+        next if start_time >= end_time
+
+        if current_pos < start_time
+          segments << { start: current_pos, end: [start_time, duration].min }
+        end
+
+        current_pos = [current_pos, end_time].max
+      end
+
+      if current_pos < duration
+        segments << { start: current_pos, end: duration }
+      end
+
+      segments
+    end
+
+    def run_ffmpeg_finalize(source_path, keep_segments, output_path)
+      temp_dir = File.dirname(output_path)
+
+      if keep_segments.length == 1
+        seg = keep_segments[0]
+        cmd = [
+          'ffmpeg', '-y',
+          '-ss', seg[:start].to_s,
+          '-i', source_path,
+          # -t (duration), not -to: input -ss resets timestamps, so -to would
+          # be relative to the seek point and overshoot the segment end
+          '-t', (seg[:end] - seg[:start]).to_s,
+          '-c', 'copy',
+          '-map', '0',
+          '-avoid_negative_ts', 'make_zero',
+          output_path
+        ]
+        system(*cmd)
+      else
+        segment_files = []
+        keep_segments.each_with_index do |seg, i|
+          seg_file = File.join(temp_dir, "seg_#{i}.mp4")
+          cmd = [
+            'ffmpeg', '-y',
+            '-ss', seg[:start].to_s,
+            '-i', source_path,
+            # -t (duration), not -to: see single-segment branch above
+            '-t', (seg[:end] - seg[:start]).to_s,
+            '-c', 'copy',
+            '-map', '0',
+            '-avoid_negative_ts', 'make_zero',
+            seg_file
+          ]
+          system(*cmd)
+
+          next unless File.exist?(seg_file) && File.size(seg_file) > 0
+
+          seg_meta = Video.new(seg_file).metadata
+          next unless seg_meta && seg_meta[:duration] && seg_meta[:duration] > 0.1
+
+          segment_files << seg_file
+        end
+
+        return false if segment_files.empty?
+
+        # If only one valid segment, copy it directly (avoid concat overhead)
+        if segment_files.length == 1
+          FileUtils.cp(segment_files[0], output_path)
+          return File.exist?(output_path) && File.size(output_path) > 0
+        end
+
+        concat_list = File.join(temp_dir, 'concat_list.txt')
+        File.write(concat_list, segment_files.map { |f| "file '#{f}'" }.join("\n"))
+
+        cmd = [
+          'ffmpeg', '-y',
+          '-f', 'concat', '-safe', '0',
+          '-i', concat_list,
+          # -map 0: keep ALL streams; ffmpeg's default selection would keep
+          # only one ("best") audio stream and drop the other audio tracks
+          '-map', '0',
+          '-c', 'copy',
+          output_path
+        ]
+        system(*cmd)
+      end
+
+      $?.success? && File.exist?(output_path) && File.size(output_path) > 0
+    end
+  end
+end

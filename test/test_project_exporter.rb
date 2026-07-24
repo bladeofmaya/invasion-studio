@@ -19,10 +19,10 @@ class TestProjectExporter < Minitest::Test
   end
 
   def test_export_group_with_no_clips_raises
-    project = InvasionExtractor::Project.new(@tmp_dir)
-    exporter = InvasionExtractor::ProjectExporter.new(project, quiet: true)
+    project = InvasionStudio::Project.new(@tmp_dir)
+    exporter = InvasionStudio::ProjectExporter.new(project, quiet: true)
 
-    assert_raises(InvasionExtractor::Error) do
+    assert_raises(InvasionStudio::Error) do
       exporter.export_group('Video 1')
     end
   end
