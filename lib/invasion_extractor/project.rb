@@ -406,6 +406,9 @@ module InvasionExtractor
           'ffmpeg', '-y',
           '-f', 'concat', '-safe', '0',
           '-i', concat_list,
+          # -map 0: keep ALL streams; ffmpeg's default selection would keep
+          # only one ("best") audio stream and drop the other audio tracks
+          '-map', '0',
           '-c', 'copy',
           output_path
         ]
