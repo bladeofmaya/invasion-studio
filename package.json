@@ -1,0 +1,15 @@
+{
+  "name": "invasion-studio-assets",
+  "private": true,
+  "scripts": {
+    "build": "npm run build:css && npm run build:js",
+    "build:css": "tailwindcss -i lib/invasion_studio/webui/frontend/app.css -o lib/invasion_studio/webui/public/assets/app.css --minify",
+    "build:js": "esbuild lib/invasion_studio/webui/frontend/app.js --bundle --format=esm --minify --outfile=lib/invasion_studio/webui/public/assets/app.js"
+  },
+  "devDependencies": {
+    "@hotwired/stimulus": "3.2.2",
+    "@tailwindcss/cli": "4.3.3",
+    "esbuild": "0.28.1",
+    "tailwindcss": "4.3.3"
+  }
+}

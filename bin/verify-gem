@@ -1,0 +1,25 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "rubygems/package"
+
+gem_path = ARGV.fetch(0) do
+  warn "Usage: bin/verify-gem PATH_TO_GEM"
+  exit 2
+end
+
+required_files = %w[
+  bin/invasion-studio
+  lib/invasion_studio/webui/views/index.erb
+  lib/invasion_studio/webui/public/assets/app.css
+  lib/invasion_studio/webui/public/assets/app.js
+  MIT-LICENSE
+  THIRD_PARTY_LICENSES.md
+].freeze
+
+entries = Gem::Package.new(gem_path).spec.files
+
+missing_files = required_files - entries
+abort "Gem is missing: #{missing_files.join(', ')}" unless missing_files.empty?
+
+puts "Verified #{gem_path}: packaged executable, WebUI assets, templates, and licenses"
