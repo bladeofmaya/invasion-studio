@@ -60,6 +60,20 @@ class TestInvasionStudio < Minitest::Test
     assert_equal ["invasion-studio"], gemspec.executables
   end
 
+  def test_gem_packages_offline_webui_assets_and_licenses
+    gemspec = Gem::Specification.load(File.expand_path("../invasion-studio.gemspec", __dir__))
+
+    expected_files = %w[
+      lib/invasion_studio/webui/views/index.erb
+      lib/invasion_studio/webui/public/assets/app.css
+      lib/invasion_studio/webui/public/assets/app.js
+      MIT-LICENSE
+      THIRD_PARTY_LICENSES.md
+    ]
+
+    assert_empty expected_files - gemspec.files
+  end
+
   def test_executable_loads_the_gem_from_the_checkout
     executable = File.expand_path("../bin/invasion-studio", __dir__)
     stdout, stderr, status = Open3.capture3(

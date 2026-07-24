@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@source "../views";
+@source "../public/controllers";
+
+@theme {
+  --color-app-bg: #1a171a;
+  --color-app-fg: #e8e8e0;
+  --color-surface: #242024;
+  --color-surface-secondary: #2d2429;
+  --color-surface-hover: #362a32;
+  --color-surface-active: rgba(102, 45, 109, 0.2);
+  --color-surface-overlay: #1e1a1e;
+  --color-border: #3d3540;
+  --color-border-subtle: #2d2830;
+  --color-border-active: #7b3d82;
+  --color-primary: #7b3d82;
+  --color-primary-hover: #955a9c;
+  --color-primary-fg: #ffffff;
+  --color-secondary: #5a1a3d;
+  --color-secondary-hover: #6b2348;
+  --color-secondary-fg: #ffffff;
+  --color-danger: #ef4444;
+  --color-danger-hover: #f87171;
+  --color-danger-fg: #ffffff;
+  --color-success: #22c55e;
+  --color-success-hover: #4ade80;
+  --color-success-fg: #1a171a;
+  --color-text-primary: #e8e8e0;
+  --color-text-secondary: #d1d1c8;
+  --color-text-muted: #9ca3af;
+  --color-text-disabled: #4b5563;
+  --color-input-bg: #2a252a;
+  --color-input-border: #4a4a52;
+  --color-input-focus-ring: #7b3d82;
+  --color-accent: #7b3d82;
+  --color-accent-hover: #955a9c;
+  --color-star-empty: #4a4a52;
+}

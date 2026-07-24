@@ -46,6 +46,35 @@ class TestWebuiServer < Minitest::Test
     assert last_response.body.include?('data-controller="router navigation"')
   end
 
+  def test_get_root_uses_only_local_executable_assets
+    get '/'
+
+    executable_assets = last_response.body.scan(
+      /<(?:script|link)\b[^>]*(?:src|href)=["']([^"']+)["']/i
+    ).flatten
+
+    refute_empty executable_assets
+    assert executable_assets.all? { |url| url.start_with?('/') }, executable_assets.inspect
+    refute_match(/https?:\/\//i, last_response.body)
+    refute_match(/type=["']importmap["']/i, last_response.body)
+  end
+
+  def test_get_compiled_stylesheet
+    get '/assets/app.css'
+
+    assert last_response.ok?
+    assert_includes last_response.content_type, 'text/css'
+    refute_empty last_response.body
+  end
+
+  def test_get_bundled_javascript
+    get '/assets/app.js'
+
+    assert last_response.ok?
+    assert_includes last_response.content_type, 'javascript'
+    refute_empty last_response.body
+  end
+
   # ========== SPA Deep-Link Routes ==========
 
   def test_get_clips_deep_link_returns_shell

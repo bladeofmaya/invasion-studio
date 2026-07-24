@@ -85,6 +85,9 @@ invasion-studio webui -p 8080 ~/Videos/ER/clips
 
 Then open `http://localhost:4567` (or your custom port) in your browser.
 
+The installed WebUI is self-contained: its CSS, Stimulus application, and
+controllers are packaged in the gem and make no third-party network requests.
+
 ---
 
 ## Full CLI Reference
@@ -278,8 +281,11 @@ lib/invasion_studio/
 │   └── tesseract_provider.rb # Tesseract OCR implementation (default)
 └── webui/                   # Browser-based studio
     ├── server.rb            # Sinatra API and static file serving
+    ├── frontend/            # Tracked CSS and JavaScript entry points
     ├── views/               # ERB templates
-    └── public/              # Stimulus.js controllers + CSS
+    └── public/
+        ├── controllers/     # Tracked Stimulus controller sources
+        └── assets/          # Generated, ignored release assets
 ```
 
 ### Data Flow
@@ -297,13 +303,31 @@ Extracted Clips → Project.json → WebUI → Groups → Export (Spliced + Kden
 
 ## Development
 
+### Frontend assets
+
+Node.js is needed only when developing or packaging the WebUI. Installed gems
+serve prebuilt assets and do not invoke Node or npm.
+
+```bash
+# Install the exact versions from package-lock.json and build local assets
+bin/build-assets
+
+# Build assets, construct the gem, and verify its packaged contents
+bin/build-gem
+```
+
+Edit the entry points in `lib/invasion_studio/webui/frontend/` and the Stimulus
+controllers in `lib/invasion_studio/webui/public/controllers/`. Generated files
+under `public/assets/` are intentionally ignored and must not be committed.
+
 ### Running Tests
 
 ```bash
 bundle exec rake test
 ```
 
-All tests run against sample video files in `test/samples/`.
+Run `bin/build-assets` first. The default suite excludes `test/system`, which
+contains the video-processing tests reserved for owner verification.
 
 ### Using the OCR Provider Directly
 

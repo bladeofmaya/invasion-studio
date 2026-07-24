@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_DIR"
+
+bin/build-assets
+bundle exec gem build invasion-studio.gemspec
+bin/verify-gem "invasion-studio-$(bundle exec ruby -Ilib -rinvasion_studio/version -e 'print InvasionStudio::VERSION').gem"

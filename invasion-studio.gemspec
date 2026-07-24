@@ -13,7 +13,7 @@ Gem::Specification.new do |spec|
   spec.homepage      = 'https://bladeofmaya.com'
   spec.license       = 'MIT'
 
-  spec.files         = Dir['lib/**/*', 'MIT-LICENSE', 'README.md']
+  spec.files         = Dir['lib/**/*', 'MIT-LICENSE', 'README.md', 'THIRD_PARTY_LICENSES.md']
   spec.require_paths = ['lib']
 
   spec.executables = ['invasion-studio']
