@@ -4,7 +4,7 @@ class TestCommandsConcat < Minitest::Test
   def test_build_parser_sets_output_option
     options = { command: 'concat' }
     argv = ['-o', 'combined.mp4', '/tmp/clips']
-    cmd = InvasionExtractor::Commands::Concat.new(options, argv)
+    cmd = InvasionStudio::Commands::Concat.new(options, argv)
 
     cmd.send(:parse_options!)
 
@@ -14,7 +14,7 @@ class TestCommandsConcat < Minitest::Test
   def test_validate_exits_when_no_folder
     options = { command: 'concat' }
     argv = []
-    cmd = InvasionExtractor::Commands::Concat.new(options, argv)
+    cmd = InvasionStudio::Commands::Concat.new(options, argv)
 
     error = assert_raises(SystemExit) { cmd.send(:validate!) }
     assert_equal 1, error.status
@@ -23,7 +23,7 @@ class TestCommandsConcat < Minitest::Test
   def test_validate_exits_when_invalid_folder
     options = { command: 'concat' }
     argv = ['/nonexistent']
-    cmd = InvasionExtractor::Commands::Concat.new(options, argv)
+    cmd = InvasionStudio::Commands::Concat.new(options, argv)
 
     error = assert_raises(SystemExit) { cmd.send(:validate!) }
     assert_equal 1, error.status
@@ -31,7 +31,7 @@ class TestCommandsConcat < Minitest::Test
 
   def test_build_chapter_metadata
     options = { command: 'concat' }
-    cmd = InvasionExtractor::Commands::Concat.new(options, [])
+    cmd = InvasionStudio::Commands::Concat.new(options, [])
 
     clips = [
       '/tmp/clips/clip_a.mp4',

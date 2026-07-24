@@ -2,21 +2,21 @@ require 'test_helper'
 
 class TestOCRProvider < Minitest::Test
   def test_provider_is_abstract
-    provider = InvasionExtractor::OCR::Provider.new
+    provider = InvasionStudio::OCR::Provider.new
     assert_raises(NotImplementedError) do
       provider.recognize('test.jpg')
     end
   end
 
   def test_provider_name
-    provider = InvasionExtractor::OCR::Provider.new
+    provider = InvasionStudio::OCR::Provider.new
     assert_equal '', provider.name # Base Provider class has no suffix to strip
   end
 end
 
 class TestTesseractProvider < Minitest::Test
   def setup
-    @provider = InvasionExtractor::OCR::TesseractProvider.new
+    @provider = InvasionStudio::OCR::TesseractProvider.new
   end
 
   def test_tesseract_provider_name
@@ -50,6 +50,6 @@ class TestTesseractProvider < Minitest::Test
   private
 
   def tesseract_installed?
-    InvasionExtractor.check_tesseract_installed
+    InvasionStudio.check_tesseract_installed
   end
 end

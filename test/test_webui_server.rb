@@ -7,7 +7,7 @@ class TestWebuiServer < Minitest::Test
   include Rack::Test::Methods
 
   def app
-    InvasionExtractor::Webui::Server
+    InvasionStudio::Webui::Server
   end
 
   def setup
@@ -26,8 +26,8 @@ class TestWebuiServer < Minitest::Test
     }))
     File.write(File.join(@folder, 'clip1.mp4'), 'dummy')
     File.write(File.join(@folder, 'clip2.mp4'), 'dummy')
-    InvasionExtractor::Webui::Server.set :folder_path, @folder
-    InvasionExtractor::Webui::Server.set :project, InvasionExtractor::Project.new(@folder)
+    InvasionStudio::Webui::Server.set :folder_path, @folder
+    InvasionStudio::Webui::Server.set :project, InvasionStudio::Project.new(@folder)
   end
 
   def teardown
@@ -254,7 +254,7 @@ class TestWebuiServer < Minitest::Test
 
   def test_post_api_finalize_cuts_success
     # Set up a clip with cuts
-    project = InvasionExtractor::Webui::Server.settings.project
+    project = InvasionStudio::Webui::Server.settings.project
     project.update_cuts('clip1', [{ 'start' => 1.0, 'end' => 2.0 }])
 
     # Mock finalize_cuts on the project instance to avoid ffmpeg
@@ -275,7 +275,7 @@ class TestWebuiServer < Minitest::Test
   end
 
   def test_post_api_finalize_cuts_no_cuts
-    project = InvasionExtractor::Webui::Server.settings.project
+    project = InvasionStudio::Webui::Server.settings.project
     project.update_cuts('clip1', [])
 
     post '/api/clip/clip1/finalize', '', 'CONTENT_TYPE' => 'application/json'
