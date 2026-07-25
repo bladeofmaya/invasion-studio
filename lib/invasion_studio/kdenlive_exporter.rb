@@ -4,19 +4,17 @@ require 'json'
 
 module InvasionStudio
   class KdenliveExporter
-    VIDEO_EXTENSIONS = %w[.mp4 .mkv .avi .mov .webm .flv .wmv .m4v .mpeg .mpg].freeze
-
     attr_reader :folder_path, :options
 
     def initialize(folder_path, options = {})
       @folder_path = folder_path
       @options = {
-        transition_duration: 2.5,
         # Kdenlive project profile is pinned to 2K regardless of source
         # resolution; clips are scaled into the profile by kdenlive.
         profile_width: 2560,
         profile_height: 1440
       }.merge(options)
+      @process_runner = @options[:process_runner] || ProcessRunner.new
     end
 
     def run!(output_path = default_output_path)
@@ -34,9 +32,7 @@ module InvasionStudio
     end
 
     def discover_clips
-      Dir.glob(File.join(@folder_path, '*'))
-         .select { |f| VIDEO_EXTENSIONS.include?(File.extname(f).downcase) }
-         .sort
+      MediaFiles.discover(@folder_path)
     end
 
     def gather_metadata_for(path)
@@ -44,6 +40,10 @@ module InvasionStudio
       meta = video.metadata
       raise Error, "Could not extract metadata for #{path}" unless meta && meta[:duration] && meta[:duration] > 0
       meta
+    end
+
+    def build_project(video_path, metadata)
+      build_xml(video_path, metadata)
     end
 
     private
@@ -70,9 +70,7 @@ module InvasionStudio
       ]
 
       puts "Splicing #{clips.length} clips into combined.mp4..." unless @options[:quiet]
-      system(*cmd)
-
-      unless $?.success?
+      unless @process_runner.run(*cmd)
         raise Error, "ffmpeg concat failed. The clips may have incompatible codecs/resolutions."
       end
 

@@ -51,6 +51,11 @@ module InvasionStudio
         if video_files.length < @argv.length
           puts "Warning: #{@argv.length - video_files.length} file(s) not found, skipping."
         end
+
+        raise Error, '--fps must be greater than zero' unless @options.fetch(:fps, 1).to_f.positive?
+        raise Error, '--ffmpeg-threads must be greater than zero' unless @options.fetch(:ffmpeg_threads, 4).to_i.positive?
+        raise Error, '--pad-start cannot be negative' if @options.fetch(:pad_start, 10).to_f.negative?
+        raise Error, '--pad-end cannot be negative' if @options.fetch(:pad_end, 7.5).to_f.negative?
       end
 
       def check_dependencies!

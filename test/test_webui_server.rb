@@ -46,6 +46,13 @@ class TestWebuiServer < Minitest::Test
     assert last_response.body.include?('data-controller="router navigation"')
   end
 
+  def test_sets_security_headers
+    get '/'
+
+    assert_equal 'nosniff', last_response.headers['X-Content-Type-Options']
+    assert_includes last_response.headers['Content-Security-Policy'], "default-src 'self'"
+  end
+
   def test_get_root_uses_only_local_executable_assets
     get '/'
 
@@ -164,6 +171,22 @@ class TestWebuiServer < Minitest::Test
     assert_equal true, data['success']
   end
 
+  def test_rejects_invalid_json
+    post '/api/title', '{', 'CONTENT_TYPE' => 'application/json'
+
+    assert_equal 400, last_response.status
+    assert_equal 'Invalid JSON request body', JSON.parse(last_response.body)['error']
+  end
+
+  def test_rejects_cross_origin_mutation
+    post '/api/title', JSON.generate({ id: 'clip1', title: 'Nope' }), {
+      'CONTENT_TYPE' => 'application/json',
+      'HTTP_ORIGIN' => 'https://attacker.example'
+    }
+
+    assert_equal 403, last_response.status
+  end
+
   def test_post_api_note_updates_note
     post '/api/note', JSON.generate({ id: 'clip1', note: 'Updated note' }), 'CONTENT_TYPE' => 'application/json'
     assert last_response.ok?
@@ -237,6 +260,21 @@ class TestWebuiServer < Minitest::Test
     assert_equal 1, data.length
     assert_equal 'Group1', data[0]['name']
     assert_equal 1, data[0]['clip_count']
+  end
+
+  def test_get_api_groups_stats_subtracts_saved_cuts
+    project = InvasionStudio::Webui::Server.settings.project
+    project.update_cuts('clip1', [{ 'start' => 2.0, 'end' => 5.0 }])
+    fake_video = Struct.new(:metadata).new({ duration: 10.0 })
+    original_new = InvasionStudio::Video.method(:new)
+    InvasionStudio::Video.define_singleton_method(:new) { |_path| fake_video }
+
+    get '/api/groups/stats'
+
+    stat = JSON.parse(last_response.body).find { |item| item['name'] == 'Group1' }
+    assert_in_delta 7.0, stat['total_duration']
+  ensure
+    InvasionStudio::Video.define_singleton_method(:new, original_new) if original_new
   end
 
   def test_post_api_groups_creates_group

@@ -4,9 +4,9 @@ module InvasionStudio
       return @vaapi_available if defined?(@vaapi_available)
 
       @vaapi_available = begin
-        File.exist?('/dev/dri/renderD128') &&
-          system('vainfo 2>/dev/null | grep -q VAProfileH264')
-      rescue
+        result = ProcessRunner.new.capture('vainfo') if File.exist?('/dev/dri/renderD128')
+        result&.success? && result.stdout.include?('VAProfileH264')
+      rescue StandardError
         false
       end
     end

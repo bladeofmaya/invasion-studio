@@ -1,15 +1,15 @@
 require 'json'
 require 'fileutils'
+require 'securerandom'
 
 module InvasionStudio
   class Project
-    VIDEO_EXTENSIONS = %w[.mp4 .mkv .avi .mov .webm .flv .wmv .m4v .mpeg .mpg].freeze
-
     attr_reader :folder_path, :data
 
     def initialize(folder_path)
       @folder_path = File.expand_path(folder_path)
       @project_file = File.join(@folder_path, 'project.json')
+      @process_runner = ProcessRunner.new
       @data = load_or_initialize
       sync_clips!
     end
@@ -52,13 +52,17 @@ module InvasionStudio
     end
 
     def delete_group(name)
-      @data['groups'].reject! { |g| g['name'] == name }
+      removed = @data['groups'].reject! { |g| g['name'] == name }
+      return false unless removed
+
       save!
+      true
     end
 
     def add_clip_to_group(group_name, clip_id)
       group = @data['groups'].find { |g| g['name'] == group_name }
       return false unless group
+      return false unless find_clip(clip_id)
 
       group['clip_ids'] << clip_id unless group['clip_ids'].include?(clip_id)
       save!
@@ -128,9 +132,25 @@ module InvasionStudio
       clip = find_clip(clip_id)
       return false unless clip
 
-      clip['cuts'] = cuts
+      normalized = normalize_cuts(cuts)
+      return false unless normalized
+
+      clip['cuts'] = normalized
       save!
       true
+    end
+
+    def effective_duration(clip, media_duration)
+      duration = Float(media_duration, exception: false)
+      return 0.0 unless duration&.positive?
+
+      removed_duration = Array(clip['cuts']).sum do |cut|
+        start_time = [cut.fetch('start', 0.0).to_f, 0.0].max
+        end_time = [cut.fetch('end', 0.0).to_f, duration].min
+        end_time > start_time ? end_time - start_time : 0.0
+      end
+
+      [duration - removed_duration, 0.0].max
     end
 
     def finalize_cuts(clip_id, finalizer: nil)
@@ -143,30 +163,22 @@ module InvasionStudio
       source_path = resolve_clip_path(clip)
       return false unless source_path && File.exist?(source_path)
 
-      # Backup original
-      backup_dir = File.join(@folder_path, '.backup')
-      FileUtils.mkdir_p(backup_dir)
-      backup_path = File.join(backup_dir, clip['filename'])
-
-      # Don't overwrite existing backup
-      if File.exist?(backup_path)
-        backup_path = File.join(
-          backup_dir,
-          "#{File.basename(clip['filename'], '.*')}_#{Time.now.to_i}#{File.extname(clip['filename'])}"
-        )
-      end
-
-      FileUtils.cp(source_path, backup_path)
-
       # Get video duration
-      video = Video.new(backup_path)
+      video = Video.new(source_path)
       meta = video.metadata
+      return false unless meta
+
       duration = meta[:duration]
       return false unless duration && duration > 0
 
       # Build keep segments by inverting cuts
       keep_segments = build_keep_segments(cuts, duration)
       return false if keep_segments.empty?
+
+      backup_dir = File.join(@folder_path, '.backup')
+      FileUtils.mkdir_p(backup_dir)
+      backup_path = unique_destination(backup_dir, clip['filename'])
+      FileUtils.cp(source_path, backup_path)
 
       temp_dir = Dir.mktmpdir
       temp_output = File.join(temp_dir, "finalized#{File.extname(clip['filename'])}")
@@ -194,7 +206,9 @@ module InvasionStudio
       if source_path && File.exist?(source_path)
         trash_dir = File.join(@folder_path, '.trashed')
         FileUtils.mkdir_p(trash_dir)
-        FileUtils.mv(source_path, File.join(trash_dir, clip['filename']))
+        trash_path = unique_destination(trash_dir, clip['filename'])
+        FileUtils.mv(source_path, trash_path)
+        clip['trash_path'] = make_relative_path(trash_path)
       end
 
       clip['deleted'] = true
@@ -206,14 +220,17 @@ module InvasionStudio
       clip = find_clip(clip_id)
       return false unless clip
 
-      trash_path = File.join(@folder_path, '.trashed', clip['filename'])
+      trash_path = resolve_project_path(clip['trash_path']) || File.join(@folder_path, '.trashed', clip['filename'])
       source_path = resolve_clip_path(clip)
+
+      return false if source_path && File.exist?(source_path)
 
       if File.exist?(trash_path) && source_path
         FileUtils.mv(trash_path, source_path)
       end
 
       clip['deleted'] = false
+      clip.delete('trash_path')
       save!
       true
     end
@@ -238,15 +255,16 @@ module InvasionStudio
     end
 
     def resolve_clip_path(clip)
-      path = clip['path']
-      return nil if path.nil? || path.empty?
-      return path if path.start_with?('/')
-      File.join(@folder_path, path)
+      resolve_project_path(clip['path'])
     end
 
     def save!
       @data['updated_at'] = Time.now.iso8601
-      File.write(@project_file, JSON.pretty_generate(@data))
+      temporary = File.join(@folder_path, ".project.json.#{Process.pid}.#{SecureRandom.hex(6)}.tmp")
+      File.write(temporary, JSON.pretty_generate(@data))
+      File.rename(temporary, @project_file)
+    ensure
+      File.delete(temporary) if temporary && File.exist?(temporary)
     end
 
     private
@@ -278,14 +296,18 @@ module InvasionStudio
     def sync_clips!
       disk_files = discover_video_files
       known_filenames = @data['clips'].map { |c| c['filename'] }
+      known_ids = @data['clips'].map { |c| c['id'] }
 
       # Add new clips found on disk
       disk_files.each do |path|
         filename = File.basename(path)
         next if known_filenames.include?(filename)
 
+        base_id = File.basename(filename, '.*')
+        clip_id = known_ids.include?(base_id) ? "#{base_id}-#{SecureRandom.uuid}" : base_id
+        known_ids << clip_id
         @data['clips'] << {
-          'id' => File.basename(filename, '.*'),
+          'id' => clip_id,
           'filename' => filename,
           'path' => make_relative_path(path),
           'title' => nil,
@@ -313,13 +335,68 @@ module InvasionStudio
         !File.exist?(resolved) && !File.exist?(trash_path)
       end
 
+
+      valid_ids = @data['clips'].map { |clip| clip['id'] }
+      groups.each { |group| group['clip_ids'] &= valid_ids }
+
       save!
     end
 
     def discover_video_files
-      Dir.glob(File.join(@folder_path, '*'))
-         .select { |f| VIDEO_EXTENSIONS.include?(File.extname(f).downcase) }
-         .sort
+      MediaFiles.discover(@folder_path)
+    end
+
+    def resolve_project_path(path)
+      return nil if path.nil? || path.empty?
+
+      expanded = File.expand_path(path, @folder_path)
+      project_root = File.realpath(@folder_path)
+      candidate = if File.exist?(expanded)
+                    File.realpath(expanded)
+                  else
+                    parent = File.dirname(expanded)
+                    canonical_parent = File.exist?(parent) ? File.realpath(parent) : File.expand_path(parent)
+                    File.join(canonical_parent, File.basename(expanded))
+                  end
+      project_prefix = "#{project_root}#{File::SEPARATOR}"
+      return nil unless candidate.start_with?(project_prefix)
+
+      candidate
+    rescue Errno::ENOENT, Errno::EACCES
+      nil
+    end
+
+    def normalize_cuts(cuts)
+      return nil unless cuts.is_a?(Array)
+
+      normalized = cuts.map do |cut|
+        return nil unless cut.respond_to?(:[])
+
+        start_time = Float(cut['start'] || cut[:start], exception: false)
+        end_time = Float(cut['end'] || cut[:end], exception: false)
+        return nil unless start_time&.finite? && end_time&.finite?
+        return nil if start_time.negative? || start_time >= end_time
+
+        { 'start' => start_time, 'end' => end_time }
+      end.sort_by { |cut| cut['start'] }
+
+      normalized.each_with_object([]) do |cut, merged|
+        if merged.any? && cut['start'] <= merged.last['end']
+          merged.last['end'] = [merged.last['end'], cut['end']].max
+        else
+          merged << cut
+        end
+      end
+    end
+
+    def unique_destination(directory, filename)
+      safe_filename = File.basename(filename.to_s)
+      candidate = File.join(directory, safe_filename)
+      return candidate unless File.exist?(candidate)
+
+      extension = File.extname(safe_filename)
+      basename = File.basename(safe_filename, extension)
+      File.join(directory, "#{basename}_#{Time.now.to_i}_#{SecureRandom.hex(4)}#{extension}")
     end
 
     def build_keep_segments(cuts, duration)
@@ -365,7 +442,7 @@ module InvasionStudio
           '-avoid_negative_ts', 'make_zero',
           output_path
         ]
-        system(*cmd)
+        return false unless @process_runner.run(*cmd)
       else
         segment_files = []
         keep_segments.each_with_index do |seg, i|
@@ -381,7 +458,7 @@ module InvasionStudio
             '-avoid_negative_ts', 'make_zero',
             seg_file
           ]
-          system(*cmd)
+          next unless @process_runner.run(*cmd)
 
           next unless File.exist?(seg_file) && File.size(seg_file) > 0
 
@@ -412,10 +489,10 @@ module InvasionStudio
           '-c', 'copy',
           output_path
         ]
-        system(*cmd)
+        return false unless @process_runner.run(*cmd)
       end
 
-      $?.success? && File.exist?(output_path) && File.size(output_path) > 0
+      File.exist?(output_path) && File.size(output_path) > 0
     end
   end
 end

@@ -72,6 +72,58 @@ class TestProject < Minitest::Test
     assert_equal [], project.groups.find { |g| g['name'] == 'Best' }['clip_ids']
   end
 
+  def test_rejects_nonexistent_clip_group_membership
+    project = InvasionStudio::Project.new(@tmp_dir)
+
+    refute project.add_clip_to_group('Video 1', 'missing')
+  end
+
+  def test_resolve_clip_path_rejects_paths_outside_project
+    project = InvasionStudio::Project.new(@tmp_dir)
+
+    assert_nil project.resolve_clip_path('path' => '../outside.mp4')
+    assert_nil project.resolve_clip_path('path' => '/tmp/outside.mp4')
+  end
+
+  def test_update_cuts_normalizes_and_merges_overlaps
+    create_clip_file('test.mp4')
+    project = InvasionStudio::Project.new(@tmp_dir)
+
+    assert project.update_cuts('test', [
+      { 'start' => 4, 'end' => 8 },
+      { 'start' => 1, 'end' => 5 }
+    ])
+    assert_equal [{ 'start' => 1.0, 'end' => 8.0 }], project.find_clip('test')['cuts']
+  end
+
+  def test_update_cuts_rejects_invalid_values
+    create_clip_file('test.mp4')
+    project = InvasionStudio::Project.new(@tmp_dir)
+
+    refute project.update_cuts('test', [{ 'start' => -1, 'end' => 2 }])
+    refute project.update_cuts('test', [{ 'start' => 2, 'end' => 2 }])
+    refute project.update_cuts('test', 'not-an-array')
+  end
+
+  def test_effective_duration_subtracts_saved_cuts
+    create_clip_file('test.mp4')
+    project = InvasionStudio::Project.new(@tmp_dir)
+    project.update_cuts('test', [
+      { 'start' => 1.0, 'end' => 3.5 },
+      { 'start' => 8.0, 'end' => 12.0 }
+    ])
+
+    assert_in_delta 13.5, project.effective_duration(project.find_clip('test'), 20.0)
+  end
+
+  def test_effective_duration_clamps_cuts_to_video_duration
+    create_clip_file('test.mp4')
+    project = InvasionStudio::Project.new(@tmp_dir)
+    project.update_cuts('test', [{ 'start' => 8.0, 'end' => 20.0 }])
+
+    assert_in_delta 8.0, project.effective_duration(project.find_clip('test'), 10.0)
+  end
+
   def test_reorder_group
     create_clip_file('a.mp4')
     create_clip_file('b.mp4')

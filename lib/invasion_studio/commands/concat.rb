@@ -70,9 +70,7 @@ module InvasionStudio
         ]
 
         puts "Concatenating #{clips.length} clips with ffmpeg..." unless @options[:quiet]
-        system(*cmd)
-
-        if $?.success?
+        if ProcessRunner.new.run(*cmd)
           puts "Combined video with chapter markers exported to: #{output_path}" unless @options[:quiet]
         else
           puts "Error: ffmpeg concat failed. The clips may have incompatible codecs/resolutions."
@@ -118,12 +116,8 @@ module InvasionStudio
         meta
       end
 
-      VIDEO_EXTENSIONS = %w[.mp4 .mkv .avi .mov .webm .flv .wmv .m4v .mpeg .mpg].freeze
-
       def discover_clips
-        Dir.glob(File.join(@folder, '*'))
-           .select { |f| VIDEO_EXTENSIONS.include?(File.extname(f).downcase) }
-           .sort
+        MediaFiles.discover(@folder)
       end
     end
   end

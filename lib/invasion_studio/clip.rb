@@ -1,19 +1,25 @@
 module InvasionStudio
   class Clip
-    attr_accessor :generated_file, :segment
+    attr_reader :generated_file, :segment
 
     def initialize(segment, options = {})
-      @segment = segment
       pad_start = options[:pad_start] || 10.0
       pad_end = options[:pad_end] || 7.5
-      @segment.start_time = TimeHelper.wind_back(@segment.start_time, pad_start)
-      @segment.end_time = TimeHelper.wind_forward(@segment.end_time, pad_end)
+      @segment = Scanner::Segment.new(
+        TimeHelper.wind_back(segment.start_time, pad_start),
+        segment.start_video,
+        TimeHelper.wind_forward(segment.end_time, pad_end),
+        segment.end_video
+      )
+      @runner = options[:process_runner] || ProcessRunner.new
       @generated_file = nil
     end
 
     def write(output_file)
       log_file = File.join(File.dirname(output_file), ".#{File.basename(output_file, '.*')}_ffmpeg.log")
-      send("generate_#{segment_type}_clip", @segment, output_file, log_file)
+      success = send("generate_#{segment_type}_clip", @segment, output_file, log_file)
+      raise Error, "ffmpeg failed while generating #{output_file}; see #{log_file}" unless success && File.exist?(output_file)
+
       @generated_file = output_file
     end
 
@@ -36,11 +42,10 @@ module InvasionStudio
         "-map", "0",
         "-c", "copy",
         "-y",
-        output_file,
-        ">", log_file, "2>&1"
-      ].join(" ")
+        output_file
+      ]
 
-      system(cmd)
+      @runner.run(*cmd, log_path: log_file)
     end
 
     def generate_multi_file_clip(segment, output_file, log_file)
@@ -59,10 +64,9 @@ module InvasionStudio
           "-c", "copy",
           "-map", "0",
           "-y",
-          temp_file1,
-          ">", temp_log, "2>&1"
-        ].join(" ")
-        system(cmd1)
+          temp_file1
+        ]
+        return false unless @runner.run(*cmd1, log_path: temp_log)
 
         cmd2 = [
           "ffmpeg",
@@ -71,10 +75,9 @@ module InvasionStudio
           "-c", "copy",
           "-map", "0",
           "-y",
-          temp_file2,
-          ">>", temp_log, "2>&1"
-        ].join(" ")
-        system(cmd2)
+          temp_file2
+        ]
+        return false unless @runner.run(*cmd2, log_path: temp_log)
 
         File.write(concat_list, "file '#{temp_file1}'\nfile '#{temp_file2}'")
         cmd3 = [
@@ -85,12 +88,12 @@ module InvasionStudio
           "-c", "copy",
           "-map", "0",
           "-y",
-          output_file,
-          ">>", temp_log, "2>&1"
-        ].join(" ")
-        system(cmd3)
+          output_file
+        ]
+        success = @runner.run(*cmd3, log_path: temp_log)
 
         FileUtils.cp(temp_log, log_file) if File.exist?(temp_log)
+        success
       end
     end
   end

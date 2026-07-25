@@ -19,6 +19,13 @@ module InvasionStudio
     }.freeze
 
     VALID_COMMANDS = %w[extract scan export-kdenlive concat webui].freeze
+    COMMANDS = {
+      'extract' => Commands::Extract,
+      'scan' => Commands::Extract,
+      'export-kdenlive' => Commands::ExportKdenlive,
+      'concat' => Commands::Concat,
+      'webui' => Commands::Webui
+    }.freeze
 
     attr_reader :options
 
@@ -47,7 +54,9 @@ module InvasionStudio
         opts.on("--ffmpeg-threads N", Integer, "ffmpeg encoding threads (default: 4)") { |v| @options[:ffmpeg_threads] = v }
       end
 
-      parser.order!(@argv) rescue nil
+      parser.order!(@argv)
+    rescue OptionParser::ParseError => e
+      raise Error, e.message
     end
 
     def detect_command!
@@ -72,13 +81,7 @@ module InvasionStudio
     end
 
     def command_class_for(command_name)
-      case command_name
-      when 'extract', 'scan' then Commands::Extract
-      when 'export-kdenlive' then Commands::ExportKdenlive
-      when 'concat' then Commands::Concat
-      when 'webui' then Commands::Webui
-      else Commands::Extract
-      end
+      COMMANDS.fetch(command_name, Commands::Extract)
     end
 
     def usage
