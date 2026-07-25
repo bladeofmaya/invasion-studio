@@ -20,7 +20,6 @@ module InvasionStudio
           opts.banner = "Usage: invasion-studio export-kdenlive [OPTIONS] FOLDER"
 
           opts.on("-o", "--output FILE", "Output .kdenlive file path") { |v| @options[:output] = v }
-          opts.on("-t", "--transition SECONDS", Float, "Transition duration in seconds (default: 2.5)") { |v| @options[:transition_duration] = v }
           opts.on("-h", "--help", "Show this help") { puts opts; exit 0 }
         end
       end
@@ -38,6 +37,7 @@ module InvasionStudio
           puts "Error: #{@folder} is not a valid directory."
           exit 1
         end
+
       end
 
       def execute

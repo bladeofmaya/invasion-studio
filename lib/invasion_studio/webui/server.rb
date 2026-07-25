@@ -7,9 +7,22 @@ module InvasionStudio
       set :views, File.expand_path('views', __dir__)
       set :public_folder, File.expand_path('public', __dir__)
       set :static, true
-      set :host_authorization, { permitted_hosts: [] }
+      set :host_authorization, { permitted_hosts: ['localhost', '127.0.0.1', '::1', 'example.org'] }
 
-      def self.run!(folder_path, port: 4567, quiet: false)
+      before do
+        headers 'X-Content-Type-Options' => 'nosniff',
+                'Referrer-Policy' => 'no-referrer',
+                'Content-Security-Policy' => "default-src 'self'; script-src 'self'; style-src 'self'; media-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+
+        next unless %w[POST PUT PATCH DELETE].include?(request.request_method)
+        origin = request.env['HTTP_ORIGIN']
+        next if origin.nil? || origin.empty?
+
+        expected = "#{request.scheme}://#{request.host_with_port}"
+        halt 403, json_response(error: 'Cross-origin request rejected') unless origin == expected
+      end
+
+      def self.run!(folder_path, port: 4567, bind: '127.0.0.1', quiet: false)
         # Clean up only the legacy preview cache (not the transient one)
         preview_cache = File.join(folder_path, '.preview_cache')
         FileUtils.rm_rf(preview_cache) if File.directory?(preview_cache)
@@ -23,7 +36,7 @@ module InvasionStudio
         puts "Press Ctrl+C to stop"
         puts
 
-        super(port: port, bind: '0.0.0.0')
+        super(port: port, bind: bind)
       end
 
       helpers do
@@ -34,6 +47,12 @@ module InvasionStudio
         def json_response(data)
           content_type :json
           JSON.generate(data)
+        end
+
+        def json_body
+          JSON.parse(request.body.read)
+        rescue JSON::ParserError
+          halt 400, json_response(error: 'Invalid JSON request body')
         end
       end
 
@@ -100,7 +119,7 @@ module InvasionStudio
       end
 
       post '/api/reorder' do
-        body = JSON.parse(request.body.read)
+        body = json_body
         group_name = body['group']
         old_index = body['old_index'].to_i
         new_index = body['new_index'].to_i
@@ -114,7 +133,7 @@ module InvasionStudio
       end
 
       post '/api/note' do
-        body = JSON.parse(request.body.read)
+        body = json_body
         id = body['id']
         note = body['note'].to_s
 
@@ -127,7 +146,7 @@ module InvasionStudio
       end
 
       post '/api/rating' do
-        body = JSON.parse(request.body.read)
+        body = json_body
         id = body['id']
         rating = body['rating'].to_i
 
@@ -140,7 +159,7 @@ module InvasionStudio
       end
 
       post '/api/result' do
-        body = JSON.parse(request.body.read)
+        body = json_body
         id = body['id']
         result = body['result'].to_s
 
@@ -153,7 +172,7 @@ module InvasionStudio
       end
 
       post '/api/title' do
-        body = JSON.parse(request.body.read)
+        body = json_body
         id = body['id']
         title = body['title'].to_s
 
@@ -166,7 +185,7 @@ module InvasionStudio
       end
 
       post '/api/cuts' do
-        body = JSON.parse(request.body.read)
+        body = json_body
         id = body['id']
         cuts = body['cuts']
 
@@ -202,7 +221,7 @@ module InvasionStudio
             next 0 unless resolved_path && File.exist?(resolved_path)
             video = Video.new(resolved_path)
             meta = video.metadata
-            meta && meta[:duration] ? meta[:duration] : 0
+            meta && meta[:duration] ? project.effective_duration(c, meta[:duration]) : 0
           end
           {
             'name' => g['name'],
@@ -214,7 +233,7 @@ module InvasionStudio
       end
 
       post '/api/groups' do
-        body = JSON.parse(request.body.read)
+        body = json_body
         name = body['name'].to_s.strip
 
         if name.empty?
@@ -231,7 +250,7 @@ module InvasionStudio
       end
 
       post '/api/groups/rename' do
-        body = JSON.parse(request.body.read)
+        body = json_body
         old_name = body['old_name'].to_s.strip
         new_name = body['new_name'].to_s.strip
 
@@ -250,12 +269,15 @@ module InvasionStudio
 
       delete '/api/groups/:name' do
         group_name = params['name']
-        project.delete_group(group_name)
-        json_response({ success: true })
+        if project.delete_group(group_name)
+          json_response({ success: true })
+        else
+          halt 404, json_response({ error: 'Group not found' })
+        end
       end
 
       post '/api/group/:name/add' do
-        body = JSON.parse(request.body.read)
+        body = json_body
         clip_id = body['clip_id']
 
         if project.add_clip_to_group(params['name'], clip_id)
@@ -267,7 +289,7 @@ module InvasionStudio
       end
 
       post '/api/group/:name/remove' do
-        body = JSON.parse(request.body.read)
+        body = json_body
         clip_id = body['clip_id']
 
         if project.remove_clip_from_group(params['name'], clip_id)
@@ -279,7 +301,7 @@ module InvasionStudio
       end
 
       post '/api/export' do
-        body = JSON.parse(request.body.read)
+        body = json_body
         group_name = body['group']
         output_basename = body['output_basename']&.to_s&.strip
 
@@ -296,11 +318,14 @@ module InvasionStudio
       end
 
       get '/clip/:filename' do
-        path = File.join(settings.folder_path, params['filename'])
-        unless File.exist?(path)
-          path = File.join(settings.folder_path, '.trashed', params['filename'])
-          halt 404 unless File.exist?(path)
-        end
+        clip = project.all_clips.find { |item| item['filename'] == params['filename'] }
+        halt 404 unless clip
+        path = if clip['deleted'] && clip['trash_path']
+                 File.expand_path(clip['trash_path'], settings.folder_path)
+               else
+                 project.resolve_clip_path(clip)
+               end
+        halt 404 unless path && File.exist?(path)
 
         audio_track = params['audio_track']
         if audio_track && audio_track.match?(/^\d+$/)
@@ -346,9 +371,7 @@ module InvasionStudio
           preview_path
         ]
 
-        system(*cmd)
-
-        if $?.success? && File.exist?(preview_path) && File.size(preview_path) > 0
+        if ProcessRunner.new.run(*cmd) && File.exist?(preview_path) && File.size(preview_path) > 0
           preview_path
         else
           File.delete(preview_path) if File.exist?(preview_path)

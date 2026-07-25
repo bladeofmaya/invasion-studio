@@ -81,6 +81,7 @@ invasion-studio webui ~/Videos/ER/clips
 
 # Start on a custom port
 invasion-studio webui -p 8080 ~/Videos/ER/clips
+
 ```
 
 Then open `http://localhost:4567` (or your custom port) in your browser.
@@ -133,7 +134,6 @@ invasion-studio [COMMAND] [OPTIONS] [VIDEO_FILES...]
 | Flag | Command | Description |
 |------|---------|-------------|
 | `-o, --output FILE` | `export-kdenlive`, `concat` | Output file path |
-| `-t, --transition SECONDS` | `export-kdenlive` | Transition duration (default: 2.5) |
 | `-p, --port PORT` | `webui` | Server port (default: 4567) |
 
 ### Flag Details
@@ -196,8 +196,8 @@ invasion-studio -d ~/Videos/Capture/*.mp4
 # Export clips folder to a Kdenlive timeline
 invasion-studio export-kdenlive ~/Videos/ER/clips
 
-# Export with custom output path and transition duration
-invasion-studio export-kdenlive -o ~/Videos/ER/project.kdenlive -t 3.0 ~/Videos/ER/clips
+# Export with a custom output path
+invasion-studio export-kdenlive -o ~/Videos/ER/project.kdenlive ~/Videos/ER/clips
 
 # Concatenate all clips into a single video (no re-encoding, with chapter markers)
 invasion-studio concat ~/Videos/ER/clips
@@ -235,6 +235,10 @@ or project folders; they contain user-created videos and project metadata.
 ---
 
 ## Requirements & Compatibility
+
+The planned behavior-preserving decomposition of the project model, WebUI
+server, and Kdenlive exporter is documented in
+[REFACTORING-PLAN.md](REFACTORING-PLAN.md).
 
 | Requirement | Details |
 |------------|---------|

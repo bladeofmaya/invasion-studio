@@ -1,10 +1,9 @@
 module InvasionStudio
   class ProjectExporter
-    VIDEO_EXTENSIONS = %w[.mp4 .mkv .avi .mov .webm .flv .wmv .m4v .mpeg .mpg].freeze
-
     def initialize(project, options = {})
       @project = project
       @options = options
+      @process_runner = options[:process_runner] || ProcessRunner.new
     end
 
     def export_group(group_name, output_basename = nil)
@@ -14,19 +13,26 @@ module InvasionStudio
       output_dir = File.join(@project.folder_path, 'export')
       FileUtils.mkdir_p(output_dir)
 
-      output_basename ||= group_name.downcase.gsub(/[^a-z0-9]+/, '_')
+      output_basename = sanitize_basename(output_basename || group_name)
       spliced_path = File.join(output_dir, "#{output_basename}.mp4")
       kdenlive_path = File.join(output_dir, "#{output_basename}.kdenlive")
 
       splice_clips(clip_paths, spliced_path)
       metadata = gather_metadata_for(spliced_path)
-      xml = KdenliveExporter.new(output_dir, @options).send(:build_xml, spliced_path, metadata)
+      xml = KdenliveExporter.new(output_dir, @options).build_project(spliced_path, metadata)
       File.write(kdenlive_path, xml)
 
       [spliced_path, kdenlive_path]
     end
 
     private
+
+    def sanitize_basename(value)
+      basename = value.to_s.downcase.gsub(/[^a-z0-9_-]+/, '_').gsub(/\A_+|_+\z/, '')
+      raise Error, 'Export filename cannot be empty' if basename.empty?
+
+      basename
+    end
 
     def splice_clips(clip_paths, output_path)
       concat_list_path = File.join(@project.folder_path, '.export_concat_list.txt')
@@ -43,9 +49,7 @@ module InvasionStudio
       ]
 
       puts "Splicing #{clip_paths.length} clips into #{output_path}..." unless @options[:quiet]
-      system(*cmd)
-
-      unless $?.success?
+      unless @process_runner.run(*cmd)
         raise Error, "ffmpeg concat failed. The clips may have incompatible codecs/resolutions."
       end
 

@@ -37,6 +37,9 @@ module InvasionStudio
           puts "Error: #{@folder} is not a valid directory."
           exit 1
         end
+
+        port = @options[:port] || 4567
+        raise Error, 'port must be between 1 and 65535' unless (1..65_535).cover?(port)
       end
 
       def execute

@@ -6,9 +6,12 @@ require 'time'
 require 'etc'
 require 'tempfile'
 require 'tty-progressbar'
+require 'English'
 
 require_relative 'invasion_studio/version'
 require_relative 'invasion_studio/paths'
+require_relative 'invasion_studio/media_files'
+require_relative 'invasion_studio/process_runner'
 require_relative 'invasion_studio/engine'
 require_relative 'invasion_studio/video'
 require_relative 'invasion_studio/frame'
@@ -23,12 +26,12 @@ require_relative 'invasion_studio/ocr/provider'
 require_relative 'invasion_studio/ocr/tesseract_provider'
 
 # CLI and Commands
-require_relative 'invasion_studio/cli'
 require_relative 'invasion_studio/commands/base'
 require_relative 'invasion_studio/commands/extract'
 require_relative 'invasion_studio/commands/export_kdenlive'
 require_relative 'invasion_studio/commands/concat'
 require_relative 'invasion_studio/commands/webui'
+require_relative 'invasion_studio/cli'
 
 # WebUI
 require_relative 'invasion_studio/webui/server'
@@ -51,7 +54,9 @@ module InvasionStudio
   end
 
   def self.check_tesseract_installed
-    system('tesseract --version > /dev/null 2>&1')
+    ProcessRunner.new.capture('tesseract', '--version').success?
+  rescue Error
+    false
   end
 
   def self.ensure_tesseract_installed
@@ -62,7 +67,9 @@ module InvasionStudio
   end
 
   def self.check_ffmpeg_installed
-    system('ffmpeg -version > /dev/null 2>&1')
+    ProcessRunner.new.capture('ffmpeg', '-version').success?
+  rescue Error
+    false
   end
 
   def self.ensure_ffmpeg_installed

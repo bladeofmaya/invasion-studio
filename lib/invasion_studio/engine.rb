@@ -1,6 +1,6 @@
 module InvasionStudio
   class Engine
-    attr_reader :videos, :options
+    attr_reader :videos, :options, :errors
 
     def self.run!(videos, options = {})
       engine = new(videos, options)
@@ -11,6 +11,7 @@ module InvasionStudio
     def initialize(videos, options = {})
       @options = options
       @videos = videos.map { |v| Video.new(v, @options) }
+      @errors = []
     end
 
     def run!
@@ -34,6 +35,7 @@ module InvasionStudio
     private
 
     def run_ocr_stage
+      successful_videos = []
       @videos.each do |video|
         puts "Processing: #{File.basename(video.path)}" unless @options[:quiet]
 
@@ -48,13 +50,18 @@ module InvasionStudio
         if @options[:debug]
           write_debug_file(video.path, frames)
         end
+        successful_videos << video
+      rescue StandardError => e
+        raise unless @options[:continue_on_error]
+
+        @errors << [video.path, e]
+        warn "Skipping #{video.path}: #{e.message}" unless @options[:quiet]
       end
+      @videos = successful_videos
     end
 
     def run_ocr_with_progress(video)
-      # Do a quick metadata pass to get frame count for the bars
-      worker = OCRWorker.new(video.path)
-      meta = worker.video_metadata
+      meta = video.metadata
       fps = @options[:fps] || 1
       total_frames = meta && meta[:duration] > 0 ? (meta[:duration] * fps).to_i : 0
 
@@ -78,11 +85,10 @@ module InvasionStudio
       extract_callback = proc { |current, total| extract_bar&.current = current }
       ocr_callback = proc { |current, total| ocr_bar&.current = current }
 
-      video_with_progress = Video.new(video.path, @options.merge(
+      video.frames({
         extract_progress_callback: extract_callback,
         progress_callback: ocr_callback
-      ))
-      video_with_progress.frames
+      })
     end
 
     def run_scan_stage
@@ -124,6 +130,11 @@ module InvasionStudio
           clip.write(output_file)
           puts "  Extracted #{File.basename(output_file)}" unless @options[:quiet]
         end
+      rescue StandardError => e
+        raise unless @options[:continue_on_error]
+
+        @errors << [output_file, e]
+        warn "Skipping #{output_file}: #{e.message}" unless @options[:quiet]
       end
 
       puts "  #{segs.length} clips extracted" unless @options[:quiet]

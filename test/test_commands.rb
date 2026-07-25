@@ -111,16 +111,6 @@ class TestCommandsExportKdenlive < Minitest::Test
     assert_equal 'test.kdenlive', options[:output]
   end
 
-  def test_build_parser_sets_transition_duration
-    options = { command: 'export-kdenlive' }
-    argv = ['-t', '3.5', '/tmp/clips']
-    cmd = InvasionStudio::Commands::ExportKdenlive.new(options, argv)
-
-    cmd.send(:parse_options!)
-
-    assert_equal 3.5, options[:transition_duration]
-  end
-
   def test_validate_exits_when_no_folder
     options = { command: 'export-kdenlive' }
     argv = []

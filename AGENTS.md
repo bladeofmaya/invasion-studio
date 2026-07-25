@@ -329,8 +329,8 @@ bin/invasion_extractor extract -d ~/Videos/Capture/*.mp4
 # Export clips folder to Kdenlive project
 bin/invasion_extractor export-kdenlive ~/Videos/ER/clips
 
-# Export with custom output path and transition duration
-bin/invasion_extractor export-kdenlive -o ~/Videos/ER/project.kdenlive -t 3.0 ~/Videos/ER/clips
+# Export with a custom output path
+bin/invasion_extractor export-kdenlive -o ~/Videos/ER/project.kdenlive ~/Videos/ER/clips
 
 # Concatenate clips into a single video (no re-encoding, with chapter markers)
 bin/invasion_extractor concat ~/Videos/ER/clips

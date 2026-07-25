@@ -4,6 +4,7 @@ module InvasionStudio
 
     def initialize(video_path, ocr_provider = nil, options = {})
       @video_path = video_path
+      @process_runner = options[:process_runner] || ProcessRunner.new
       @video_metadata = get_metadata
       @ocr_provider = ocr_provider || InvasionStudio::OCR::TesseractProvider.new
       @options = options
@@ -16,7 +17,7 @@ module InvasionStudio
       Dir.mktmpdir do |frames_dir|
         ffmpeg_thread = extract_frames(frames_dir, fps, extract_progress)
         results = run_ocr_pipeline(frames_dir, fps, ffmpeg_thread)
-        ffmpeg_thread.join
+        ffmpeg_thread.value
         results.sort_by(&:number)
       end
     end
@@ -53,11 +54,12 @@ module InvasionStudio
 
       @ocr_progress = 0 if @options[:progress_callback]
 
+      pipeline_done = false
       monitor = if @options[:progress_callback] && total_frames > 0
         Thread.new do
           loop do
             @options[:progress_callback].call(@ocr_progress, total_frames)
-            break if @ocr_progress >= total_frames
+            break if pipeline_done
             sleep 0.3
           end
         end
@@ -77,8 +79,13 @@ module InvasionStudio
       end
 
       workers.each { queue << :done }
-      workers.each(&:join)
-      monitor&.join
+      begin
+        workers.each(&:value)
+      ensure
+        pipeline_done = true
+        monitor&.join
+      end
+      @options[:progress_callback]&.call(results.length, total_frames)
 
       results
     end
@@ -87,20 +94,25 @@ module InvasionStudio
       crop = calculate_crop
       filter = "fps=#{fps},crop=#{crop[:width]}:#{crop[:height]}:#{crop[:x]}:#{crop[:y]}"
 
-      hwaccel_args = ""
+      hwaccel_args = []
       if @options[:hwaccel] && GPUDetector.vaapi_available?
-        hwaccel_args = GPUDetector.ffmpeg_hwaccel_args.join(' ')
+        hwaccel_args = GPUDetector.ffmpeg_hwaccel_args
         filter = "fps=#{fps},hwdownload,format=nv12,crop=#{crop[:width]}:#{crop[:height]}:#{crop[:x]}:#{crop[:y]}"
       end
 
       total_frames = estimated_total_frames(fps)
 
       threads = @options[:ffmpeg_threads] || 4
-      cmd = "ffmpeg -threads #{threads} #{hwaccel_args} -i #{@video_path} -vf '#{filter}' -qscale:v 5 #{frames_dir}/frame_%06d.jpg 2>/dev/null"
+      cmd = ['ffmpeg', '-threads', threads.to_s, *hwaccel_args, '-i', @video_path,
+             '-vf', filter, '-qscale:v', '5', File.join(frames_dir, 'frame_%06d.jpg')]
 
       ffmpeg_done = false
       ffmpeg_thread = Thread.new do
-        system(cmd)
+        success = @process_runner.run(*cmd, log_path: File::NULL)
+        raise Error, "ffmpeg failed while extracting frames from #{@video_path}" unless success
+
+        true
+      ensure
         ffmpeg_done = true
       end
 
@@ -150,21 +162,32 @@ module InvasionStudio
     end
 
     def get_metadata
-      command = "ffprobe -v quiet -print_format json -show_streams -select_streams v:0 #{@video_path}"
-      output = `#{command}`
-      data = JSON.parse(output)
+      result = @process_runner.capture('ffprobe', '-v', 'quiet', '-print_format', 'json',
+                                       '-show_streams', '-select_streams', 'v:0', @video_path)
+      raise Error, "ffprobe failed for #{@video_path}: #{result.stderr}" unless result.success?
+
+      data = JSON.parse(result.stdout)
       video_stream = data['streams'][0]
+      raise Error, "ffprobe returned no video stream for #{@video_path}" unless video_stream
       duration = video_stream['duration']&.to_f || 0
 
       {
         height: video_stream['height'],
         width: video_stream['width'],
-        fps: eval(video_stream['r_frame_rate']).to_i,
+        fps: parse_frame_rate(video_stream['r_frame_rate']),
         duration: duration
       }
     rescue JSON::ParserError, StandardError => e
-      puts "Error extracting video metadata: #{e.message}"
+      warn "Error extracting video metadata: #{e.message}" if @options&.dig(:debug)
       nil
+    end
+
+    def parse_frame_rate(value)
+      numerator, denominator = value.to_s.split('/', 2).map(&:to_f)
+      return numerator unless denominator
+      return 0.0 unless denominator.positive?
+
+      numerator / denominator
     end
 
     def frame_number_to_timestamp(frame_number, fps)

@@ -1,6 +1,6 @@
 module InvasionStudio
   class Scanner
-    Segment = Struct.new(:start_time, :start_video, :end_time, :end_video)
+    Segment = Data.define(:start_time, :start_video, :end_time, :end_video)
 
     START_REGEX = /Defeat.*Host of Fingers|Commencing combat/i
     END_REGEX = /Returning to your world|Combat ends/i
@@ -50,7 +50,7 @@ module InvasionStudio
       end
 
       if start_frame
-        end_frame = OpenStruct.new(timestamp: last_frame_timestamp, video_path: start_frame.video_path)
+        end_frame = last_frame || start_frame
         segments << Segment.new(
           start_frame.timestamp,
           start_frame.video_path,
@@ -62,8 +62,12 @@ module InvasionStudio
       segments
     end
 
-    def last_frame_timestamp
-      @videos.last.frames.last.timestamp
+    def last_frame
+      @videos.reverse_each do |video|
+        frame = video.frames.last
+        return frame if frame
+      end
+      nil
     end
   end
 end
