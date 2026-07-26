@@ -3,3 +3,4 @@ require "invasion_studio"
 require "pry"
 
 require "minitest/autorun"
+require_relative "support/fakes"
