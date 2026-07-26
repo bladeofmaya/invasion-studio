@@ -211,6 +211,77 @@ class TestProject < Minitest::Test
     assert_equal 'note', data['clips'].find { |c| c['id'] == 'a' }['note']
   end
 
+  def test_migrates_missing_clip_fields_and_absolute_path
+    clip_path = create_clip_file('legacy.mp4')
+    File.write(@project_file, JSON.generate({
+      'project' => 'legacy',
+      'clips' => [{ 'id' => 'legacy', 'filename' => 'legacy.mp4', 'path' => clip_path }],
+      'groups' => []
+    }))
+
+    clip = InvasionStudio::Project.new(@tmp_dir).find_clip('legacy')
+
+    assert_equal 'legacy.mp4', clip['path']
+    assert_nil clip['title']
+    assert_equal 0, clip['rating']
+    assert_nil clip['result']
+    assert_equal [], clip['cuts']
+  end
+
+  def test_sync_prunes_dangling_group_membership
+    create_clip_file('present.mp4')
+    File.write(@project_file, JSON.generate({
+      'project' => 'legacy',
+      'clips' => [],
+      'groups' => [{ 'name' => 'Group', 'clip_ids' => ['missing'] }]
+    }))
+
+    project = InvasionStudio::Project.new(@tmp_dir)
+
+    assert_equal [], project.groups.fetch(0)['clip_ids']
+  end
+
+  def test_delete_uses_unique_trash_path_when_filename_already_exists
+    create_clip_file('a.mp4')
+    trash_dir = File.join(@tmp_dir, '.trashed')
+    FileUtils.mkdir_p(trash_dir)
+    File.write(File.join(trash_dir, 'a.mp4'), 'older deletion')
+    project = InvasionStudio::Project.new(@tmp_dir)
+
+    assert project.delete_clip('a')
+
+    clip = project.find_clip('a')
+    refute_equal '.trashed/a.mp4', clip['trash_path']
+    assert_equal 'older deletion', File.read(File.join(trash_dir, 'a.mp4'))
+    assert_equal 'dummy', File.read(File.join(@tmp_dir, clip['trash_path']))
+  end
+
+  def test_restore_refuses_to_overwrite_replacement_source
+    create_clip_file('a.mp4')
+    project = InvasionStudio::Project.new(@tmp_dir)
+    project.delete_clip('a')
+    File.write(File.join(@tmp_dir, 'a.mp4'), 'replacement')
+
+    refute project.restore_clip('a')
+    assert project.find_clip('a')['deleted']
+    assert_equal 'replacement', File.read(File.join(@tmp_dir, 'a.mp4'))
+  end
+
+  def test_atomic_save_leaves_no_temporary_project_files
+    project = InvasionStudio::Project.new(@tmp_dir)
+
+    project.create_group('Saved')
+
+    assert_equal [], Dir.glob(File.join(@tmp_dir, '.project.json.*.tmp'))
+    assert_equal 'Saved', JSON.parse(File.read(@project_file))['groups'].last['name']
+  end
+
+  def test_corrupt_project_file_raises_json_parser_error
+    File.write(@project_file, '{')
+
+    assert_raises(JSON::ParserError) { InvasionStudio::Project.new(@tmp_dir) }
+  end
+
   def test_sync_removes_missing_clips
     create_clip_file('a.mp4')
     create_clip_file('b.mp4')

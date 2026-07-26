@@ -162,6 +162,14 @@ class TestWebuiServer < Minitest::Test
   def test_get_api_clip_not_found
     get '/api/clip/nonexistent'
     assert_equal 404, last_response.status
+    assert_equal({ 'error' => 'Clip not found' }, JSON.parse(last_response.body))
+  end
+
+  def test_open_clip_not_found_contract
+    post '/api/clip/nonexistent/open'
+
+    assert_equal 404, last_response.status
+    assert_equal({ 'error' => 'Clip not found' }, JSON.parse(last_response.body))
   end
 
   def test_post_api_title_updates_title
@@ -192,6 +200,21 @@ class TestWebuiServer < Minitest::Test
     assert last_response.ok?
     data = JSON.parse(last_response.body)
     assert_equal true, data['success']
+  end
+
+  def test_metadata_updates_reject_unknown_clip
+    {
+      '/api/title' => { id: 'missing', title: 'Title' },
+      '/api/note' => { id: 'missing', note: 'Note' },
+      '/api/rating' => { id: 'missing', rating: 3 },
+      '/api/result' => { id: 'missing', result: 'win' },
+      '/api/cuts' => { id: 'missing', cuts: [] }
+    }.each do |path, payload|
+      post path, JSON.generate(payload), 'CONTENT_TYPE' => 'application/json'
+
+      assert_equal 400, last_response.status, path
+      assert JSON.parse(last_response.body).key?('error'), path
+    end
   end
 
   def test_post_api_rating_updates_rating
@@ -238,11 +261,25 @@ class TestWebuiServer < Minitest::Test
     assert_equal false, clip['deleted']
   end
 
+  def test_delete_unknown_clip_contract
+    delete '/api/clip/missing'
+
+    assert_equal 404, last_response.status
+    assert_equal({ 'error' => 'Clip not found' }, JSON.parse(last_response.body))
+  end
+
   def test_post_api_reorder_reorders_clips
     post '/api/reorder', JSON.generate({ group: 'Group1', old_index: 0, new_index: 0 }), 'CONTENT_TYPE' => 'application/json'
     assert last_response.ok?
     data = JSON.parse(last_response.body)
     assert_equal true, data['success']
+  end
+
+  def test_post_api_reorder_rejects_invalid_indices
+    post '/api/reorder', JSON.generate({ group: 'Group1', old_index: 0, new_index: 9 }), 'CONTENT_TYPE' => 'application/json'
+
+    assert_equal 400, last_response.status
+    assert_equal({ 'error' => 'Failed to reorder' }, JSON.parse(last_response.body))
   end
 
   def test_get_api_groups_returns_groups
@@ -285,6 +322,15 @@ class TestWebuiServer < Minitest::Test
     assert_equal 'NewGroup', data['name']
   end
 
+  def test_post_api_groups_rejects_empty_and_duplicate_names
+    post '/api/groups', JSON.generate({ name: ' ' }), 'CONTENT_TYPE' => 'application/json'
+    assert_equal 400, last_response.status
+
+    post '/api/groups', JSON.generate({ name: 'Group1' }), 'CONTENT_TYPE' => 'application/json'
+    assert_equal 409, last_response.status
+    assert_equal({ 'error' => 'Group already exists' }, JSON.parse(last_response.body))
+  end
+
   def test_post_api_groups_rename_renames_group
     post '/api/groups/rename', JSON.generate({ old_name: 'Group1', new_name: 'RenamedGroup' }), 'CONTENT_TYPE' => 'application/json'
     assert last_response.ok?
@@ -298,6 +344,13 @@ class TestWebuiServer < Minitest::Test
     assert last_response.ok?
     data = JSON.parse(last_response.body)
     assert_equal true, data['success']
+  end
+
+  def test_delete_unknown_group_contract
+    delete '/api/groups/Missing'
+
+    assert_equal 404, last_response.status
+    assert_equal({ 'error' => 'Group not found' }, JSON.parse(last_response.body))
   end
 
   def test_post_api_group_add_adds_clip
@@ -314,9 +367,55 @@ class TestWebuiServer < Minitest::Test
     assert_equal true, data['success']
   end
 
+  def test_group_membership_rejects_unknown_group_or_clip
+    post '/api/group/Missing/add', JSON.generate({ clip_id: 'clip1' }), 'CONTENT_TYPE' => 'application/json'
+    assert_equal 400, last_response.status
+
+    post '/api/group/Group1/add', JSON.generate({ clip_id: 'missing' }), 'CONTENT_TYPE' => 'application/json'
+    assert_equal 400, last_response.status
+
+    post '/api/group/Missing/remove', JSON.generate({ clip_id: 'clip1' }), 'CONTENT_TYPE' => 'application/json'
+    assert_equal 400, last_response.status
+  end
+
   def test_post_api_export_requires_group
     post '/api/export', JSON.generate({ group: nil }), 'CONTENT_TYPE' => 'application/json'
     assert_equal 400, last_response.status
+  end
+
+  def test_post_api_export_success_contract
+    fake_exporter = Object.new
+    fake_exporter.define_singleton_method(:export_group) do |group, basename|
+      raise 'unexpected arguments' unless group == 'Group1' && basename == 'episode'
+      ['/project/export/episode.mp4', '/project/export/episode.kdenlive']
+    end
+    original_new = InvasionStudio::ProjectExporter.method(:new)
+    InvasionStudio::ProjectExporter.define_singleton_method(:new) { |*_args, **_options| fake_exporter }
+
+    post '/api/export', JSON.generate({ group: 'Group1', output_basename: 'episode' }), 'CONTENT_TYPE' => 'application/json'
+
+    assert last_response.ok?
+    assert_equal({
+      'success' => true,
+      'spliced' => '/project/export/episode.mp4',
+      'kdenlive' => '/project/export/episode.kdenlive'
+    }, JSON.parse(last_response.body))
+  ensure
+    InvasionStudio::ProjectExporter.define_singleton_method(:new, original_new) if original_new
+  end
+
+  def test_post_api_export_failure_contract
+    fake_exporter = Object.new
+    fake_exporter.define_singleton_method(:export_group) { |*_args| raise InvasionStudio::Error, 'export failed' }
+    original_new = InvasionStudio::ProjectExporter.method(:new)
+    InvasionStudio::ProjectExporter.define_singleton_method(:new) { |*_args, **_options| fake_exporter }
+
+    post '/api/export', JSON.generate({ group: 'Group1' }), 'CONTENT_TYPE' => 'application/json'
+
+    assert_equal 500, last_response.status
+    assert_equal({ 'error' => 'export failed' }, JSON.parse(last_response.body))
+  ensure
+    InvasionStudio::ProjectExporter.define_singleton_method(:new, original_new) if original_new
   end
 
   def test_post_api_finalize_cuts_success
