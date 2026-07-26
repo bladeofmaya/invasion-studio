@@ -46,6 +46,15 @@ require_relative 'invasion_studio/commands/webui'
 require_relative 'invasion_studio/cli'
 
 # WebUI
+require_relative 'invasion_studio/webui/json_request'
+require_relative 'invasion_studio/webui/error_mapper'
+require_relative 'invasion_studio/webui/file_opener'
+require_relative 'invasion_studio/webui/preview_remuxer'
+require_relative 'invasion_studio/webui/group_statistics'
+require_relative 'invasion_studio/webui/routes/clips'
+require_relative 'invasion_studio/webui/routes/groups'
+require_relative 'invasion_studio/webui/routes/exports'
+require_relative 'invasion_studio/webui/routes/pages'
 require_relative 'invasion_studio/webui/server'
 
 # Project and Exporters
