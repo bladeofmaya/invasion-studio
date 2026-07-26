@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'sinatra/base'
 require 'json'
 
@@ -8,6 +10,11 @@ module InvasionStudio
       set :public_folder, File.expand_path('public', __dir__)
       set :static, true
       set :host_authorization, { permitted_hosts: ['localhost', '127.0.0.1', '::1', 'example.org'] }
+      set :json_request, JsonRequest.new
+      set :error_mapper, ErrorMapper.new
+      set :quiet, false
+      set :file_opener, nil
+      set :preview_remuxer, nil
 
       before do
         headers 'X-Content-Type-Options' => 'nosniff',
@@ -22,21 +29,22 @@ module InvasionStudio
         halt 403, json_response(error: 'Cross-origin request rejected') unless origin == expected
       end
 
-      def self.run!(folder_path, port: 4567, bind: '127.0.0.1', quiet: false)
-        # Clean up only the legacy preview cache (not the transient one)
+      def self.run!(folder_path, port: 4567, quiet: false)
         preview_cache = File.join(folder_path, '.preview_cache')
         FileUtils.rm_rf(preview_cache) if File.directory?(preview_cache)
 
         set :folder_path, folder_path
         set :project, InvasionStudio::Project.new(folder_path)
         set :quiet, quiet
+        set :file_opener, FileOpener.new
+        set :preview_remuxer, PreviewRemuxer.new(folder_path)
 
         puts "Starting WebUI on http://localhost:#{port}"
         puts "Folder: #{folder_path}"
         puts "Press Ctrl+C to stop"
         puts
 
-        super(port: port, bind: bind)
+        super(port: port, bind: '127.0.0.1')
       end
 
       helpers do
@@ -50,334 +58,63 @@ module InvasionStudio
         end
 
         def json_body
-          JSON.parse(request.body.read)
-        rescue JSON::ParserError
-          halt 400, json_response(error: 'Invalid JSON request body')
-        end
-      end
-
-      get '/' do
-        erb :index
-      end
-
-      get '/api/clips' do
-        group = params['group']
-        include_deleted = params['deleted'] == 'true'
-        include_all = params['all'] == 'true'
-
-        list = if include_all
-                 project.all_clips
-               elsif include_deleted
-                 project.deleted_clips
-               elsif group && !group.empty?
-                 project.group_clips(group)
-               else
-                 project.clips
-               end
-
-        # Add group membership info to each clip
-        list_with_groups = list.map do |clip|
-          clip.merge('groups' => project.clip_groups(clip['id']))
+          settings.json_request.parse(request.body)
+        rescue InvalidJsonRequest => e
+          mapped_error_response(e, halt_response: true)
         end
 
-        json_response(list_with_groups)
-      end
-
-      get '/api/clip/:id' do
-        clip = project.all_clips.find { |c| c['id'] == params['id'] }
-        halt 404, json_response({ error: 'Clip not found' }) unless clip
-        json_response(clip)
-      end
-
-      post '/api/clip/:id/open' do
-        clip = project.all_clips.find { |c| c['id'] == params['id'] }
-        halt 404, json_response({ error: 'Clip not found' }) unless clip
-
-        full_path = project.resolve_clip_path(clip)
-        halt 400, json_response({ error: 'File not found' }) unless full_path && File.exist?(full_path)
-
-        if RbConfig::CONFIG['host_os'] =~ /darwin/
-          system('open', full_path)
-        else
-          system('xdg-open', full_path)
+        def mapped_error_response(error, halt_response: false)
+          status_code, payload = settings.error_mapper.map(error)
+          response = json_response(payload)
+          halt status_code, response if halt_response
+          status status_code
+          response
         end
 
-        json_response({ success: true, path: full_path })
-      end
-
-      delete '/api/clip/:id' do
-        clip = project.all_clips.find { |c| c['id'] == params['id'] }
-        halt 404, json_response({ error: 'Clip not found' }) unless clip
-
-        if clip['deleted']
-          project.restore_clip(params['id'])
-        else
-          project.delete_clip(params['id'])
-        end
-
-        json_response({ success: true })
-      end
-
-      post '/api/reorder' do
-        body = json_body
-        group_name = body['group']
-        old_index = body['old_index'].to_i
-        new_index = body['new_index'].to_i
-
-        if project.reorder_group(group_name, old_index, new_index)
-          json_response({ success: true })
-        else
-          status 400
-          json_response({ error: 'Failed to reorder' })
-        end
-      end
-
-      post '/api/note' do
-        body = json_body
-        id = body['id']
-        note = body['note'].to_s
-
-        if project.update_note(id, note)
-          json_response({ success: true })
-        else
-          status 400
-          json_response({ error: 'Failed to update note' })
-        end
-      end
-
-      post '/api/rating' do
-        body = json_body
-        id = body['id']
-        rating = body['rating'].to_i
-
-        if project.update_rating(id, rating)
-          json_response({ success: true })
-        else
-          status 400
-          json_response({ error: 'Failed to update rating' })
-        end
-      end
-
-      post '/api/result' do
-        body = json_body
-        id = body['id']
-        result = body['result'].to_s
-
-        if project.update_result(id, result)
-          json_response({ success: true })
-        else
-          status 400
-          json_response({ error: 'Failed to update result' })
-        end
-      end
-
-      post '/api/title' do
-        body = json_body
-        id = body['id']
-        title = body['title'].to_s
-
-        if project.update_title(id, title)
-          json_response({ success: true })
-        else
-          status 400
-          json_response({ error: 'Failed to update title' })
-        end
-      end
-
-      post '/api/cuts' do
-        body = json_body
-        id = body['id']
-        cuts = body['cuts']
-
-        if project.update_cuts(id, cuts)
-          json_response({ success: true })
-        else
-          status 400
-          json_response({ error: 'Failed to update cuts' })
-        end
-      end
-
-      post '/api/clip/:id/finalize' do
-        clip = project.all_clips.find { |c| c['id'] == params[:id] }
-        halt 404, json_response({ error: 'Clip not found' }) unless clip
-
-        if project.finalize_cuts(params[:id])
-          json_response({ success: true })
-        else
-          status 422
-          json_response({ error: 'Failed to finalize cuts' })
-        end
-      end
-
-      get '/api/groups' do
-        json_response(project.groups)
-      end
-
-      get '/api/groups/stats' do
-        stats = project.groups.map do |g|
-          group_clips = project.group_clips(g['name'])
-          total_duration = group_clips.sum do |c|
-            resolved_path = project.resolve_clip_path(c)
-            next 0 unless resolved_path && File.exist?(resolved_path)
-            video = Video.new(resolved_path)
-            meta = video.metadata
-            meta && meta[:duration] ? project.effective_duration(c, meta[:duration]) : 0
+        def mutation_response(success, failure:)
+          if success
+            json_response(success: true)
+          else
+            status 400
+            json_response(error: failure)
           end
-          {
-            'name' => g['name'],
-            'clip_count' => group_clips.length,
-            'total_duration' => total_duration.round(2)
-          }
-        end
-        json_response(stats)
-      end
-
-      post '/api/groups' do
-        body = json_body
-        name = body['name'].to_s.strip
-
-        if name.empty?
-          status 400
-          return json_response({ error: 'Group name cannot be empty' })
         end
 
-        if project.create_group(name)
-          json_response({ success: true, name: name })
-        else
-          status 409
-          json_response({ error: 'Group already exists' })
-        end
-      end
-
-      post '/api/groups/rename' do
-        body = json_body
-        old_name = body['old_name'].to_s.strip
-        new_name = body['new_name'].to_s.strip
-
-        if old_name.empty? || new_name.empty?
-          status 400
-          return json_response({ error: 'Group names cannot be empty' })
+        def find_clip!(clip_id)
+          clip = project.all_clips.find { |item| item['id'] == clip_id }
+          halt 404, json_response(error: 'Clip not found') unless clip
+          clip
         end
 
-        if project.rename_group(old_name, new_name)
-          json_response({ success: true, new_name: new_name })
-        else
-          status 409
-          json_response({ error: 'Group name already exists or not found' })
+        def file_opener
+          settings.file_opener || FileOpener.new
         end
-      end
 
-      delete '/api/groups/:name' do
-        group_name = params['name']
-        if project.delete_group(group_name)
-          json_response({ success: true })
-        else
-          halt 404, json_response({ error: 'Group not found' })
+        def preview_remuxer
+          settings.preview_remuxer || PreviewRemuxer.new(settings.folder_path)
         end
-      end
 
-      post '/api/group/:name/add' do
-        body = json_body
-        clip_id = body['clip_id']
-
-        if project.add_clip_to_group(params['name'], clip_id)
-          json_response({ success: true })
-        else
-          status 400
-          json_response({ error: 'Failed to add clip to group' })
+        def group_statistics
+          GroupStatistics.new(project)
         end
-      end
 
-      post '/api/group/:name/remove' do
-        body = json_body
-        clip_id = body['clip_id']
-
-        if project.remove_clip_from_group(params['name'], clip_id)
-          json_response({ success: true })
-        else
-          status 400
-          json_response({ error: 'Failed to remove clip from group' })
+        def project_exporter
+          InvasionStudio::ProjectExporter.new(project, quiet: settings.quiet)
         end
-      end
 
-      post '/api/export' do
-        body = json_body
-        group_name = body['group']
-        output_basename = body['output_basename']&.to_s&.strip
-
-        halt 400, json_response({ error: 'No group specified' }) if group_name.nil? || group_name.empty?
-
-        begin
-          exporter = InvasionStudio::ProjectExporter.new(project, quiet: settings.quiet)
-          spliced, kdenlive = exporter.export_group(group_name, output_basename)
-          json_response({ success: true, spliced: spliced, kdenlive: kdenlive })
-        rescue => e
-          status 500
-          json_response({ error: e.message })
-        end
-      end
-
-      get '/clip/:filename' do
-        clip = project.all_clips.find { |item| item['filename'] == params['filename'] }
-        halt 404 unless clip
-        path = if clip['deleted'] && clip['trash_path']
-                 File.expand_path(clip['trash_path'], settings.folder_path)
-               else
-                 project.resolve_clip_path(clip)
-               end
-        halt 404 unless path && File.exist?(path)
-
-        audio_track = params['audio_track']
-        if audio_track && audio_track.match?(/^\d+$/)
-          preview_path = remux_audio_track(path, audio_track.to_i)
-          if preview_path && File.exist?(preview_path)
-            return send_file(preview_path, type: 'video/mp4', disposition: 'inline')
+        def clip_stream_path(clip)
+          if clip['deleted'] && clip['trash_path']
+            File.expand_path(clip['trash_path'], settings.folder_path)
+          else
+            project.resolve_clip_path(clip)
           end
-          # Fallback to original file if remux fails (e.g. track doesn't exist)
-        end
-
-        send_file(path, type: 'video/mp4', disposition: 'inline')
-      end
-
-      # SPA shell — serve index.erb for client-routed paths so deep links /
-      # hard refresh work. Must be declared AFTER /api/*, /clip/:filename,
-      # and static file handling so it never shadows them.
-      # (Mustermann anchors route regexes itself — no ^/$ allowed.)
-      get %r{/(clips|groups)(/.*)?} do
-        erb :index
-      end
-
-      private
-
-      def remux_audio_track(original_path, track_number)
-        preview_dir = File.join(settings.folder_path, '.preview_tmp')
-        FileUtils.mkdir_p(preview_dir)
-
-        # Include source mtime in filename for automatic cache invalidation
-        mtime = File.mtime(original_path).to_i
-        basename = File.basename(original_path, '.*')
-        preview_path = File.join(preview_dir, "#{basename}_audio#{track_number}_#{mtime}.mp4")
-
-        return preview_path if File.exist?(preview_path) && File.size(preview_path) > 0
-
-        # ffmpeg uses 0-based audio track indexing, so track 4 is 0:a:3
-        audio_index = track_number - 1
-        cmd = [
-          'ffmpeg', '-y',
-          '-i', original_path,
-          '-map', '0:v:0',
-          '-map', "0:a:#{audio_index}",
-          '-c', 'copy',
-          preview_path
-        ]
-
-        if ProcessRunner.new.run(*cmd) && File.exist?(preview_path) && File.size(preview_path) > 0
-          preview_path
-        else
-          File.delete(preview_path) if File.exist?(preview_path)
-          nil
         end
       end
+
+      register Routes::Clips
+      register Routes::Groups
+      register Routes::Exports
+      register Routes::Pages
     end
   end
 end

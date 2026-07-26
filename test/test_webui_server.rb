@@ -28,6 +28,8 @@ class TestWebuiServer < Minitest::Test
     File.write(File.join(@folder, 'clip2.mp4'), 'dummy')
     InvasionStudio::Webui::Server.set :folder_path, @folder
     InvasionStudio::Webui::Server.set :project, InvasionStudio::Project.new(@folder)
+    InvasionStudio::Webui::Server.set :file_opener, nil
+    InvasionStudio::Webui::Server.set :preview_remuxer, nil
   end
 
   def teardown
@@ -170,6 +172,35 @@ class TestWebuiServer < Minitest::Test
 
     assert_equal 404, last_response.status
     assert_equal({ 'error' => 'Clip not found' }, JSON.parse(last_response.body))
+  end
+
+  def test_open_clip_uses_file_opener_service
+    opened_paths = []
+    opener = Object.new
+    opener.define_singleton_method(:open) { |path| opened_paths << path; true }
+    InvasionStudio::Webui::Server.set :file_opener, opener
+
+    post '/api/clip/clip1/open'
+
+    assert last_response.ok?
+    data = JSON.parse(last_response.body)
+    assert_equal true, data['success']
+    assert_equal [File.join(@folder, 'clip1.mp4')], opened_paths
+  end
+
+  def test_clip_audio_preview_uses_remuxer_service
+    preview = File.join(@folder, 'preview.mp4')
+    File.write(preview, 'preview bytes')
+    calls = []
+    remuxer = Object.new
+    remuxer.define_singleton_method(:remux) { |path, track| calls << [path, track]; preview }
+    InvasionStudio::Webui::Server.set :preview_remuxer, remuxer
+
+    get '/clip/clip1.mp4?audio_track=2'
+
+    assert last_response.ok?
+    assert_equal 'preview bytes', last_response.body
+    assert_equal [[File.join(@folder, 'clip1.mp4'), 2]], calls
   end
 
   def test_post_api_title_updates_title
