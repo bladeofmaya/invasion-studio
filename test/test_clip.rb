@@ -10,4 +10,13 @@ class TestClip < Minitest::Test
     assert_equal '00:00:20', segment.start_time
     assert_equal first.segment.start_time, second.segment.start_time
   end
+
+  def test_engine_reuses_constructed_clips
+    segment = InvasionStudio::Scanner::Segment.new('00:00:20', 'a.mp4', '00:00:30', 'a.mp4')
+    scanner = Struct.new(:invasion_segments).new([segment])
+    engine = InvasionStudio::Engine.new([])
+    engine.instance_variable_set(:@scanner, scanner)
+
+    assert_same engine.clips, engine.clips
+  end
 end

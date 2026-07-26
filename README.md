@@ -127,6 +127,7 @@ invasion-studio [COMMAND] [OPTIONS] [VIDEO_FILES...]
 | `--pad-end SECONDS` | `7.5` | Seconds to include after invasion end |
 | `--continue-on-error` | Off | Continue processing remaining videos if one fails |
 | `--ffmpeg-threads N` | `4` | ffmpeg encoding threads |
+| `--ocr-workers N` | Up to `4` | Parallel Tesseract workers |
 | `--hwaccel` | Off | Enable VAAPI hardware acceleration |
 
 #### Export & WebUI Flags
@@ -143,6 +144,10 @@ invasion-studio [COMMAND] [OPTIONS] [VIDEO_FILES...]
 **`--debug`** — Enables two things: (1) prints every matched start/end frame with its exact timestamp and raw OCR text so you can inspect why an invasion was missed, and (2) writes a `<video_hash>.debug.yml` file containing every extracted frame's timestamp and detected text.
 
 **`--hwaccel`** — Enables VAAPI hardware acceleration for faster ffmpeg encoding. Requires a compatible GPU and drivers.
+
+**`--ocr-workers N`** — Controls parallel Tesseract processes. The default uses
+the smaller of four workers or the detected processor count to avoid CPU and
+memory oversubscription. Benchmark before increasing it.
 
 ---
 

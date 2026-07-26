@@ -43,6 +43,8 @@ require_relative 'invasion_studio/time_helper'
 # OCR Providers
 require_relative 'invasion_studio/ocr/provider'
 require_relative 'invasion_studio/ocr/tesseract_provider'
+require_relative 'invasion_studio/ocr/worker_policy'
+require_relative 'invasion_studio/ocr/frame_discovery'
 
 # CLI and Commands
 require_relative 'invasion_studio/commands/base'
