@@ -5,7 +5,7 @@ require 'fileutils'
 class TestProject < Minitest::Test
   def setup
     @tmp_dir = Dir.mktmpdir
-    @project_file = File.join(@tmp_dir, 'project.json')
+    @db_path = File.join(@tmp_dir, 'project.db')
   end
 
   def teardown
@@ -20,7 +20,7 @@ class TestProject < Minitest::Test
 
   def test_initializes_with_empty_folder
     project = InvasionStudio::Project.new(@tmp_dir)
-    assert File.exist?(@project_file)
+    assert File.exist?(@db_path)
     assert_equal File.basename(@tmp_dir), project.data['project']
     assert_equal [], project.clips
   end
@@ -202,43 +202,36 @@ class TestProject < Minitest::Test
     assert_equal [File.join(@tmp_dir, 'a.mp4')], paths
   end
 
-  def test_persists_to_json
+  def test_persists_to_database
     create_clip_file('a.mp4')
     project = InvasionStudio::Project.new(@tmp_dir)
     project.update_note('a', 'note')
 
-    data = JSON.parse(File.read(@project_file))
-    assert_equal 'note', data['clips'].find { |c| c['id'] == 'a' }['note']
+    db = InvasionStudio::Database.connect(@db_path)
+    note = db[:clips].where(id: 'a').get(:note)
+    assert_equal 'note', note
   end
 
-  def test_migrates_missing_clip_fields_and_absolute_path
-    clip_path = create_clip_file('legacy.mp4')
-    File.write(@project_file, JSON.generate({
-      'project' => 'legacy',
-      'clips' => [{ 'id' => 'legacy', 'filename' => 'legacy.mp4', 'path' => clip_path }],
-      'groups' => []
-    }))
-
-    clip = InvasionStudio::Project.new(@tmp_dir).find_clip('legacy')
-
-    assert_equal 'legacy.mp4', clip['path']
-    assert_nil clip['title']
-    assert_equal 0, clip['rating']
-    assert_nil clip['result']
-    assert_equal [], clip['cuts']
-  end
-
-  def test_sync_prunes_dangling_group_membership
-    create_clip_file('present.mp4')
-    File.write(@project_file, JSON.generate({
-      'project' => 'legacy',
-      'clips' => [],
-      'groups' => [{ 'name' => 'Group', 'clip_ids' => ['missing'] }]
-    }))
-
+  def test_sync_removes_missing_clips
+    create_clip_file('a.mp4')
+    create_clip_file('b.mp4')
     project = InvasionStudio::Project.new(@tmp_dir)
+    assert_equal 2, project.clips.length
 
-    assert_equal [], project.groups.fetch(0)['clip_ids']
+    File.delete(File.join(@tmp_dir, 'a.mp4'))
+    File.delete(File.join(@tmp_dir, 'b.mp4'))
+    project2 = InvasionStudio::Project.new(@tmp_dir)
+    assert_equal [], project2.clips
+  end
+
+  def test_sync_keeps_trashed_clips_in_database
+    create_clip_file('a.mp4')
+    project = InvasionStudio::Project.new(@tmp_dir)
+    project.delete_clip('a')
+    File.delete(File.join(@tmp_dir, '.trashed', 'a.mp4'))
+
+    project2 = InvasionStudio::Project.new(@tmp_dir)
+    assert_equal [], project2.all_clips
   end
 
   def test_delete_uses_unique_trash_path_when_filename_already_exists
@@ -267,15 +260,6 @@ class TestProject < Minitest::Test
     assert_equal 'replacement', File.read(File.join(@tmp_dir, 'a.mp4'))
   end
 
-  def test_atomic_save_leaves_no_temporary_project_files
-    project = InvasionStudio::Project.new(@tmp_dir)
-
-    project.create_group('Saved')
-
-    assert_equal [], Dir.glob(File.join(@tmp_dir, '.project.json.*.tmp'))
-    assert_equal 'Saved', JSON.parse(File.read(@project_file))['groups'].last['name']
-  end
-
   def test_concurrent_mutations_are_all_persisted
     project = InvasionStudio::Project.new(@tmp_dir)
 
@@ -284,36 +268,9 @@ class TestProject < Minitest::Test
     end
     threads.each(&:value)
 
-    persisted_names = JSON.parse(File.read(@project_file))['groups'].map { |group| group['name'] }
+    db = InvasionStudio::Database.connect(@db_path)
+    persisted_names = db[:groups].select_map(:name)
     20.times { |index| assert_includes persisted_names, "Concurrent #{index}" }
-  end
-
-  def test_corrupt_project_file_raises_json_parser_error
-    File.write(@project_file, '{')
-
-    assert_raises(JSON::ParserError) { InvasionStudio::Project.new(@tmp_dir) }
-  end
-
-  def test_sync_removes_missing_clips
-    create_clip_file('a.mp4')
-    create_clip_file('b.mp4')
-    project = InvasionStudio::Project.new(@tmp_dir)
-    assert_equal 2, project.clips.length
-
-    File.delete(File.join(@tmp_dir, 'a.mp4'))
-    File.delete(File.join(@tmp_dir, 'b.mp4'))
-    project2 = InvasionStudio::Project.new(@tmp_dir)
-    assert_equal [], project2.clips
-  end
-
-  def test_sync_keeps_trashed_clips_in_json
-    create_clip_file('a.mp4')
-    project = InvasionStudio::Project.new(@tmp_dir)
-    project.delete_clip('a')
-    File.delete(File.join(@tmp_dir, '.trashed', 'a.mp4'))
-
-    project2 = InvasionStudio::Project.new(@tmp_dir)
-    assert_equal [], project2.all_clips
   end
 
   def test_finalize_cuts_returns_false_when_no_cuts

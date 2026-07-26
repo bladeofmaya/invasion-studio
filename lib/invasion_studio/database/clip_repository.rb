@@ -1,0 +1,278 @@
+# frozen_string_literal: true
+
+module InvasionStudio
+  module Database
+    class ClipRepository
+      VALID_RESULTS = %w[win loss dc].freeze
+      DEFAULT_RESULT = nil
+      MAX_RATING = 5
+      MIN_RATING = 0
+
+      def initialize(database, folder_path)
+        @database = database
+        @folder_path = File.expand_path(folder_path)
+      end
+
+      def all
+        active_records.map { |record| clip_attributes(record) }
+      end
+
+      def active
+        all.reject { |clip| clip['deleted'] }
+      end
+
+      def deleted
+        all.select { |clip| clip['deleted'] }
+      end
+
+      def find(id)
+        record = clip_dataset.where(id: id).first
+        return nil unless record
+
+        clip_attributes(record)
+      end
+
+      def exist?(id)
+        clip_dataset.where(id: id).count.positive?
+      end
+
+      def create(attributes)
+        timestamp = current_timestamp
+        row = {
+          id: attributes.fetch('id'),
+          title: normalize_title(attributes['title']),
+          note: attributes.fetch('note', '').to_s,
+          rating: normalize_rating(attributes['rating']),
+          result: normalize_result(attributes['result']),
+          source_kind: attributes.fetch('source_kind', 'uploaded'),
+          original_filename: attributes.fetch('filename'),
+          storage_path: attributes.fetch('path'),
+          duration: attributes['duration'],
+          filesize: attributes['filesize'],
+          width: attributes['width'],
+          height: attributes['height'],
+          fps: attributes['fps'],
+          video_codec: attributes['video_codec'],
+          audio_codec: attributes['audio_codec'],
+          thumbnail_path: attributes['thumbnail_path'],
+          deleted_at: nil,
+          deleted_path: nil,
+          created_at: timestamp,
+          updated_at: timestamp
+        }
+
+        clip_dataset.insert(row)
+        row['cuts'] = []
+        clip_attributes(row)
+      end
+
+      def update(id, attributes)
+        updates = {}
+        updates[:title] = normalize_title(attributes['title']) if attributes.key?('title')
+        updates[:note] = attributes['note'].to_s if attributes.key?('note')
+        updates[:rating] = normalize_rating(attributes['rating']) if attributes.key?('rating')
+        updates[:result] = normalize_result(attributes['result']) if attributes.key?('result')
+        updates[:updated_at] = current_timestamp
+
+        return false if updates.empty?
+
+        clip_dataset.where(id: id).update(updates)
+        true
+      end
+
+      def update_cuts(id, cuts)
+        plan = CutPlan.build(cuts)
+        return false unless plan
+
+        @database.transaction do
+          cuts_dataset.where(clip_id: id).delete
+          plan.cuts.each_with_index do |cut, index|
+            cuts_dataset.insert(
+              clip_id: id,
+              start: cut['start'].to_f,
+              end: cut['end'].to_f,
+              created_at: current_timestamp,
+              updated_at: current_timestamp,
+              position: index
+            )
+          end
+          clip_dataset.where(id: id).update(updated_at: current_timestamp)
+        end
+        true
+      end
+
+      def mark_deleted(id, deleted_path: nil)
+        clip_dataset.where(id: id).update(
+          deleted_at: current_timestamp,
+          deleted_path: deleted_path,
+          updated_at: current_timestamp
+        )
+        true
+      end
+
+      def mark_restored(id)
+        clip_dataset.where(id: id).update(
+          deleted_at: nil,
+          deleted_path: nil,
+          updated_at: current_timestamp
+        )
+        true
+      end
+
+      def remove_missing
+        missing_ids = active_records.filter_map do |record|
+          record_id = record[:id]
+          path = resolve(record[:storage_path])
+          deleted_path = record[:deleted_path] ? resolve(record[:deleted_path]) : nil
+          record_id unless (path && File.exist?(path)) || (deleted_path && File.exist?(deleted_path))
+        end
+
+        return 0 if missing_ids.empty?
+
+        clips_with_groups = group_clips_dataset.where(clip_id: missing_ids).select_map(:clip_id)
+        @database.transaction do
+          group_clips_dataset.where(clip_id: missing_ids).delete
+          cuts_dataset.where(clip_id: missing_ids).delete
+          clip_tags_dataset.where(clip_id: missing_ids).delete
+          clip_dataset.where(id: missing_ids).delete
+        end
+        missing_ids.length
+      end
+
+      def path_for(clip)
+        resolve(clip['path'])
+      end
+
+      def resolve(path)
+        return nil if path.nil? || path.empty?
+
+        expanded = File.expand_path(path, @folder_path)
+        project_root = File.realpath(@folder_path)
+        candidate = canonical_candidate(expanded)
+        return nil unless candidate.start_with?("#{project_root}#{File::SEPARATOR}")
+
+        candidate
+      rescue Errno::ENOENT, Errno::EACCES
+        nil
+      end
+
+      def relative_path(path)
+        return path if path.nil? || path.empty? || !File.absolute_path(path).eql?(path)
+
+        path.delete_prefix("#{@folder_path}#{File::SEPARATOR}")
+      end
+
+      def tags_for(id)
+        tags_dataset.join(:clip_tags, tag_id: :id)
+                    .where(Sequel[:clip_tags][:clip_id] => id)
+                    .select(Sequel[:tags][:name])
+                    .order(Sequel[:tags][:name])
+                    .map { |tag| tag[:name] }
+      end
+
+      def tag_ids_for(id)
+        clip_tags_dataset.where(clip_id: id).select_map(:tag_id)
+      end
+
+      def add_tag(id, tag_id)
+        return false unless exist?(id)
+
+        clip_tags_dataset.insert_ignore.insert(
+          clip_id: id,
+          tag_id: tag_id,
+          created_at: current_timestamp
+        )
+        true
+      end
+
+      def remove_tag(id, tag_id)
+        clip_tags_dataset.where(clip_id: id, tag_id: tag_id).delete
+        true
+      end
+
+      private
+
+      def clip_dataset
+        @database[:clips]
+      end
+
+      def cuts_dataset
+        @database[:cuts]
+      end
+
+      def group_clips_dataset
+        @database[:group_clips]
+      end
+
+      def clip_tags_dataset
+        @database[:clip_tags]
+      end
+
+      def tags_dataset
+        @database[:tags]
+      end
+
+      def active_records
+        clip_dataset.order(:created_at, :id).all
+      end
+
+      def clip_attributes(record)
+        cuts = cuts_dataset.where(clip_id: record[:id])
+                           .order(:position, :start)
+                           .map { |cut| { 'start' => cut[:start], 'end' => cut[:end] } }
+        {
+          'id' => record[:id],
+          'filename' => record[:original_filename],
+          'path' => record[:storage_path],
+          'title' => record[:title],
+          'note' => record[:note],
+          'rating' => record[:rating],
+          'result' => record[:result],
+          'source_kind' => record[:source_kind],
+          'duration' => record[:duration],
+          'filesize' => record[:filesize],
+          'width' => record[:width],
+          'height' => record[:height],
+          'fps' => record[:fps],
+          'video_codec' => record[:video_codec],
+          'audio_codec' => record[:audio_codec],
+          'thumbnail_path' => record[:thumbnail_path],
+          'cuts' => cuts,
+          'deleted' => !record[:deleted_at].nil?,
+          'trash_path' => record[:deleted_path],
+          'created_at' => record[:created_at],
+          'updated_at' => record[:updated_at]
+        }
+      end
+
+      def normalize_title(title)
+        stripped = title.to_s.strip
+        stripped.empty? ? nil : stripped
+      end
+
+      def normalize_rating(rating)
+        return MIN_RATING if rating.nil?
+
+        rating.to_i.clamp(MIN_RATING, MAX_RATING)
+      end
+
+      def normalize_result(result)
+        return DEFAULT_RESULT if result.nil?
+
+        VALID_RESULTS.include?(result.to_s) ? result.to_s : DEFAULT_RESULT
+      end
+
+      def canonical_candidate(expanded)
+        return File.realpath(expanded) if File.exist?(expanded)
+
+        parent = File.dirname(expanded)
+        canonical_parent = File.exist?(parent) ? File.realpath(parent) : File.expand_path(parent)
+        File.join(canonical_parent, File.basename(expanded))
+      end
+
+      def current_timestamp
+        Time.now.utc.iso8601
+      end
+    end
+  end
+end

@@ -1,0 +1,190 @@
+# frozen_string_literal: true
+
+module InvasionStudio
+  module Database
+    class GroupRepository
+      def initialize(database, clip_repository:)
+        @database = database
+        @clip_repository = clip_repository
+      end
+
+      def all
+        groups_dataset.order(:position, :id).map { |group| group_attributes(group) }
+      end
+
+      def names
+        groups_dataset.select_map(:name)
+      end
+
+      def find(name)
+        group = groups_dataset.where(name: name).first
+        return nil unless group
+
+        group_attributes(group)
+      end
+
+      def create(name)
+        return false if name.to_s.strip.empty?
+        return false if groups_dataset.where(name: name).count.positive?
+
+        timestamp = current_timestamp
+        max_position = groups_dataset.max(:position) || 0
+        groups_dataset.insert(
+          name: name,
+          position: max_position + 1,
+          created_at: timestamp,
+          updated_at: timestamp
+        )
+        true
+      end
+
+      def rename(old_name, new_name)
+        old_name = old_name.to_s
+        new_name = new_name.to_s
+        return false if old_name == new_name
+        return false if new_name.strip.empty?
+        return false if groups_dataset.where(name: new_name).count.positive?
+
+        groups_dataset.where(name: old_name).update(
+          name: new_name,
+          updated_at: current_timestamp
+        )
+        true
+      end
+
+      def delete(name)
+        group = find(name)
+        return false unless group
+
+        @database.transaction do
+          group_clips_dataset.where(group_id: group['id']).delete
+          groups_dataset.where(id: group['id']).delete
+          compact_positions
+        end
+        true
+      end
+
+      def add_clip(group_name, clip_id)
+        group = find(group_name)
+        return false unless group
+        return false unless @clip_repository.exist?(clip_id)
+        return false if group_clips_dataset.where(group_id: group['id'], clip_id: clip_id).count.positive?
+
+        max_position = group_clips_dataset.where(group_id: group['id']).max(:position) || 0
+        group_clips_dataset.insert(
+          group_id: group['id'],
+          clip_id: clip_id,
+          position: max_position + 1,
+          created_at: current_timestamp
+        )
+        true
+      end
+
+      def remove_clip(group_name, clip_id)
+        group = find(group_name)
+        return false unless group
+
+        deleted = group_clips_dataset.where(group_id: group['id'], clip_id: clip_id).delete
+        return false if deleted.zero?
+
+        compact_group_positions(group['id'])
+        true
+      end
+
+      def reorder(group_name, old_index, new_index)
+        group = find(group_name)
+        return false unless group
+
+        clip_ids = group_clips_dataset.where(group_id: group['id'])
+                                    .order(:position, :created_at)
+                                    .select_map(:clip_id)
+        return false unless valid_index?(old_index, clip_ids) && valid_index?(new_index, clip_ids)
+
+        clip_ids.insert(new_index, clip_ids.delete_at(old_index))
+        @database.transaction do
+          clip_ids.each_with_index do |clip_id, position|
+            group_clips_dataset.where(group_id: group['id'], clip_id: clip_id)
+                              .update(position: position)
+          end
+          groups_dataset.where(id: group['id']).update(updated_at: current_timestamp)
+        end
+        true
+      end
+
+      def clips(group_name)
+        group = find(group_name)
+        return [] unless group
+
+        clip_ids = group_clips_dataset.where(group_id: group['id'])
+                                    .order(:position, :created_at)
+                                    .select_map(:clip_id)
+        clip_ids.filter_map { |id| @clip_repository.find(id) }
+                .reject { |clip| clip['deleted'] }
+      end
+
+      def clip_paths(group_name)
+        clips(group_name).filter_map { |clip| @clip_repository.resolve(clip['path']) }
+      end
+
+      def names_for_clip(clip_id)
+        groups_dataset.join(:group_clips, group_id: :id)
+                      .where(Sequel[:group_clips][:clip_id] => clip_id)
+                      .select_map(Sequel[:groups][:name])
+      end
+
+      def prune(valid_ids)
+        group_clips_dataset.exclude(clip_id: valid_ids).delete
+      end
+
+      def ids_for_all
+        groups_dataset.select_map(:id)
+      end
+
+      private
+
+      def groups_dataset
+        @database[:groups]
+      end
+
+      def group_clips_dataset
+        @database[:group_clips]
+      end
+
+      def group_attributes(group)
+        {
+          'id' => group[:id],
+          'name' => group[:name],
+          'position' => group[:position],
+          'clip_ids' => group_clips_dataset.where(group_id: group[:id])
+                                          .order(:position, :created_at)
+                                          .select_map(:clip_id),
+          'created_at' => group[:created_at],
+          'updated_at' => group[:updated_at]
+        }
+      end
+
+      def compact_positions
+        groups_dataset.order(:position, :id).all.each_with_index do |group, index|
+          groups_dataset.where(id: group[:id]).update(position: index)
+        end
+      end
+
+      def compact_group_positions(group_id)
+        group_clips_dataset.where(group_id: group_id)
+                          .order(:position, :created_at)
+                          .all.each_with_index do |row, index|
+          group_clips_dataset.where(group_id: group_id, clip_id: row[:clip_id])
+                            .update(position: index)
+        end
+      end
+
+      def valid_index?(index, items)
+        index.is_a?(Integer) && index >= 0 && index < items.length
+      end
+
+      def current_timestamp
+        Time.now.utc.iso8601
+      end
+    end
+  end
+end

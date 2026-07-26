@@ -8,6 +8,12 @@ module InvasionStudio
         @platform = platform
       end
 
+      def open(path)
+        return @process_runner.run('open', path) if @platform.match?(/darwin/)
+
+        @process_runner.run('xdg-open', path)
+      end
+
       def reveal(path)
         return @process_runner.run('open', '-R', path) if @platform.match?(/darwin/)
 

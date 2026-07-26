@@ -12,22 +12,18 @@ class TestWebuiServer < Minitest::Test
 
   def setup
     @folder = Dir.mktmpdir
-    File.write(File.join(@folder, 'project.json'), JSON.generate({
-      'project' => 'test',
-      'created_at' => Time.now.iso8601,
-      'updated_at' => Time.now.iso8601,
-      'clips' => [
-        { 'id' => 'clip1', 'filename' => 'clip1.mp4', 'path' => 'clip1.mp4', 'title' => nil, 'note' => '', 'rating' => 0, 'result' => nil, 'cuts' => [], 'deleted' => false },
-        { 'id' => 'clip2', 'filename' => 'clip2.mp4', 'path' => 'clip2.mp4', 'title' => 'Test', 'note' => 'Note', 'rating' => 3, 'result' => 'win', 'cuts' => [], 'deleted' => false }
-      ],
-      'groups' => [
-        { 'name' => 'Group1', 'clip_ids' => ['clip1'] }
-      ]
-    }))
     File.write(File.join(@folder, 'clip1.mp4'), 'dummy')
     File.write(File.join(@folder, 'clip2.mp4'), 'dummy')
+    project = InvasionStudio::Project.new(@folder)
+    project.delete_group('Video 1')
+    project.create_group('Group1')
+    project.add_clip_to_group('Group1', 'clip1')
+    project.update_title('clip2', 'Test')
+    project.update_note('clip2', 'Note')
+    project.update_rating('clip2', 3)
+    project.update_result('clip2', 'win')
     InvasionStudio::Webui::Server.set :folder_path, @folder
-    InvasionStudio::Webui::Server.set :project, InvasionStudio::Project.new(@folder)
+    InvasionStudio::Webui::Server.set :project, project
     InvasionStudio::Webui::Server.set :file_opener, nil
     InvasionStudio::Webui::Server.set :preview_remuxer, nil
   end
