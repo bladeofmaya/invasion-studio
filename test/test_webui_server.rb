@@ -78,6 +78,25 @@ class TestWebuiServer < Minitest::Test
     assert_includes last_response.body, 'click->group-manager#cancelNewGroupForm'
   end
 
+  def test_shell_includes_theme_switcher_result_select_and_reveal_action
+    get '/'
+
+    assert_includes last_response.body, 'data-controller="theme"'
+    assert_includes last_response.body, 'click->theme#toggle'
+    assert_includes last_response.body, '<select'
+    assert_includes last_response.body, 'data-editor-target="resultSelect"'
+    refute_includes last_response.body, 'type="radio"'
+    assert_includes last_response.body, '>Result...</option>'
+    assert_includes last_response.body, 'Reveal File'
+    assert_includes last_response.body, 'data-lucide="folder-open"'
+  end
+
+  def test_lucide_is_a_bundled_dependency
+    package = JSON.parse(File.read(File.expand_path('../package.json', __dir__)))
+
+    assert_equal '1.27.0', package.dig('dependencies', 'lucide')
+  end
+
   def test_sets_security_headers
     get '/'
 
@@ -204,7 +223,7 @@ class TestWebuiServer < Minitest::Test
     assert_equal({ 'error' => 'Clip not found' }, JSON.parse(last_response.body))
   end
 
-  def test_open_clip_uses_file_opener_service
+  def test_open_clip_uses_file_open_service
     opened_paths = []
     opener = Object.new
     opener.define_singleton_method(:open) { |path| opened_paths << path; true }
@@ -216,6 +235,18 @@ class TestWebuiServer < Minitest::Test
     data = JSON.parse(last_response.body)
     assert_equal true, data['success']
     assert_equal [File.join(@folder, 'clip1.mp4')], opened_paths
+  end
+
+  def test_reveal_clip_uses_file_reveal_service
+    revealed_paths = []
+    opener = Object.new
+    opener.define_singleton_method(:reveal) { |path| revealed_paths << path; true }
+    InvasionStudio::Webui::Server.set :file_opener, opener
+
+    post '/api/clip/clip1/reveal'
+
+    assert last_response.ok?
+    assert_equal [File.join(@folder, 'clip1.mp4')], revealed_paths
   end
 
   def test_clip_audio_preview_uses_remuxer_service

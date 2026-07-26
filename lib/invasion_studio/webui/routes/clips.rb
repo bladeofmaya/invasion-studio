@@ -28,7 +28,7 @@ module InvasionStudio
             path = project.resolve_clip_path(clip)
             halt 400, json_response(error: 'File not found') unless path && File.exist?(path)
 
-            file_opener.open(path)
+            file_opener.reveal(path)
             json_response(success: true, path: path)
           end
 

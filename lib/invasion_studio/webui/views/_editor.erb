@@ -1,32 +1,34 @@
 <div class="px-4 py-3 flex-shrink-0 flex flex-col bg-surface-overlay text-text-primary border-b border-border" data-controller="editor" data-editor-clip-id-value="" data-action="video-player:cuts-saved@window->editor#updateFinalizeButton">
   <div class="flex justify-between items-center mb-1.5">
-    <input type="text" class="flex-1 bg-transparent border-none text-text-primary font-semibold text-base focus:outline-none" id="title-input" data-editor-target="titleInput" placeholder="Clip title (optional)" disabled data-action="blur->editor#debouncedSaveTitle">
+    <input type="text" class="flex-1 bg-transparent border-none text-text-primary font-semibold text-xl focus:outline-none" id="title-input" data-editor-target="titleInput" placeholder="Clip title (optional)" disabled data-action="blur->editor#debouncedSaveTitle">
     <button class="bg-primary text-primary-fg border-none px-3 py-1.5 text-xs rounded cursor-pointer ml-2 hover:bg-primary-hover" id="finalize-btn" data-editor-target="finalizeBtn" data-action="click->editor#finalizeCuts" style="display:none">Finalize Cuts</button>
     <button class="bg-danger text-danger-fg border-none px-4 py-1.5 text-xs rounded cursor-pointer ml-2 hover:bg-danger-hover" id="delete-btn" data-editor-target="deleteBtn" data-action="click->editor#deleteClip" style="display:none">Delete</button>
     <button class="bg-transparent border border-text-muted text-text-muted px-4 py-1.5 text-xs rounded cursor-pointer ml-auto hover:border-text-primary hover:text-text-primary" id="restore-btn" data-editor-target="restoreBtn" data-action="click->editor#restoreClip" style="display:none">Restore</button>
   </div>
-    <textarea class="bg-input-bg text-text-primary border border-input-border rounded p-2.5 text-sm leading-snug resize-none mb-3 focus:outline-none focus:border-input-focus-ring" id="note-input" rows="2" data-editor-target="noteInput" placeholder="Add a note about this clip..." disabled data-action="blur->editor#debouncedSaveNote"></textarea>
-  <div class="flex gap-4 mb-1.5 text-sm text-text-muted items-center">
-    <div class="flex gap-1.5 cursor-pointer text-[2.5rem] leading-none" id="editor-rating" data-editor-target="ratingContainer" data-action="click->editor#setRating">
+    <textarea class="bg-input-bg text-text-primary border border-input-border rounded p-3 text-base leading-snug resize-none mb-3 focus:outline-none focus:border-input-focus-ring" id="note-input" rows="2" data-editor-target="noteInput" placeholder="Add a note about this clip..." disabled data-action="blur->editor#debouncedSaveNote"></textarea>
+  <div class="flex flex-wrap gap-3 mb-1.5 text-sm text-text-muted items-center">
+    <div class="flex gap-1 cursor-pointer text-[1.75rem] leading-none" id="editor-rating" data-editor-target="ratingContainer" data-action="click->editor#setRating">
       <span class="text-star-empty transition-colors hover:text-accent-hover" data-value="1">★</span>
       <span class="text-star-empty transition-colors hover:text-accent-hover" data-value="2">★</span>
       <span class="text-star-empty transition-colors hover:text-accent-hover" data-value="3">★</span>
       <span class="text-star-empty transition-colors hover:text-accent-hover" data-value="4">★</span>
       <span class="text-star-empty transition-colors hover:text-accent-hover" data-value="5">★</span>
     </div>
-    <div class="flex gap-2 items-center text-sm text-text-muted" id="editor-result" data-editor-target="resultContainer" data-action="change->editor#setResult">
-      <label class="flex items-center gap-0.5 cursor-pointer px-1.5 py-0.5 rounded hover:bg-surface-hover text-success">
-        <input type="radio" name="result" value="win"> Win
-      </label>
-      <label class="flex items-center gap-0.5 cursor-pointer px-1.5 py-0.5 rounded hover:bg-surface-hover text-danger">
-        <input type="radio" name="result" value="loss"> Loss
-      </label>
-      <label class="flex items-center gap-0.5 cursor-pointer px-1.5 py-0.5 rounded hover:bg-surface-hover text-text-muted">
-        <input type="radio" name="result" value="dc"> DC
-      </label>
-      <label class="flex items-center gap-0.5 cursor-pointer px-1.5 py-0.5 rounded hover:bg-surface-hover">
-        <input type="radio" name="result" value=""> None
-      </label>
-    </div>
+    <label class="flex gap-2 items-center text-sm text-text-muted" for="editor-result">
+      <select class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded-full text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" id="editor-result" data-editor-target="resultSelect" data-action="change->editor#setResult" disabled>
+        <option value="" selected>Result...</option>
+        <option value="win">Win</option>
+        <option value="loss">Loss</option>
+        <option value="dc">DC</option>
+      </select>
+    </label>
+    <button type="button" class="inline-flex items-center gap-1.5 bg-surface-secondary text-text-secondary border border-border px-3 py-1 rounded-full text-xs cursor-pointer hover:bg-surface-hover hover:text-text-primary" data-action="click->video-player#revealFile" title="Reveal file in its folder">
+      <i data-lucide="file-video" class="size-3.5"></i>
+      <span id="meta-filename" data-video-player-target="filename">File</span>
+    </button>
+    <button type="button" class="inline-flex items-center gap-1.5 bg-surface-secondary text-text-secondary border border-border px-3 py-1 rounded-full text-xs cursor-pointer hover:bg-surface-hover hover:text-text-primary" data-action="click->video-player#revealFile" title="Reveal file in its folder">
+      <i data-lucide="folder-open" class="size-3.5"></i>
+      <span>Reveal File</span>
+    </button>
   </div>
 </div>
