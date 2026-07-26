@@ -66,7 +66,8 @@ module InvasionStudio
       ]
 
       puts "Splicing #{clips.length} clips into combined.mp4..." unless @options[:quiet]
-      return spliced_path if @process_runner.run(*command)
+      runner_options = @options[:quiet] ? { log_path: File::NULL } : {}
+      return spliced_path if @process_runner.run(*command, **runner_options)
 
       raise Error, 'ffmpeg concat failed. The clips may have incompatible codecs/resolutions.'
     ensure

@@ -83,16 +83,16 @@ class TestCommandsExtract < Minitest::Test
 
   def test_video_files_returns_existing_files
     options = { command: 'extract' }
-    argv = ['test/samples/invasion-sample-720p.mp4', '/nonexistent.mp4']
+    argv = [__FILE__, '/nonexistent.mp4']
     cmd = InvasionStudio::Commands::Extract.new(options, argv)
 
     files = cmd.send(:video_files)
-    assert_equal ['test/samples/invasion-sample-720p.mp4'], files
+    assert_equal [__FILE__], files
   end
 
   def test_scan_command_uses_extract_class
     options = { command: 'scan' }
-    argv = ['test/samples/invasion-sample-720p.mp4']
+    argv = ['video.mp4']
     cmd = InvasionStudio::Commands::Extract.new(options, argv)
 
     cmd.send(:parse_options!)

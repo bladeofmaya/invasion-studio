@@ -332,7 +332,6 @@ class TestProject < Minitest::Test
     project = InvasionStudio::Project.new(@tmp_dir)
     project.update_cuts('test', [{ 'start' => 2.0, 'end' => 4.0 }])
 
-    meta = { duration: 10.0, width: 1920, height: 1080, fps: 30 }
     mock_video = Struct.new(:path).new('test.mp4')
     def mock_video.metadata; { duration: 10.0, width: 1920, height: 1080, fps: 30 }; end
 
