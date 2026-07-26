@@ -4,11 +4,14 @@ module InvasionStudio
   module OCR
     class OcrPool
       def initialize(provider:, worker_policy:, frame_discovery: FrameDiscovery.new,
-                     progress_reporter_factory: ->(**options) { ProgressReporter.new(**options) })
+                     progress_reporter_factory: ->(**options) { ProgressReporter.new(**options) },
+                     batch_size: 1)
         @provider = provider
         @worker_policy = worker_policy
         @frame_discovery = frame_discovery
         @progress_reporter_factory = progress_reporter_factory
+        @batch_size = Integer(batch_size)
+        raise ArgumentError, 'OCR batch size must be greater than zero' unless @batch_size.positive?
       end
 
       def process(frames_dir:, producer:, fps:, total_frames:, video_path:,
@@ -20,9 +23,9 @@ module InvasionStudio
         workers = build_workers(queue, results, results_mutex, reporter, fps, video_path)
 
         begin
-          discover_frames(frames_dir, producer, total_frames, extract_progress) do |path|
-            enqueue(queue, path, workers)
-          end
+          enqueue_discovered_batches(
+            queue, workers, frames_dir, producer, total_frames, extract_progress
+          )
           workers.each { enqueue(queue, :done, workers) }
           workers.each(&:value)
         ensure
@@ -38,21 +41,31 @@ module InvasionStudio
         @worker_policy.worker_count.times.map do
           Thread.new do
             loop do
-              path = queue.pop
-              break if path == :done
+              paths = queue.pop
+              break if paths == :done
 
-              frame = recognize(path, fps, video_path)
-              mutex.synchronize { results << frame }
-              reporter.advance
+              frames = recognize_batch(paths, fps, video_path)
+              mutex.synchronize { results.concat(frames) }
+              frames.each { reporter.advance }
             end
           end.tap { |worker| worker.report_on_exception = false }
         end
       end
 
-      def recognize(path, fps, video_path)
-        frame_number = File.basename(path).scan(/\d+/).first.to_i
-        text = @provider.recognize(path)
-        Frame.new(frame_number, text, timestamp(frame_number, fps), video_path)
+      def recognize_batch(paths, fps, video_path)
+        texts = if @batch_size > 1 && @provider.respond_to?(:recognize_batch)
+          @provider.recognize_batch(paths)
+        else
+          paths.map { |path| @provider.recognize(path) }
+        end
+        unless texts.length == paths.length
+          raise RecognitionError, "OCR provider returned #{texts.length} result for #{paths.length} images"
+        end
+
+        paths.zip(texts).map do |path, text|
+          frame_number = File.basename(path).scan(/\d+/).first.to_i
+          Frame.new(frame_number, text, timestamp(frame_number, fps), video_path)
+        end
       end
 
       def timestamp(frame_number, fps)
@@ -70,6 +83,18 @@ module InvasionStudio
           progress: progress,
           &block
         )
+      end
+
+      def enqueue_discovered_batches(queue, workers, directory, producer, total, progress)
+        batch = []
+        discover_frames(directory, producer, total, progress) do |path|
+          batch << path
+          if batch.length == @batch_size
+            enqueue(queue, batch, workers)
+            batch = []
+          end
+        end
+        enqueue(queue, batch, workers) unless batch.empty?
       end
 
       def enqueue(queue, item, workers)

@@ -73,6 +73,16 @@ class TestCommandsExtract < Minitest::Test
     assert_equal 3, options[:ocr_workers]
   end
 
+  def test_build_parser_sets_ocr_batch_size
+    options = { command: 'extract' }
+    argv = ['--ocr-batch-size', '8', 'video.mp4']
+    cmd = InvasionStudio::Commands::Extract.new(options, argv)
+
+    cmd.send(:parse_options!)
+
+    assert_equal 8, options[:ocr_batch_size]
+  end
+
   def test_validate_rejects_non_positive_ocr_workers
     options = { command: 'extract', ocr_workers: 0 }
     cmd = InvasionStudio::Commands::Extract.new(options, [__FILE__])
@@ -80,6 +90,15 @@ class TestCommandsExtract < Minitest::Test
     error = assert_raises(InvasionStudio::Error) { cmd.send(:validate!) }
 
     assert_equal '--ocr-workers must be greater than zero', error.message
+  end
+
+  def test_validate_rejects_non_positive_ocr_batch_size
+    options = { command: 'extract', ocr_batch_size: 0 }
+    cmd = InvasionStudio::Commands::Extract.new(options, [__FILE__])
+
+    error = assert_raises(InvasionStudio::Error) { cmd.send(:validate!) }
+
+    assert_equal '--ocr-batch-size must be greater than zero', error.message
   end
 
   def test_validate_exits_when_no_video_files

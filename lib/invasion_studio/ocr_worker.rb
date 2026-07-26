@@ -21,7 +21,8 @@ module InvasionStudio
       @ocr_pool = options[:ocr_pool] || OCR::OcrPool.new(
         provider: provider,
         worker_policy: worker_policy,
-        frame_discovery: options[:frame_discovery] || OCR::FrameDiscovery.new
+        frame_discovery: options[:frame_discovery] || OCR::FrameDiscovery.new,
+        batch_size: options[:ocr_batch_size] || 1
       )
     end
 
