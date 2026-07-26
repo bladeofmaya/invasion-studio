@@ -1,18 +1,16 @@
 # Elden Ring Invasion Studio
 
-Automatically detect and extract invasion clips from your Elden Ring gameplay footage. This Ruby gem scans your recordings using OCR (Optical Character Recognition) to find invasion start/end points, cuts them into separate video files, and provides a browser-based studio to organize, review, and export them — perfect for content creators who want to streamline their editing workflow.
+Invasion Studio finds invasions and arena encounters in Elden Ring recordings,
+extracts them as individual clips, and provides a local WebUI for reviewing,
+organizing, trimming, and exporting them.
 
-[📺 Watch the demo](https://www.youtube.com/watch?v=-G9ARNrhMOI)
+[Watch the demo](https://www.youtube.com/watch?v=-G9ARNrhMOI)
 
 ![Invasion Studio](images/invasion-studio.png)
 
----
+## Install
 
-## Quick Start
-
-### Prerequisites
-
-Make sure you have **ffmpeg** and **tesseract** installed:
+Invasion Studio requires Ruby 3.3 or newer, ffmpeg, and Tesseract OCR.
 
 ```bash
 # macOS
@@ -25,348 +23,152 @@ sudo apt-get install ffmpeg tesseract-ocr
 sudo pacman -S ffmpeg tesseract tesseract-data-eng
 ```
 
-### Installation
+Install the gem:
 
 ```bash
 gem install invasion-studio
 ```
 
-### Typical Workflow
+## Quick usage
+
+The normal workflow has two steps.
+
+### 1. Generate clips into a new folder
+
+Choose a new output folder and pass one or more gameplay recordings:
 
 ```bash
-# 1. Extract invasions from your recordings
-invasion-studio --prefix ps-daggers-tt-04 --outdir ~/Videos/ER/clips ~/Videos/Capture/*.mp4
-
-# 2. Open the Invasion Studio to organize, review, and tag clips
-invasion-studio webui ~/Videos/ER/clips
-
-# 3. Export a group to a single video + Kdenlive timeline
-# (Done from the studio UI — or via CLI)
-invasion-studio export-kdenlive ~/Videos/ER/clips
+invasion-studio extract \
+  --outdir ~/Videos/ER/my-invasion-project \
+  ~/Videos/Capture/*.mp4
 ```
 
-**Pro tip:** If OBS splits your recordings into segments (e.g., 60-minute chunks), pass all files in order. The tool detects invasions that span across files and combines them automatically.
+The output folder is created automatically. Each detected encounter becomes an
+MP4 clip inside it.
 
----
+If OBS split one recording into several files, pass them together in
+chronological order. Invasions spanning two files are joined automatically.
 
-## What It Does
-
-This tool reads on-screen text to detect:
-- **Invasion Start**: "Defeat [Name], Host of Fingers" / "Commencing combat"
-- **Invasion End**: "Returning to your world" / "Combat ends"
-
-It then automatically cuts your video into individual invasion clips, adding a 10-second buffer before the start and 7.5 seconds after the end so you don't miss any action.
-
----
-
-## Invasion Studio (WebUI)
-
-After extracting clips, organize, review, and export them with the built-in browser-based studio.
-
-![Invasion Studio](images/invasion-studio.png)
-
-### Features
-
-- **Browse & Organize** — View all clips with titles, notes, star ratings, and win/loss/dc tags
-- **Groups** — Create groups to organize invasions by theme, build, or session
-- **Video Preview** — Watch clips directly in the browser with audio track switching
-- **Cut Editor** — Mark start/end cut points and export only the best moments
-- **Export** — Export groups as a single spliced video with a Kdenlive timeline project
-
-### How to Run
+### 2. Start the WebUI with that folder
 
 ```bash
-# Start the studio from your clips folder
-invasion-studio webui ~/Videos/ER/clips
-
-# Start on a custom port
-invasion-studio webui -p 8080 ~/Videos/ER/clips
-
+invasion-studio webui ~/Videos/ER/my-invasion-project
 ```
 
-Then open `http://localhost:4567` (or your custom port) in your browser.
+Open [http://localhost:4567](http://localhost:4567). The WebUI stores its
+project metadata alongside the clips in the selected folder.
 
-The installed WebUI is self-contained: its CSS, Stimulus application, and
-controllers are packaged in the gem and make no third-party network requests.
+From the WebUI you can:
 
----
+- preview clips and switch audio tracks;
+- add titles, notes, ratings, and results;
+- organize clips into groups;
+- mark unwanted sections for removal;
+- export a group as a combined video and Kdenlive project.
 
-## Full CLI Reference
-
-### Command Structure
-
-```
-invasion-studio [COMMAND] [OPTIONS] [VIDEO_FILES...]
-```
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `extract` | Extract invasion clips (default) |
-| `scan` | Scan videos and show timestamps only |
-| `webui` | Start the Invasion Studio browser interface |
-| `export-kdenlive` | Export clips to a Kdenlive timeline |
-| `concat` | Concatenate clips into a single video |
-
-### Complete Flag Reference
-
-#### Extract / Scan Flags
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-h, --help` | — | Show help message and exit |
-| `-v, --version` | — | Show version and exit |
-| `-d, --debug` | Off | Print debug output and write frame text to YAML |
-| `-q, --quiet` | Off | Suppress all non-error output |
-| `-p, --prefix PREFIX` | `invasion` | Prefix for output clip filenames |
-| `-o, --outdir DIRECTORY` | `./invasion_clips` | Output directory for extracted clips |
-| `--fps RATE` | `1` | Frames per second to extract for OCR |
-| `--no-cache` | Off | Skip OCR cache and force re-processing |
-| `--pad-start SECONDS` | `10.0` | Seconds to include before invasion start |
-| `--pad-end SECONDS` | `7.5` | Seconds to include after invasion end |
-| `--continue-on-error` | Off | Continue processing remaining videos if one fails |
-| `--ffmpeg-threads N` | `4` | ffmpeg encoding threads |
-| `--ocr-workers N` | Up to `4` | Parallel Tesseract workers |
-| `--hwaccel` | Off | Enable VAAPI hardware acceleration |
-
-#### Export & WebUI Flags
-
-| Flag | Command | Description |
-|------|---------|-------------|
-| `-o, --output FILE` | `export-kdenlive`, `concat` | Output file path |
-| `-p, --port PORT` | `webui` | Server port (default: 4567) |
-
-### Flag Details
-
-**`--fps RATE`** — Controls how many frames per second are extracted from the video for OCR. The default `1` means one frame every 1 second. Increasing to `2` or `4` improves detection accuracy for very short invasions but increases processing time linearly.
-
-**`--debug`** — Enables two things: (1) prints every matched start/end frame with its exact timestamp and raw OCR text so you can inspect why an invasion was missed, and (2) writes a `<video_hash>.debug.yml` file containing every extracted frame's timestamp and detected text.
-
-**`--hwaccel`** — Enables VAAPI hardware acceleration for faster ffmpeg encoding. Requires a compatible GPU and drivers.
-
-**`--ocr-workers N`** — Controls parallel Tesseract processes. The default uses
-the smaller of four workers or the detected processor count to avoid CPU and
-memory oversubscription. Benchmark before increasing it.
-
----
-
-## Usage Examples
-
-### Basic Extraction
+To use another port:
 
 ```bash
-# Extract from a single video
-invasion-studio video.mp4
-
-# Extract from multiple videos with prefix
-invasion-studio --prefix my-invasions ~/Videos/Capture/*.mp4
-
-# Specify output directory
-invasion-studio -o ~/Desktop/clips ~/Videos/Capture/*.mp4
+invasion-studio webui --port 8080 ~/Videos/ER/my-invasion-project
 ```
 
-### Scan Mode (Preview Invasions)
+## How detection works
+
+The extractor samples the game-text area and uses OCR to find these messages:
+
+- Start: `Defeat … Host of Fingers` or `Commencing combat`
+- End: `Returning to your world` or `Combat ends`
+
+Clips include 10 seconds before the detected start and 7.5 seconds after the
+detected end by default.
+
+## Other commands
 
 ```bash
-# Scan only - shows timestamps without extracting
+# Show detected timestamps without creating clips
 invasion-studio scan ~/Videos/Capture/*.mp4
 
-# Output:
-# Detected Invasions:
-#   [1] 00:05:30.000 → 00:08:45.500
-#       File: 2024-01-15_18-39-00.mp4
-#   [2] 00:22:15.000 → 00:25:30.250
-#       Cross-file: 2024-01-15_18-39-00.mp4 → 2024-01-15_19-39-00.mp4
-#
-# Total: 2 invasion(s) detected
+# Join every clip in a folder and add chapter markers
+invasion-studio concat ~/Videos/ER/my-invasion-project
+
+# Build a combined video and Kdenlive project directly
+invasion-studio export-kdenlive ~/Videos/ER/my-invasion-project
+
+# Show global or command-specific help
+invasion-studio --help
+invasion-studio extract --help
 ```
 
-### Debug Mode
+Commands:
 
-```bash
-# See exactly what OCR detected at every timestamp
-invasion-studio -d ~/Videos/Capture/*.mp4
+| Command | Purpose |
+|---|---|
+| `extract` | Detect encounters and create clips; this is the default command |
+| `scan` | Detect encounters without creating clips |
+| `webui` | Start the local project WebUI |
+| `concat` | Join clips into one chaptered video |
+| `export-kdenlive` | Create a combined video and Kdenlive timeline |
 
-# Output includes:
-#   [START] 00:01:23.500 => "Defeat the Host of Fingers"
-#   [END]   00:02:45.000 => "Returning to your world"
-#
-# Plus a .debug.yml file with every frame's text
+## Useful extraction options
+
+| Option | Default | Purpose |
+|---|---:|---|
+| `--outdir DIR` | `./invasion_clips` | Folder for generated clips |
+| `--prefix NAME` | `invasion` | Generated filename prefix |
+| `--fps RATE` | `1` | OCR samples per second |
+| `--pad-start SEC` | `10` | Extra time before an encounter |
+| `--pad-end SEC` | `7.5` | Extra time after an encounter |
+| `--no-cache` | off | Reprocess footage without reading or writing OCR cache |
+| `--continue-on-error` | off | Continue when one input cannot be processed |
+| `--debug` | off | Print matches and write frame OCR to YAML |
+| `--ocr-workers N` | up to `4` | Parallel Tesseract workers |
+| `--ocr-batch-size N` | `1` | Images handled by one Tesseract process |
+| `--hwaccel` | off | Use VAAPI frame extraction when available |
+
+Increasing `--fps` can help with very short messages but increases OCR work
+linearly. `--ocr-batch-size 8` reduced CPU use by about 29% on the project test
+videos, but improved elapsed time by only 1–2%; it remains an optional tuning
+setting rather than the default.
+
+## Cache and troubleshooting
+
+OCR results are cached under:
+
+```text
+${XDG_CACHE_HOME:-$HOME/.cache}/invasion-studio
 ```
 
-### Export & Concatenate
+Use `--no-cache` when checking changed OCR settings or investigating a missed
+encounter.
 
-```bash
-# Export clips folder to a Kdenlive timeline
-invasion-studio export-kdenlive ~/Videos/ER/clips
+Detection can be missed when menus or platform overlays cover the game text.
+Use `--debug` to inspect the recognized text and matched timestamps.
 
-# Export with a custom output path
-invasion-studio export-kdenlive -o ~/Videos/ER/project.kdenlive ~/Videos/ER/clips
-
-# Concatenate all clips into a single video (no re-encoding, with chapter markers)
-invasion-studio concat ~/Videos/ER/clips
-
-# Concat with custom output
-invasion-studio concat -o ~/Videos/ER/final.mp4 ~/Videos/ER/clips
-```
-
-### Cache Management
-
-OCR results follow the XDG Base Directory Specification and are cached in
-`${XDG_CACHE_HOME:-$HOME/.cache}/invasion-studio`. To force re-processing:
-
-```bash
-# Skip cache for this run
-invasion-studio --no-cache ~/Videos/Capture/*.mp4
-
-# Clear the current cache manually
-rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/invasion-studio"
-```
-
-### Upgrading from versions before 0.5.0
-
-Version 0.5.0 is a clean, breaking rename. It does not migrate settings or cache
-data from Invasion Extractor. The old Linux OCR cache is no longer read and can
-be removed manually:
-
-```bash
-rm -rf /dev/shm/invasion_extractor_cache
-```
-
-This command removes only the obsolete global OCR cache. Do not remove your clip
-or project folders; they contain user-created videos and project metadata.
-
----
-
-## Requirements & Compatibility
-
-The planned behavior-preserving decomposition of the project model, WebUI
-server, and Kdenlive exporter is documented in
-[REFACTORING-PLAN.md](REFACTORING-PLAN.md).
-
-| Requirement | Details |
-|------------|---------|
-| **Resolution** | Optimized for 1440p (2560×1440), works at 1080p and 720p |
-| **Framerate** | 30fps or 60fps |
-| **Platform** | macOS and Linux (tested), Windows should work |
-| **Language** | English only (for now) |
-| **Ruby** | 3.3+ |
-| **Browsers** | Any modern browser (Chrome, Firefox, Safari, Edge) |
-
-### Known Limitations
-
-- **UI Overlays**: PSN quick menu or other overlays covering game text can cause missed detections
-- **Text Position**: Invasion text must be visible — if you're in a menu when it appears, detection may fail
-- **Performance**: OCR processing averages ~0.18s per frame on CPU. With the default of 1fps, a 60-minute video extracts ~3600 frames. The pipeline now runs extraction and OCR concurrently using a multi-threaded worker pool, and the direct Tesseract CLI call (with a character whitelist) removes Ruby wrapper overhead. On a typical multi-core machine, a 60-minute video processes in roughly 8–12 minutes — a major improvement over earlier versions. Enable `--hwaccel` for even faster encoding on supported GPUs.
-
----
-
-## Architecture
-
-```
-lib/invasion_studio/
-├── invasion_studio.rb    # Main entry point, dependency checks
-├── cli.rb                   # CLI orchestrator (parses args, dispatches commands)
-├── commands/
-│   ├── base.rb              # Abstract command base class
-│   ├── extract.rb           # Extract/scan command implementation
-│   ├── export_kdenlive.rb # Kdenlive timeline export
-│   ├── concat.rb           # Concatenate clips into single video
-│   └── webui.rb            # WebUI server launcher
-├── engine.rb                # High-level orchestration with 3-stage pipeline
-├── video.rb                 # Video file representation & YAML caching
-├── ocr_worker.rb            # Frame extraction/OCR pipeline orchestration
-├── frame.rb                 # Data structure for frame metadata
-├── scanner.rb               # Pattern matching for invasion detection
-├── clip.rb                  # Video clip generation (ffmpeg)
-├── time_helper.rb           # Time manipulation utilities
-├── version.rb               # Version constant
-├── project.rb               # Project data model (clips, groups, metadata)
-├── project_exporter.rb      # Group export to spliced video + Kdenlive
-├── kdenlive_exporter.rb     # Kdenlive MLT XML project generator
-├── ocr/
-│   ├── provider.rb          # Abstract OCR interface
-│   └── tesseract_provider.rb # Tesseract OCR implementation (default)
-└── webui/                   # Browser-based studio
-    ├── server.rb            # Sinatra API and static file serving
-    ├── frontend/            # Tracked CSS and JavaScript entry points
-    ├── views/               # ERB templates
-    └── public/
-        ├── controllers/     # Tracked Stimulus controller sources
-        └── assets/          # Generated, ignored release assets
-```
-
-### Data Flow
-
-```
-Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Output Files
-     ↓            ↓          ↓         ↓          ↓       ↓
-   ffmpeg    temp JPEGs   Cache    Regex     Struct   ffmpeg
-                ↓        (YAML)
-
-Extracted Clips → Project.json → WebUI → Groups → Export (Spliced + Kdenlive)
-```
-
----
+The extractor is optimized for English footage at 720p, 1080p, or 1440p on
+macOS and Linux. A modern browser is required for the WebUI.
 
 ## Development
 
-### Frontend assets
-
-Node.js 24 LTS is needed only when developing or packaging the WebUI and is
-pinned alongside Ruby in `mise.toml`. npm is included with Node. Installed gems
-serve prebuilt assets and do not invoke Node or npm.
+Ruby 3.4.9 and Node.js 24 LTS are pinned in `mise.toml`. Node is needed only to
+build the packaged WebUI assets.
 
 ```bash
-# Install the exact versions from package-lock.json and build local assets
+# Install dependencies and build WebUI assets
+bundle install
 bin/build-assets
 
-# Build assets, construct the gem, and verify its packaged contents
+# Run unit and component tests
+bundle exec rake test
+
+# Run the complete suite, including sample-video processing
+bin/test
+
+# Build and verify the gem
 bin/build-gem
 ```
 
-Edit the entry points in `lib/invasion_studio/webui/frontend/` and the Stimulus
-controllers in `lib/invasion_studio/webui/public/controllers/`. Generated files
-under `public/assets/` are intentionally ignored and must not be committed.
-
-### Running Tests
-
-```bash
-bundle exec rake test
-```
-
-Run `bin/build-assets` first. The default suite excludes `test/system`, which
-contains the video-processing tests reserved for owner verification.
-
-To run the complete suite, including the video-processing system tests:
-
-```bash
-bin/test
-```
-
-### Using the OCR Provider Directly
-
-```ruby
-provider = InvasionStudio::OCR::TesseractProvider.new
-result = provider.recognize('test/samples/invasion_start.jpg')
-puts result
-```
-
----
-
-## Contributing
-
-Contributions welcome! Areas that need help:
-
-- **Windows testing**: Primarily tested on macOS and Linux
-- **Multi-language support**: Japanese, German, French, etc.
-- **OCR accuracy**: Tuning crop regions for better text detection
-- **GPU acceleration**: EasyOCR/ONNX providers for faster processing
-
-Project links will be published at [bladeofmaya.com](https://bladeofmaya.com).
-
----
+Generated WebUI assets under `lib/invasion_studio/webui/public/assets/` are
+ignored and should not be committed.
 
 ## Support
 
@@ -376,10 +178,4 @@ If this tool saves you time, consider supporting development:
 
 ## License
 
-MIT License - see [MIT-LICENSE](MIT-LICENSE)
-
----
-
-*Happy invading! ⚔️*
-
-*For a behind-the-scenes look at how this was built, check out the [creation stream summary](https://www.youtube.com/watch?v=ZAWuatbjIuc).*
+MIT License — see [MIT-LICENSE](MIT-LICENSE).
