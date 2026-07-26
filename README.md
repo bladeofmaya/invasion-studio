@@ -178,6 +178,13 @@ If this tool saves you time, consider supporting development:
 
 [![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/bladeofmaya)
 
+You can also follow me for Elden Ring streams, videos, and project updates:
+
+- [Twitch](https://www.twitch.tv/bladeofmaya)
+- [YouTube](https://www.youtube.com/@bladeofmaya)
+
+Feel free to stop by and follow!
+
 ## License
 
 MIT License — see [MIT-LICENSE](MIT-LICENSE).
