@@ -3,162 +3,55 @@ module InvasionStudio
     attr_reader :videos, :options, :errors
 
     def self.run!(videos, options = {})
-      engine = new(videos, options)
-      engine.run!
-      engine
+      new(videos, options).tap(&:run!)
     end
 
     def initialize(videos, options = {})
       @options = options
-      @videos = videos.map { |v| Video.new(v, @options) }
       @errors = []
+      @video_factory = options[:video_factory] || ->(path, video_options) { Video.new(path, video_options) }
+      @scanner_factory = options[:scanner_factory] || ->(items) { Scanner.new(items) }
+      @clip_factory = options[:clip_factory] || ->(segment, clip_options) { Clip.new(segment, clip_options) }
+      @videos = videos.map { |path| @video_factory.call(path, @options) }
+
+      reporter = options[:reporter] || Extraction::Reporter.new(@options)
+      @ocr_stage = options[:ocr_stage] || Extraction::OcrStage.new(@options, reporter: reporter)
+      @scan_stage = options[:scan_stage] || Extraction::ScanStage.new(reporter: reporter)
+      @clip_extraction_stage = options[:clip_extraction_stage] || Extraction::ClipExtractionStage.new(
+        @options,
+        reporter: reporter,
+        clip_factory: @clip_factory
+      )
     end
 
     def run!
       return self if @videos.empty?
 
-      run_ocr_stage
-      run_scan_stage
-      run_extraction_stage if @options[:command] != 'scan'
+      ocr_result = @ocr_stage.run(@videos)
+      @videos = ocr_result.videos
+      @errors.concat(ocr_result.errors)
+      invalidate_scan_results
 
+      segments = @scan_stage.run(scanner)
+      @errors.concat(@clip_extraction_stage.run(segments)) unless @options[:command] == 'scan'
       self
     end
 
     def clips
-      @clips ||= scanner.invasion_segments.map { |segment| Clip.new(segment, @options) }.freeze
+      @clips ||= scanner.invasion_segments.map do |segment|
+        @clip_factory.call(segment, @options)
+      end.freeze
     end
 
     def scanner
-      @scanner ||= Scanner.new(@videos)
+      @scanner ||= @scanner_factory.call(@videos)
     end
 
     private
 
-    def run_ocr_stage
-      successful_videos = []
-      @videos.each do |video|
-        puts "Processing: #{File.basename(video.path)}" unless @options[:quiet]
-
-        frames = if @options[:quiet]
-          video.frames
-        else
-          run_ocr_with_progress(video)
-        end
-
-        puts "  #{frames.length} frames processed" unless @options[:quiet]
-
-        if @options[:debug]
-          write_debug_file(video.path, frames)
-        end
-        successful_videos << video
-      rescue StandardError => e
-        raise unless @options[:continue_on_error]
-
-        @errors << [video.path, e]
-        warn "Skipping #{video.path}: #{e.message}" unless @options[:quiet]
-      end
-      @videos = successful_videos
+    def invalidate_scan_results
       @scanner = nil
       @clips = nil
-    end
-
-    def run_ocr_with_progress(video)
-      meta = video.metadata
-      fps = @options[:fps] || 1
-      total_frames = meta && meta[:duration] > 0 ? (meta[:duration] * fps).to_i : 0
-
-      extract_bar = nil
-      ocr_bar = nil
-
-      if total_frames > 0
-        extract_bar = TTY::ProgressBar.new(
-          "  Extracting frames [:bar] :current/:total (:percent)",
-          total: total_frames,
-          width: 30
-        )
-
-        ocr_bar = TTY::ProgressBar.new(
-          "  OCR               [:bar] :current/:total (:percent) :elapsed ETA::eta",
-          total: total_frames,
-          width: 30
-        )
-      end
-
-      extract_callback = proc { |current, total| extract_bar&.current = current }
-      ocr_callback = proc { |current, total| ocr_bar&.current = current }
-
-      video.frames({
-        extract_progress_callback: extract_callback,
-        progress_callback: ocr_callback
-      })
-    end
-
-    def run_scan_stage
-      puts "Scanning for invasions..." unless @options[:quiet]
-      segs = scanner.invasion_segments
-
-      if @options[:debug]
-        debug_matches = scanner.matched_frames
-        puts "  Matched #{debug_matches.length} frames:"
-        debug_matches.each do |f|
-          match_type = f.text.match?(Scanner::START_REGEX) ? 'START' : 'END'
-          puts "    [#{match_type}] #{f.timestamp} => #{f.text.inspect}"
-        end
-      end
-
-      puts "  #{segs.length} invasions detected" unless @options[:quiet]
-    end
-
-    def run_extraction_stage
-      segs = scanner.invasion_segments
-      return if segs.empty?
-
-      outdir = @options[:outdir] || 'invasion_clips'
-      prefix = @options[:prefix] || 'invasion'
-      FileUtils.mkdir_p(outdir)
-
-      start_index = find_highest_clip_number(outdir, prefix)
-
-      puts "Extracting clips..." unless @options[:quiet]
-      puts "  Starting from #{prefix}_#{format('%05d', start_index + 1)}" unless @options[:quiet] || start_index == 0
-
-      segs.each_with_index do |segment, index|
-        output_file = File.join(outdir, format("#{prefix}_%05d.mp4", start_index + index + 1))
-        clip = Clip.new(segment, @options)
-
-        if clip.file_exists?(output_file)
-          puts "  Skipping #{File.basename(output_file)} (already exists)" unless @options[:quiet]
-        else
-          clip.write(output_file)
-          puts "  Extracted #{File.basename(output_file)}" unless @options[:quiet]
-        end
-      rescue StandardError => e
-        raise unless @options[:continue_on_error]
-
-        @errors << [output_file, e]
-        warn "Skipping #{output_file}: #{e.message}" unless @options[:quiet]
-      end
-
-      puts "  #{segs.length} clips extracted" unless @options[:quiet]
-    end
-
-    def find_highest_clip_number(outdir, prefix)
-      return 0 unless Dir.exist?(outdir)
-
-      pattern = /^#{Regexp.escape(prefix)}_(\d{5})\.mp4$/
-      existing_numbers = Dir.entries(outdir).map do |entry|
-        match = entry.match(pattern)
-        match ? match[1].to_i : nil
-      end.compact
-
-      existing_numbers.empty? ? 0 : existing_numbers.max
-    end
-
-    def write_debug_file(video_path, frames)
-      debug_file = "#{VideoHasher.hash(video_path)}.debug.yml"
-      data = frames.map { |f| { timestamp: f.timestamp, text: f.text } }
-      File.write(debug_file, data.to_yaml)
-      puts "  Debug written to: #{debug_file}" unless @options[:quiet]
     end
   end
 end

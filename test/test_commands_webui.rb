@@ -15,8 +15,11 @@ class TestCommandsWebui < Minitest::Test
     argv = []
     cmd = InvasionStudio::Commands::Webui.new(options, argv)
 
-    error = assert_raises(SystemExit) { cmd.send(:validate!) }
-    assert_equal 1, error.status
+    stdout, = capture_io do
+      error = assert_raises(SystemExit) { cmd.send(:validate!) }
+      assert_equal 1, error.status
+    end
+    assert_includes stdout, 'No folder specified'
   end
 
   def test_validate_exits_when_invalid_folder
@@ -24,8 +27,11 @@ class TestCommandsWebui < Minitest::Test
     argv = ['/nonexistent/folder']
     cmd = InvasionStudio::Commands::Webui.new(options, argv)
 
-    error = assert_raises(SystemExit) { cmd.send(:validate!) }
-    assert_equal 1, error.status
+    stdout, = capture_io do
+      error = assert_raises(SystemExit) { cmd.send(:validate!) }
+      assert_equal 1, error.status
+    end
+    assert_includes stdout, 'is not a valid directory'
   end
 
   def test_validate_allows_valid_folder

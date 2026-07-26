@@ -2,13 +2,14 @@ module InvasionStudio
   class Scanner
     Segment = Data.define(:start_time, :start_video, :end_time, :end_video)
 
-    START_REGEX = /Defeat.*Host of Fingers|Commencing combat/i
-    END_REGEX = /Returning to your world|Combat ends/i
+    START_REGEX = EncounterMatcher::START_REGEX
+    END_REGEX = EncounterMatcher::END_REGEX
 
     attr_reader :invasion_segments, :matched_frames
 
-    def initialize(videos)
+    def initialize(videos, matcher: EncounterMatcher.new)
       @videos = videos
+      @matcher = matcher
       @matched_frames = collect_matched_frames.freeze
       @invasion_segments = generate_invasion_segments
     end
@@ -21,7 +22,7 @@ module InvasionStudio
         video_frames = video.frames
         @last_frame = video_frames.last unless video_frames.empty?
         video_frames.each do |frame|
-          frames << frame if frame.text.match?(START_REGEX) || frame.text.match?(END_REGEX)
+          frames << frame if @matcher.classify(frame.text)
         end
       end
       frames
@@ -34,14 +35,17 @@ module InvasionStudio
       segments = []
       start_frame = nil
 
-      if relevant_frames.first.text.match?(END_REGEX)
+      if @matcher.classify(relevant_frames.first.text) == :end
         start_frame = OpenStruct.new(timestamp: "00:00:00", video_path: relevant_frames.first.video_path)
       end
 
       relevant_frames.each do |frame|
-        if frame.text.match?(START_REGEX)
+        case @matcher.classify(frame.text)
+        when :start
           start_frame = frame
-        elsif frame.text.match?(END_REGEX) && start_frame
+        when :end
+          next unless start_frame
+
           segments << Segment.new(
             start_frame.timestamp,
             start_frame.video_path,

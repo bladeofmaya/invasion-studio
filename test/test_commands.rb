@@ -87,8 +87,11 @@ class TestCommandsExtract < Minitest::Test
     argv = []
     cmd = InvasionStudio::Commands::Extract.new(options, argv)
 
-    error = assert_raises(SystemExit) { cmd.send(:validate!) }
-    assert_equal 1, error.status
+    stdout, = capture_io do
+      error = assert_raises(SystemExit) { cmd.send(:validate!) }
+      assert_equal 1, error.status
+    end
+    assert_includes stdout, 'No video files specified'
   end
 
   def test_validate_exits_when_no_valid_video_files
@@ -96,8 +99,11 @@ class TestCommandsExtract < Minitest::Test
     argv = ['/nonexistent/video.mp4']
     cmd = InvasionStudio::Commands::Extract.new(options, argv)
 
-    error = assert_raises(SystemExit) { cmd.send(:validate!) }
-    assert_equal 1, error.status
+    stdout, = capture_io do
+      error = assert_raises(SystemExit) { cmd.send(:validate!) }
+      assert_equal 1, error.status
+    end
+    assert_includes stdout, 'No valid video files found'
   end
 
   def test_video_files_returns_existing_files
@@ -135,8 +141,11 @@ class TestCommandsExportKdenlive < Minitest::Test
     argv = []
     cmd = InvasionStudio::Commands::ExportKdenlive.new(options, argv)
 
-    error = assert_raises(SystemExit) { cmd.send(:validate!) }
-    assert_equal 1, error.status
+    stdout, = capture_io do
+      error = assert_raises(SystemExit) { cmd.send(:validate!) }
+      assert_equal 1, error.status
+    end
+    assert_includes stdout, 'No folder specified'
   end
 
   def test_validate_exits_when_invalid_folder
@@ -144,7 +153,10 @@ class TestCommandsExportKdenlive < Minitest::Test
     argv = ['/nonexistent/folder']
     cmd = InvasionStudio::Commands::ExportKdenlive.new(options, argv)
 
-    error = assert_raises(SystemExit) { cmd.send(:validate!) }
-    assert_equal 1, error.status
+    stdout, = capture_io do
+      error = assert_raises(SystemExit) { cmd.send(:validate!) }
+      assert_equal 1, error.status
+    end
+    assert_includes stdout, 'is not a valid directory'
   end
 end
