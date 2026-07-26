@@ -5,27 +5,30 @@ module InvasionStudio
     START_REGEX = /Defeat.*Host of Fingers|Commencing combat/i
     END_REGEX = /Returning to your world|Combat ends/i
 
-    attr_reader :invasion_segments
+    attr_reader :invasion_segments, :matched_frames
 
     def initialize(videos)
       @videos = videos
+      @matched_frames = collect_matched_frames.freeze
       @invasion_segments = generate_invasion_segments
     end
 
-    def matched_frames
+    private
+
+    def collect_matched_frames
       frames = []
       @videos.each do |video|
-        video.frames.each do |frame|
+        video_frames = video.frames
+        @last_frame = video_frames.last unless video_frames.empty?
+        video_frames.each do |frame|
           frames << frame if frame.text.match?(START_REGEX) || frame.text.match?(END_REGEX)
         end
       end
       frames
     end
 
-    private
-
     def generate_invasion_segments
-      relevant_frames = matched_frames
+      relevant_frames = @matched_frames
       return [] if relevant_frames.empty?
 
       segments = []
@@ -63,11 +66,7 @@ module InvasionStudio
     end
 
     def last_frame
-      @videos.reverse_each do |video|
-        frame = video.frames.last
-        return frame if frame
-      end
-      nil
+      @last_frame
     end
   end
 end

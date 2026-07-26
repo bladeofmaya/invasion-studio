@@ -25,7 +25,7 @@ module InvasionStudio
     end
 
     def clips
-      scanner.invasion_segments.map { |segment| Clip.new(segment, @options) }
+      @clips ||= scanner.invasion_segments.map { |segment| Clip.new(segment, @options) }.freeze
     end
 
     def scanner
@@ -58,6 +58,8 @@ module InvasionStudio
         warn "Skipping #{video.path}: #{e.message}" unless @options[:quiet]
       end
       @videos = successful_videos
+      @scanner = nil
+      @clips = nil
     end
 
     def run_ocr_with_progress(video)

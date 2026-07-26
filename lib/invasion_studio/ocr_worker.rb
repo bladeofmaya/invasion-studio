@@ -8,6 +8,11 @@ module InvasionStudio
       @video_metadata = get_metadata
       @ocr_provider = ocr_provider || InvasionStudio::OCR::TesseractProvider.new
       @options = options
+      @worker_policy = options[:worker_policy] || OCR::WorkerPolicy.new(
+        ocr_workers: options[:ocr_workers],
+        ocr_queue_size: options[:ocr_queue_size]
+      )
+      @frame_discovery = options[:frame_discovery] || OCR::FrameDiscovery.new
     end
 
     def run!
@@ -15,8 +20,8 @@ module InvasionStudio
       extract_progress = @options[:extract_progress_callback]
 
       Dir.mktmpdir do |frames_dir|
-        ffmpeg_thread = extract_frames(frames_dir, fps, extract_progress)
-        results = run_ocr_pipeline(frames_dir, fps, ffmpeg_thread)
+        ffmpeg_thread = extract_frames(frames_dir, fps)
+        results = run_ocr_pipeline(frames_dir, fps, ffmpeg_thread, extract_progress)
         ffmpeg_thread.value
         results.sort_by(&:number)
       end
@@ -24,8 +29,8 @@ module InvasionStudio
 
     private
 
-    def run_ocr_pipeline(frames_dir, fps, ffmpeg_thread)
-      queue = Queue.new
+    def run_ocr_pipeline(frames_dir, fps, ffmpeg_thread, extract_progress)
+      queue = SizedQueue.new(@worker_policy.queue_size)
       results = []
       mutex = Mutex.new
       total_frames = estimated_total_frames(fps)
@@ -33,13 +38,13 @@ module InvasionStudio
       # ponytail: manual thread pool instead of Parallel gem; tesseract shell-out
       # releases the GIL, so threads parallelize nearly as well as processes
       # without fork overhead. ceiling: GIL contention on pure Ruby work.
-      workers = Etc.nprocessors.times.map do
+      workers = @worker_policy.worker_count.times.map do
         Thread.new do
           loop do
             item = queue.pop
             break if item == :done
 
-            path, _index = item
+            path = item
             text = @ocr_provider.recognize(path)
             frame_number = extract_frame_number(path)
             timestamp = frame_number_to_timestamp(frame_number, fps)
@@ -49,7 +54,7 @@ module InvasionStudio
               @ocr_progress += 1 if @options[:progress_callback]
             end
           end
-        end
+        end.tap { |worker| worker.report_on_exception = false }
       end
 
       @ocr_progress = 0 if @options[:progress_callback]
@@ -65,23 +70,20 @@ module InvasionStudio
         end
       end
 
-      last_count = 0
-      loop do
-        frame_paths = Dir.glob(File.join(frames_dir, '*.jpg')).sort
-        new_paths = frame_paths[last_count..]
-        new_paths.each do |path|
-          queue << [path, last_count]
-          last_count += 1
+      begin
+        @frame_discovery.each(
+          frames_dir,
+          producer: ffmpeg_thread,
+          total: total_frames,
+          progress: extract_progress
+        ) do |path|
+          enqueue(queue, path, workers)
         end
 
-        break if !ffmpeg_thread.alive? && last_count >= frame_paths.length
-        sleep 0.1 if new_paths.empty?
-      end
-
-      workers.each { queue << :done }
-      begin
+        workers.each { enqueue(queue, :done, workers) }
         workers.each(&:value)
       ensure
+        workers.each(&:kill)
         pipeline_done = true
         monitor&.join
       end
@@ -90,7 +92,16 @@ module InvasionStudio
       results
     end
 
-    def extract_frames(frames_dir, fps, progress)
+    def enqueue(queue, item, workers)
+      queue.push(item, true)
+    rescue ThreadError
+      failed_worker = workers.find { |worker| !worker.alive? }
+      failed_worker.value if failed_worker
+      sleep 0.01
+      retry
+    end
+
+    def extract_frames(frames_dir, fps)
       crop = calculate_crop
       filter = "fps=#{fps},crop=#{crop[:width]}:#{crop[:height]}:#{crop[:x]}:#{crop[:y]}"
 
@@ -100,38 +111,16 @@ module InvasionStudio
         filter = "fps=#{fps},hwdownload,format=nv12,crop=#{crop[:width]}:#{crop[:height]}:#{crop[:x]}:#{crop[:y]}"
       end
 
-      total_frames = estimated_total_frames(fps)
-
       threads = @options[:ffmpeg_threads] || 4
       cmd = ['ffmpeg', '-threads', threads.to_s, *hwaccel_args, '-i', @video_path,
              '-vf', filter, '-qscale:v', '5', File.join(frames_dir, 'frame_%06d.jpg')]
 
-      ffmpeg_done = false
-      ffmpeg_thread = Thread.new do
+      Thread.new do
         success = @process_runner.run(*cmd, log_path: File::NULL)
         raise Error, "ffmpeg failed while extracting frames from #{@video_path}" unless success
 
         true
-      ensure
-        ffmpeg_done = true
       end
-
-      if progress && total_frames > 0
-        Thread.new do
-          last_count = 0
-          until ffmpeg_done
-            sleep 0.5
-            count = Dir.glob(File.join(frames_dir, '*.jpg')).length
-            if count > last_count
-              progress.call(count, total_frames)
-              last_count = count
-            end
-          end
-          progress.call(total_frames, total_frames)
-        end
-      end
-
-      ffmpeg_thread
     end
 
     def extract_frame_number(path)
