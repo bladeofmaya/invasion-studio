@@ -53,3 +53,29 @@ class TestTesseractProvider < Minitest::Test
     InvasionStudio.check_tesseract_installed
   end
 end
+
+class TestBatchedTesseractProvider < Minitest::Test
+  def test_recognize_batch_maps_form_feed_separated_pages
+    runner = TestSupport::FakeProcessRunner.new(stdout: "first frame\fsecond frame\n")
+    provider = InvasionStudio::OCR::TesseractProvider.new(process_runner: runner)
+
+    results = provider.recognize_batch(['/tmp/frame one.jpg', '/tmp/frame two.jpg'])
+
+    assert_equal ['first frame', 'second frame'], results
+    command = runner.commands.fetch(0)[:command]
+    assert_equal 'tesseract', command.first
+    assert_equal 'stdout', command[2]
+    refute File.exist?(command[1])
+  end
+
+  def test_recognize_batch_rejects_missing_page_results
+    runner = TestSupport::FakeProcessRunner.new(stdout: 'one result')
+    provider = InvasionStudio::OCR::TesseractProvider.new(process_runner: runner)
+
+    error = assert_raises(InvasionStudio::OCR::RecognitionError) do
+      provider.recognize_batch(%w[first.jpg second.jpg])
+    end
+
+    assert_includes error.message, 'returned 1 result for 2 images'
+  end
+end

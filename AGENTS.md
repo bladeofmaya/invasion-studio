@@ -114,6 +114,7 @@ Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Outpu
   - Crop region: 700x130 @ 950x960
   - Frame rate: 1 fps (configurable via `--fps`)
   - OCR workers: up to 4 by default (configurable via `--ocr-workers`)
+  - OCR batch size: 1 by default (experimental, configurable via `--ocr-batch-size`)
 - **Temporary disk I/O**: JPEG frames exist only inside a temporary directory during OCR
 
 #### 4. Video (`video.rb`)

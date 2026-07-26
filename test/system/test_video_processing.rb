@@ -24,7 +24,8 @@ class TestVideoProcessing < Minitest::Test
         [fixture.path],
         outdir: @outdir,
         quiet: true,
-        no_cache: true
+        no_cache: true,
+        ocr_batch_size: ocr_batch_size
       )
       engine.run!
     end
@@ -51,6 +52,7 @@ class TestVideoProcessing < Minitest::Test
         outdir: @outdir,
         quiet: true,
         no_cache: true,
+        ocr_batch_size: ocr_batch_size,
         command: fixture.mode.to_s
       )
       engine.run!

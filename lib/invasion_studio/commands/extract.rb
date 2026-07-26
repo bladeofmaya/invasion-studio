@@ -26,6 +26,7 @@ module InvasionStudio
           opts.on("--no-cache", "Skip OCR cache") { @options[:no_cache] = true }
           opts.on("--ffmpeg-threads N", Integer, "ffmpeg encoding threads (default: 4)") { |v| @options[:ffmpeg_threads] = v }
           opts.on("--ocr-workers N", Integer, "parallel OCR workers (default: up to 4)") { |v| @options[:ocr_workers] = v }
+          opts.on("--ocr-batch-size N", Integer, "images per Tesseract process (default: 1)") { |v| @options[:ocr_batch_size] = v }
           opts.on("--hwaccel", "Enable VAAPI hardware acceleration") { @options[:hwaccel] = true }
           opts.on("--pad-start SECONDS", Float, "Seconds before invasion") { |v| @options[:pad_start] = v }
           opts.on("--pad-end SECONDS", Float, "Seconds after invasion") { |v| @options[:pad_end] = v }
@@ -56,6 +57,7 @@ module InvasionStudio
         raise Error, '--fps must be greater than zero' unless @options.fetch(:fps, 1).to_f.positive?
         raise Error, '--ffmpeg-threads must be greater than zero' unless @options.fetch(:ffmpeg_threads, 4).to_i.positive?
         raise Error, '--ocr-workers must be greater than zero' unless @options.fetch(:ocr_workers, 4).to_i.positive?
+        raise Error, '--ocr-batch-size must be greater than zero' unless @options.fetch(:ocr_batch_size, 1).to_i.positive?
         raise Error, '--pad-start cannot be negative' if @options.fetch(:pad_start, 10).to_f.negative?
         raise Error, '--pad-end cannot be negative' if @options.fetch(:pad_end, 7.5).to_f.negative?
       end
