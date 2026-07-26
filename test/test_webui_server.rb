@@ -70,6 +70,14 @@ class TestWebuiServer < Minitest::Test
     assert_includes editor, "this.dispatch('cuts-finalized'"
   end
 
+  def test_new_group_form_has_submit_and_cancel_actions
+    get '/'
+
+    assert_includes last_response.body, 'submit->group-manager#createGroup'
+    assert_match(/<button[^>]+type="submit"[^>]*>Create group<\/button>/, last_response.body)
+    assert_includes last_response.body, 'click->group-manager#cancelNewGroupForm'
+  end
+
   def test_sets_security_headers
     get '/'
 

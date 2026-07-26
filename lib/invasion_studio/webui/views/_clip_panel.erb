@@ -28,12 +28,13 @@
     <div class="border-2 border-dashed border-border bg-transparent flex items-center justify-center min-h-24 cursor-pointer hover:border-accent hover:translate-y-0" id="new-group-card" data-group-manager-target="newGroupCard" data-action="click->group-manager#showNewGroupForm">
       <div class="text-base font-medium text-text-secondary">+ New Group</div>
     </div>
-    <div class="hidden col-span-full mb-4" data-group-manager-target="newGroupForm" id="new-group-inline-form">
+    <form class="bg-surface border border-accent rounded-lg p-5 min-h-24" data-group-manager-target="newGroupForm" data-action="submit->group-manager#createGroup" id="new-group-inline-form" hidden>
+      <label class="block text-sm font-medium text-text-primary mb-2" for="new-group-name">New group</label>
       <div class="flex gap-2 items-center">
-        <input type="text" class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm w-36" data-group-manager-target="newGroupInput" placeholder="Group name" data-action="keydown->group-manager#handleNewGroupKeydown">
-        <button class="bg-surface-secondary text-text-primary border border-border px-4 py-1.5 rounded text-sm cursor-pointer hover:bg-surface-hover">Add</button>
-        <button class="bg-transparent border border-text-muted text-text-muted px-4 py-1.5 rounded text-sm cursor-pointer hover:border-text-primary hover:text-text-primary">Cancel</button>
+        <input type="text" class="bg-input-bg text-text-primary border border-input-border px-3 py-2 rounded text-sm min-w-0 flex-1 focus:outline-none focus:border-input-focus-ring" id="new-group-name" data-group-manager-target="newGroupInput" placeholder="Group name" autocomplete="off">
+        <button type="submit" class="bg-primary text-primary-fg border-none px-4 py-2 rounded text-sm font-medium cursor-pointer hover:bg-primary-hover">Create group</button>
+        <button type="button" class="bg-transparent border border-text-muted text-text-muted px-4 py-2 rounded text-sm cursor-pointer hover:border-text-primary hover:text-text-primary" data-action="click->group-manager#cancelNewGroupForm">Cancel</button>
       </div>
-    </div>
+    </form>
   </div>
 </div>
