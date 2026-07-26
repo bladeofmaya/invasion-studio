@@ -48,6 +48,28 @@ class TestWebuiServer < Minitest::Test
     assert last_response.body.include?('data-controller="router navigation"')
   end
 
+  def test_saved_cut_changes_update_the_finalize_button
+    get '/'
+
+    assert_includes last_response.body, 'video-player:cuts-saved@window->editor#updateFinalizeButton'
+
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/video_player_controller.js', __dir__
+    ))
+    assert_includes controller, "this.dispatch('cuts-saved'"
+  end
+
+  def test_finalized_cuts_reload_the_video
+    get '/'
+
+    assert_includes last_response.body, 'editor:cuts-finalized->video-player#reloadFinalizedClip'
+
+    editor = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/editor_controller.js', __dir__
+    ))
+    assert_includes editor, "this.dispatch('cuts-finalized'"
+  end
+
   def test_sets_security_headers
     get '/'
 
