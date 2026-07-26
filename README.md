@@ -82,6 +82,8 @@ The extractor samples the game-text area and uses OCR to find these messages:
 Clips include 10 seconds before the detected start and 7.5 seconds after the
 detected end by default.
 
+![How Invasion Studio detects and extracts encounters](images/invasion-extractor.jpg)
+
 ## Other commands
 
 ```bash
