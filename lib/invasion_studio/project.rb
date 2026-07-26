@@ -1,6 +1,5 @@
-require 'json'
-require 'fileutils'
-require 'securerandom'
+# frozen_string_literal: true
+
 require 'monitor'
 
 module InvasionStudio
@@ -23,257 +22,135 @@ module InvasionStudio
 
     attr_reader :folder_path, :data
 
-    def initialize(folder_path, repository: nil, process_runner: nil)
+    def initialize(folder_path, repository: nil, process_runner: nil, catalog: nil,
+                   group_collection: nil, trash: nil, clip_finalizer: nil)
       @folder_path = File.expand_path(folder_path)
       @repository = repository || ProjectRepository.new(@folder_path)
-      @process_runner = process_runner || ProcessRunner.new
       @mutation_lock = Monitor.new
       @data = @repository.load_or_initialize
+
+      @catalog = catalog || ClipCatalog.new(@folder_path, @data['clips'])
+      @group_collection = group_collection || GroupCollection.new(
+        @data['groups'], clip_lookup: ->(id) { @catalog.find(id) }
+      )
+      @trash = trash || ClipTrash.new(@folder_path, @catalog)
+      @clip_finalizer = clip_finalizer || ClipFinalizer.new(
+        @folder_path, @catalog, process_runner: process_runner || ProcessRunner.new
+      )
+
       sync_clips!
     end
 
     def clips
-      @data['clips'].select { |c| !c['deleted'] }
+      @catalog.active
     end
 
     def all_clips
-      @data['clips']
+      @catalog.all
     end
 
     def deleted_clips
-      @data['clips'].select { |c| c['deleted'] }
+      @catalog.deleted
     end
 
     def groups
-      @data['groups'] || []
+      @group_collection.groups
     end
 
     def create_group(name)
-      return false if groups.any? { |g| g['name'] == name }
-
-      @data['groups'] ||= []
-      @data['groups'] << { 'name' => name, 'clip_ids' => [] }
-      save!
-      true
+      persist_if(@group_collection.create(name))
     end
 
     def rename_group(old_name, new_name)
-      return false if old_name == new_name
-      return false if groups.any? { |g| g['name'] == new_name }
-
-      group = @data['groups'].find { |g| g['name'] == old_name }
-      return false unless group
-
-      group['name'] = new_name
-      save!
-      true
+      persist_if(@group_collection.rename(old_name, new_name))
     end
 
     def delete_group(name)
-      removed = @data['groups'].reject! { |g| g['name'] == name }
-      return false unless removed
-
-      save!
-      true
+      persist_if(@group_collection.delete(name))
     end
 
     def add_clip_to_group(group_name, clip_id)
-      group = @data['groups'].find { |g| g['name'] == group_name }
-      return false unless group
-      return false unless find_clip(clip_id)
-
-      group['clip_ids'] << clip_id unless group['clip_ids'].include?(clip_id)
-      save!
-      true
+      persist_if(@group_collection.add_clip(group_name, clip_id))
     end
 
     def remove_clip_from_group(group_name, clip_id)
-      group = @data['groups'].find { |g| g['name'] == group_name }
-      return false unless group
-
-      group['clip_ids'].delete(clip_id)
-      save!
-      true
+      persist_if(@group_collection.remove_clip(group_name, clip_id))
     end
 
     def reorder_group(group_name, old_index, new_index)
-      group = @data['groups'].find { |g| g['name'] == group_name }
-      return false unless group
-
-      clip_ids = group['clip_ids']
-      return false if old_index < 0 || old_index >= clip_ids.length
-      return false if new_index < 0 || new_index >= clip_ids.length
-
-      id = clip_ids.delete_at(old_index)
-      clip_ids.insert(new_index, id)
-      save!
-      true
+      persist_if(@group_collection.reorder(group_name, old_index, new_index))
     end
 
     def update_note(clip_id, note)
-      clip = find_clip(clip_id)
-      return false unless clip
-
-      clip['note'] = note
-      save!
-      true
+      update_clip(clip_id) { |clip| clip['note'] = note }
     end
 
     def update_rating(clip_id, rating)
-      clip = find_clip(clip_id)
-      return false unless clip
-
-      clip['rating'] = rating.to_i.clamp(0, 5)
-      save!
-      true
+      update_clip(clip_id) { |clip| clip['rating'] = rating.to_i.clamp(0, 5) }
     end
 
     def update_result(clip_id, result)
-      clip = find_clip(clip_id)
-      return false unless clip
-
-      clip['result'] = %w[win loss dc].include?(result) ? result : nil
-      save!
-      true
+      update_clip(clip_id) { |clip| clip['result'] = %w[win loss dc].include?(result) ? result : nil }
     end
 
     def update_title(clip_id, title)
-      clip = find_clip(clip_id)
-      return false unless clip
-
-      clip['title'] = title.to_s.strip.empty? ? nil : title.to_s.strip
-      save!
-      true
+      update_clip(clip_id) do |clip|
+        stripped = title.to_s.strip
+        clip['title'] = stripped.empty? ? nil : stripped
+      end
     end
 
     def update_cuts(clip_id, cuts)
-      clip = find_clip(clip_id)
-      return false unless clip
+      plan = CutPlan.build(cuts)
+      return false unless plan
 
-      normalized = normalize_cuts(cuts)
-      return false unless normalized
-
-      clip['cuts'] = normalized
-      save!
-      true
+      update_clip(clip_id) { |clip| clip['cuts'] = plan.cuts.map(&:dup) }
     end
 
     def effective_duration(clip, media_duration)
-      duration = Float(media_duration, exception: false)
-      return 0.0 unless duration&.positive?
-
-      removed_duration = Array(clip['cuts']).sum do |cut|
-        start_time = [cut.fetch('start', 0.0).to_f, 0.0].max
-        end_time = [cut.fetch('end', 0.0).to_f, duration].min
-        end_time > start_time ? end_time - start_time : 0.0
-      end
-
-      [duration - removed_duration, 0.0].max
+      (CutPlan.build(clip['cuts']) || CutPlan.empty).effective_duration(media_duration)
     end
 
     def finalize_cuts(clip_id, finalizer: nil)
       clip = find_clip(clip_id)
       return false unless clip
 
-      cuts = clip['cuts']
-      return false if cuts.nil? || cuts.empty?
-
-      source_path = resolve_clip_path(clip)
-      return false unless source_path && File.exist?(source_path)
-
-      # Get video duration
-      video = Video.new(source_path)
-      meta = video.metadata
-      return false unless meta
-
-      duration = meta[:duration]
-      return false unless duration && duration > 0
-
-      # Build keep segments by inverting cuts
-      keep_segments = build_keep_segments(cuts, duration)
-      return false if keep_segments.empty?
-
-      backup_dir = File.join(@folder_path, '.backup')
-      FileUtils.mkdir_p(backup_dir)
-      backup_path = unique_destination(backup_dir, clip['filename'])
-      FileUtils.cp(source_path, backup_path)
-
-      temp_dir = Dir.mktmpdir
-      temp_output = File.join(temp_dir, "finalized#{File.extname(clip['filename'])}")
-
-      finalizer ||= method(:run_ffmpeg_finalize)
-      success = finalizer.call(backup_path, keep_segments, temp_output)
-
-      if success && File.exist?(temp_output) && File.size(temp_output) > 0
-        FileUtils.mv(temp_output, source_path)
-        clip['cuts'] = []
-        save!
-        true
-      else
-        false
-      end
-    ensure
-      FileUtils.rm_rf(temp_dir) if temp_dir
+      success = @clip_finalizer.finalize(clip, media_operation: finalizer)
+      persist_if(success)
     end
 
     def delete_clip(clip_id)
       clip = find_clip(clip_id)
       return false unless clip
 
-      source_path = resolve_clip_path(clip)
-      if source_path && File.exist?(source_path)
-        trash_dir = File.join(@folder_path, '.trashed')
-        FileUtils.mkdir_p(trash_dir)
-        trash_path = unique_destination(trash_dir, clip['filename'])
-        FileUtils.mv(source_path, trash_path)
-        clip['trash_path'] = make_relative_path(trash_path)
-      end
-
-      clip['deleted'] = true
-      save!
-      true
+      persist_if(@trash.delete(clip))
     end
 
     def restore_clip(clip_id)
       clip = find_clip(clip_id)
       return false unless clip
 
-      trash_path = resolve_project_path(clip['trash_path']) || File.join(@folder_path, '.trashed', clip['filename'])
-      source_path = resolve_clip_path(clip)
-
-      return false if source_path && File.exist?(source_path)
-
-      if File.exist?(trash_path) && source_path
-        FileUtils.mv(trash_path, source_path)
-      end
-
-      clip['deleted'] = false
-      clip.delete('trash_path')
-      save!
-      true
+      persist_if(@trash.restore(clip))
     end
 
     def group_clips(group_name)
-      group = @data['groups'].find { |g| g['name'] == group_name }
-      return [] unless group
-
-      group['clip_ids'].map { |id| find_clip(id) }.compact.select { |c| !c['deleted'] }
+      @group_collection.clips(group_name)
     end
 
     def group_clip_paths(group_name)
-      group_clips(group_name).map { |c| resolve_clip_path(c) }.compact
+      group_clips(group_name).filter_map { |clip| resolve_clip_path(clip) }
     end
 
     def clip_groups(clip_id)
-      @data['groups'].select { |g| g['clip_ids'].include?(clip_id) }.map { |g| g['name'] }
+      @group_collection.names_for_clip(clip_id)
     end
 
     def find_clip(clip_id)
-      @data['clips'].find { |c| c['id'] == clip_id }
+      @catalog.find(clip_id)
     end
 
     def resolve_clip_path(clip)
-      resolve_project_path(clip['path'])
+      @catalog.path_for(clip)
     end
 
     def save!
@@ -282,214 +159,25 @@ module InvasionStudio
 
     private
 
-    def make_relative_path(path)
-      return path if path.nil? || path.empty?
-      # If already relative, return as-is
-      return path unless path.start_with?('/')
-      # Make relative to project folder
-      path.sub(@folder_path + '/', '')
+    def update_clip(clip_id)
+      clip = find_clip(clip_id)
+      return false unless clip
+
+      yield clip
+      save!
+      true
+    end
+
+    def persist_if(success)
+      return false unless success
+
+      save!
+      true
     end
 
     def sync_clips!
-      disk_files = discover_video_files
-      known_filenames = @data['clips'].map { |c| c['filename'] }
-      known_ids = @data['clips'].map { |c| c['id'] }
-
-      # Add new clips found on disk
-      disk_files.each do |path|
-        filename = File.basename(path)
-        next if known_filenames.include?(filename)
-
-        base_id = File.basename(filename, '.*')
-        clip_id = known_ids.include?(base_id) ? "#{base_id}-#{SecureRandom.uuid}" : base_id
-        known_ids << clip_id
-        @data['clips'] << {
-          'id' => clip_id,
-          'filename' => filename,
-          'path' => make_relative_path(path),
-          'title' => nil,
-          'note' => '',
-          'rating' => 0,
-          'result' => nil,
-          'cuts' => [],
-          'deleted' => false
-        }
-      end
-
-      # Ensure all clips have required fields and migrate absolute paths to relative
-      @data['clips'].each do |clip|
-        clip['title'] = nil unless clip.key?('title')
-        clip['rating'] = 0 unless clip.key?('rating')
-        clip['result'] = nil unless clip.key?('result')
-        clip['cuts'] = [] unless clip.key?('cuts')
-        clip['path'] = make_relative_path(clip['path'])
-      end
-
-      # Remove entries for files that no longer exist anywhere
-      @data['clips'].reject! do |clip|
-        resolved = resolve_clip_path(clip)
-        trash_path = File.join(@folder_path, '.trashed', clip['filename'])
-        !File.exist?(resolved) && !File.exist?(trash_path)
-      end
-
-
-      valid_ids = @data['clips'].map { |clip| clip['id'] }
-      groups.each { |group| group['clip_ids'] &= valid_ids }
-
+      @catalog.sync!(groups: @group_collection)
       save!
-    end
-
-    def discover_video_files
-      MediaFiles.discover(@folder_path)
-    end
-
-    def resolve_project_path(path)
-      return nil if path.nil? || path.empty?
-
-      expanded = File.expand_path(path, @folder_path)
-      project_root = File.realpath(@folder_path)
-      candidate = if File.exist?(expanded)
-                    File.realpath(expanded)
-                  else
-                    parent = File.dirname(expanded)
-                    canonical_parent = File.exist?(parent) ? File.realpath(parent) : File.expand_path(parent)
-                    File.join(canonical_parent, File.basename(expanded))
-                  end
-      project_prefix = "#{project_root}#{File::SEPARATOR}"
-      return nil unless candidate.start_with?(project_prefix)
-
-      candidate
-    rescue Errno::ENOENT, Errno::EACCES
-      nil
-    end
-
-    def normalize_cuts(cuts)
-      return nil unless cuts.is_a?(Array)
-
-      normalized = cuts.map do |cut|
-        return nil unless cut.respond_to?(:[])
-
-        start_time = Float(cut['start'] || cut[:start], exception: false)
-        end_time = Float(cut['end'] || cut[:end], exception: false)
-        return nil unless start_time&.finite? && end_time&.finite?
-        return nil if start_time.negative? || start_time >= end_time
-
-        { 'start' => start_time, 'end' => end_time }
-      end.sort_by { |cut| cut['start'] }
-
-      normalized.each_with_object([]) do |cut, merged|
-        if merged.any? && cut['start'] <= merged.last['end']
-          merged.last['end'] = [merged.last['end'], cut['end']].max
-        else
-          merged << cut
-        end
-      end
-    end
-
-    def unique_destination(directory, filename)
-      safe_filename = File.basename(filename.to_s)
-      candidate = File.join(directory, safe_filename)
-      return candidate unless File.exist?(candidate)
-
-      extension = File.extname(safe_filename)
-      basename = File.basename(safe_filename, extension)
-      File.join(directory, "#{basename}_#{Time.now.to_i}_#{SecureRandom.hex(4)}#{extension}")
-    end
-
-    def build_keep_segments(cuts, duration)
-      sorted = cuts.sort_by { |c| c['start'] || c[:start] }
-      segments = []
-      current_pos = 0.0
-
-      sorted.each do |cut|
-        start_time = cut['start'] || cut[:start]
-        end_time = cut['end'] || cut[:end]
-
-        next if start_time.nil? || end_time.nil?
-        next if start_time >= end_time
-
-        if current_pos < start_time
-          segments << { start: current_pos, end: [start_time, duration].min }
-        end
-
-        current_pos = [current_pos, end_time].max
-      end
-
-      if current_pos < duration
-        segments << { start: current_pos, end: duration }
-      end
-
-      segments
-    end
-
-    def run_ffmpeg_finalize(source_path, keep_segments, output_path)
-      temp_dir = File.dirname(output_path)
-
-      if keep_segments.length == 1
-        seg = keep_segments[0]
-        cmd = [
-          'ffmpeg', '-y',
-          '-ss', seg[:start].to_s,
-          '-i', source_path,
-          # -t (duration), not -to: input -ss resets timestamps, so -to would
-          # be relative to the seek point and overshoot the segment end
-          '-t', (seg[:end] - seg[:start]).to_s,
-          '-c', 'copy',
-          '-map', '0',
-          '-avoid_negative_ts', 'make_zero',
-          output_path
-        ]
-        return false unless @process_runner.run(*cmd)
-      else
-        segment_files = []
-        keep_segments.each_with_index do |seg, i|
-          seg_file = File.join(temp_dir, "seg_#{i}.mp4")
-          cmd = [
-            'ffmpeg', '-y',
-            '-ss', seg[:start].to_s,
-            '-i', source_path,
-            # -t (duration), not -to: see single-segment branch above
-            '-t', (seg[:end] - seg[:start]).to_s,
-            '-c', 'copy',
-            '-map', '0',
-            '-avoid_negative_ts', 'make_zero',
-            seg_file
-          ]
-          next unless @process_runner.run(*cmd)
-
-          next unless File.exist?(seg_file) && File.size(seg_file) > 0
-
-          seg_meta = Video.new(seg_file).metadata
-          next unless seg_meta && seg_meta[:duration] && seg_meta[:duration] > 0.1
-
-          segment_files << seg_file
-        end
-
-        return false if segment_files.empty?
-
-        # If only one valid segment, copy it directly (avoid concat overhead)
-        if segment_files.length == 1
-          FileUtils.cp(segment_files[0], output_path)
-          return File.exist?(output_path) && File.size(output_path) > 0
-        end
-
-        concat_list = File.join(temp_dir, 'concat_list.txt')
-        File.write(concat_list, segment_files.map { |f| "file '#{f}'" }.join("\n"))
-
-        cmd = [
-          'ffmpeg', '-y',
-          '-f', 'concat', '-safe', '0',
-          '-i', concat_list,
-          # -map 0: keep ALL streams; ffmpeg's default selection would keep
-          # only one ("best") audio stream and drop the other audio tracks
-          '-map', '0',
-          '-c', 'copy',
-          output_path
-        ]
-        return false unless @process_runner.run(*cmd)
-      end
-
-      File.exist?(output_path) && File.size(output_path) > 0
     end
   end
 end
