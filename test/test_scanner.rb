@@ -65,6 +65,38 @@ class TestScanner < Minitest::Test
     assert_equal '00:00:02', segment.end_time
   end
 
+  def test_leading_end_marker_starts_segment_at_video_start
+    video = FakeVideo.new('arena.mp4', [
+      frame(1, 'Combat ends', '00:00:05', 'arena.mp4')
+    ])
+
+    segment = InvasionStudio::Scanner.new([video]).invasion_segments.fetch(0)
+
+    assert_equal '00:00:00', segment.start_time
+    assert_equal '00:00:05', segment.end_time
+  end
+
+  def test_repeated_start_marker_uses_the_latest_match
+    video = FakeVideo.new('video.mp4', [
+      frame(1, 'Defeat the Host of Fingers', '00:00:02', 'video.mp4'),
+      frame(2, 'Defeat the Host of Fingers', '00:00:04', 'video.mp4'),
+      frame(3, 'Returning to your world', '00:00:10', 'video.mp4')
+    ])
+
+    segment = InvasionStudio::Scanner.new([video]).invasion_segments.fetch(0)
+
+    assert_equal '00:00:04', segment.start_time
+  end
+
+  def test_arena_markers_create_a_segment
+    video = FakeVideo.new('arena.mp4', [
+      frame(1, 'Commencing combat', '00:00:02', 'arena.mp4'),
+      frame(2, 'Combat ends', '00:00:08', 'arena.mp4')
+    ])
+
+    assert_equal 1, InvasionStudio::Scanner.new([video]).invasion_segments.length
+  end
+
   private
 
   def frame(number, text, timestamp, path)
