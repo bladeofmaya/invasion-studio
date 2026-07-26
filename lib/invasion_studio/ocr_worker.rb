@@ -163,11 +163,12 @@ module InvasionStudio
 
     def get_metadata
       result = @process_runner.capture('ffprobe', '-v', 'quiet', '-print_format', 'json',
-                                       '-show_streams', '-select_streams', 'v:0', @video_path)
+                                       '-show_streams', @video_path)
       raise Error, "ffprobe failed for #{@video_path}: #{result.stderr}" unless result.success?
 
       data = JSON.parse(result.stdout)
-      video_stream = data['streams'][0]
+      streams = data.fetch('streams', [])
+      video_stream = streams.find { |stream| stream['codec_type'] == 'video' } || streams.first
       raise Error, "ffprobe returned no video stream for #{@video_path}" unless video_stream
       duration = video_stream['duration']&.to_f || 0
 
@@ -175,7 +176,8 @@ module InvasionStudio
         height: video_stream['height'],
         width: video_stream['width'],
         fps: parse_frame_rate(video_stream['r_frame_rate']),
-        duration: duration
+        duration: duration,
+        audio_stream_count: streams.count { |stream| stream['codec_type'] == 'audio' }
       }
     rescue JSON::ParserError, StandardError => e
       warn "Error extracting video metadata: #{e.message}" if @options&.dig(:debug)
