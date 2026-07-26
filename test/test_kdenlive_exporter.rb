@@ -15,7 +15,7 @@ class TestKdenliveExporter < Minitest::Test
   end
 
   def test_run_creates_kdenlive_file_and_spliced_video
-    exporter = InvasionStudio::KdenliveExporter.new(@folder)
+    exporter = InvasionStudio::KdenliveExporter.new(@folder, quiet: true)
 
     def exporter.gather_metadata_for(path)
       { duration: 5.0, width: 320, height: 240, fps: 30 }
@@ -63,7 +63,7 @@ class TestKdenliveExporter < Minitest::Test
   end
 
   def test_audio_chains_map_to_distinct_audio_streams
-    exporter = InvasionStudio::KdenliveExporter.new(@folder)
+    exporter = InvasionStudio::KdenliveExporter.new(@folder, quiet: true)
 
     def exporter.gather_metadata_for(path)
       { duration: 5.0, width: 320, height: 240, fps: 30 }
@@ -95,7 +95,7 @@ class TestKdenliveExporter < Minitest::Test
   end
 
   def test_run_uses_default_output_path
-    exporter = InvasionStudio::KdenliveExporter.new(@folder)
+    exporter = InvasionStudio::KdenliveExporter.new(@folder, quiet: true)
 
     def exporter.gather_metadata_for(path)
       { duration: 5.0, width: 320, height: 240, fps: 30 }
@@ -112,7 +112,7 @@ class TestKdenliveExporter < Minitest::Test
     empty_folder = '/tmp/empty_clips'
     FileUtils.mkdir_p(empty_folder)
 
-    exporter = InvasionStudio::KdenliveExporter.new(empty_folder)
+    exporter = InvasionStudio::KdenliveExporter.new(empty_folder, quiet: true)
     assert_raises(InvasionStudio::Error) do
       exporter.run!
     end
@@ -121,7 +121,7 @@ class TestKdenliveExporter < Minitest::Test
   end
 
   def test_frames_to_timecode_format
-    exporter = InvasionStudio::KdenliveExporter.new(@folder)
+    exporter = InvasionStudio::KdenliveExporter.new(@folder, quiet: true)
 
     assert_equal "00:00:00.000", exporter.send(:frames_to_timecode, 0, 30)
     assert_equal "00:00:01.000", exporter.send(:frames_to_timecode, 30, 30)
@@ -130,7 +130,7 @@ class TestKdenliveExporter < Minitest::Test
   end
 
   def test_negative_frames_returns_zero_timecode
-    exporter = InvasionStudio::KdenliveExporter.new(@folder)
+    exporter = InvasionStudio::KdenliveExporter.new(@folder, quiet: true)
     assert_equal "00:00:00.000", exporter.send(:frames_to_timecode, -5, 30)
   end
 end

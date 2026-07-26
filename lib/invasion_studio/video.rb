@@ -23,6 +23,8 @@ module InvasionStudio
     private
 
     def load_frames(processing_options)
+      return process_frames(processing_options) if processing_options[:no_cache]
+
       if cached_data_exists? && !processing_options[:no_cache]
         cached = load_cached_data(processing_options)
         return cached if cached

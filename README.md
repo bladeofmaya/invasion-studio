@@ -309,7 +309,8 @@ Extracted Clips → Project.json → WebUI → Groups → Export (Spliced + Kden
 
 ### Frontend assets
 
-Node.js is needed only when developing or packaging the WebUI. Installed gems
+Node.js 24 LTS is needed only when developing or packaging the WebUI and is
+pinned alongside Ruby in `mise.toml`. npm is included with Node. Installed gems
 serve prebuilt assets and do not invoke Node or npm.
 
 ```bash
@@ -332,6 +333,12 @@ bundle exec rake test
 
 Run `bin/build-assets` first. The default suite excludes `test/system`, which
 contains the video-processing tests reserved for owner verification.
+
+To run the complete suite, including the video-processing system tests:
+
+```bash
+bin/test
+```
 
 ### Using the OCR Provider Directly
 
