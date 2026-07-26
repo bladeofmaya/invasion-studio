@@ -1,16 +1,34 @@
 require 'json'
 require 'fileutils'
 require 'securerandom'
+require 'monitor'
 
 module InvasionStudio
   class Project
+    module MutationLock
+      MUTATIONS = %i[
+        create_group rename_group delete_group add_clip_to_group remove_clip_from_group
+        reorder_group update_note update_rating update_result update_title update_cuts
+        finalize_cuts delete_clip restore_clip save!
+      ].freeze
+
+      MUTATIONS.each do |method_name|
+        define_method(method_name) do |*args, **kwargs, &block|
+          @mutation_lock.synchronize { super(*args, **kwargs, &block) }
+        end
+      end
+    end
+
+    prepend MutationLock
+
     attr_reader :folder_path, :data
 
-    def initialize(folder_path)
+    def initialize(folder_path, repository: nil, process_runner: nil)
       @folder_path = File.expand_path(folder_path)
-      @project_file = File.join(@folder_path, 'project.json')
-      @process_runner = ProcessRunner.new
-      @data = load_or_initialize
+      @repository = repository || ProjectRepository.new(@folder_path)
+      @process_runner = process_runner || ProcessRunner.new
+      @mutation_lock = Monitor.new
+      @data = @repository.load_or_initialize
       sync_clips!
     end
 
@@ -259,12 +277,7 @@ module InvasionStudio
     end
 
     def save!
-      @data['updated_at'] = Time.now.iso8601
-      temporary = File.join(@folder_path, ".project.json.#{Process.pid}.#{SecureRandom.hex(6)}.tmp")
-      File.write(temporary, JSON.pretty_generate(@data))
-      File.rename(temporary, @project_file)
-    ensure
-      File.delete(temporary) if temporary && File.exist?(temporary)
+      @repository.save(@data)
     end
 
     private
@@ -275,22 +288,6 @@ module InvasionStudio
       return path unless path.start_with?('/')
       # Make relative to project folder
       path.sub(@folder_path + '/', '')
-    end
-
-    def load_or_initialize
-      if File.exist?(@project_file)
-        JSON.parse(File.read(@project_file))
-      else
-        {
-          'project' => File.basename(@folder_path),
-          'created_at' => Time.now.iso8601,
-          'updated_at' => Time.now.iso8601,
-          'clips' => [],
-          'groups' => [
-            { 'name' => 'Video 1', 'clip_ids' => [] }
-          ]
-        }
-      end
     end
 
     def sync_clips!

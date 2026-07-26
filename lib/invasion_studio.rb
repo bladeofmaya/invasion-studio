@@ -8,10 +8,17 @@ require 'tempfile'
 require 'tty-progressbar'
 require 'English'
 
+module InvasionStudio
+  class Error < StandardError; end
+end
+
 require_relative 'invasion_studio/version'
 require_relative 'invasion_studio/paths'
 require_relative 'invasion_studio/media_files'
 require_relative 'invasion_studio/process_runner'
+require_relative 'invasion_studio/project_schema'
+require_relative 'invasion_studio/atomic_json_store'
+require_relative 'invasion_studio/project_repository'
 require_relative 'invasion_studio/engine'
 require_relative 'invasion_studio/video'
 require_relative 'invasion_studio/frame'
@@ -42,8 +49,6 @@ require_relative 'invasion_studio/project_exporter'
 require_relative 'invasion_studio/kdenlive_exporter'
 
 module InvasionStudio
-  class Error < StandardError; end
-
   module VideoHasher
     def self.hash(path)
       require 'digest'

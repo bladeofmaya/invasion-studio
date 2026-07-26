@@ -276,6 +276,18 @@ class TestProject < Minitest::Test
     assert_equal 'Saved', JSON.parse(File.read(@project_file))['groups'].last['name']
   end
 
+  def test_concurrent_mutations_are_all_persisted
+    project = InvasionStudio::Project.new(@tmp_dir)
+
+    threads = 20.times.map do |index|
+      Thread.new { project.create_group("Concurrent #{index}") }
+    end
+    threads.each(&:value)
+
+    persisted_names = JSON.parse(File.read(@project_file))['groups'].map { |group| group['name'] }
+    20.times { |index| assert_includes persisted_names, "Concurrent #{index}" }
+  end
+
   def test_corrupt_project_file_raises_json_parser_error
     File.write(@project_file, '{')
 
