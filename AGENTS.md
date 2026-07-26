@@ -1,4 +1,4 @@
-# Invasion Extractor - Agent Documentation
+# Invasion Studio - Agent Documentation
 
 ## Important note
 
@@ -10,20 +10,28 @@ Use Test Driven Development when implementing new features / refactoring code. R
 
 ## Overview
 
-**Invasion Extractor** is a Ruby gem that automatically detects the start and end of invasions in Elden Ring gameplay footage. It uses OCR (Optical Character Recognition) to scan video frames for specific text markers (e.g., "Defeat the Host of Fingers", "Returning to your world") and extracts clips accordingly.
+**Invasion Studio** is a Ruby gem that automatically detects the start and end of invasions in Elden Ring gameplay footage and provides a web-based clip library for reviewing, organizing, and exporting clips. It uses OCR (Optical Character Recognition) to scan video frames for specific text markers (e.g., "Defeat the Host of Fingers", "Returning to your world") and extracts clips accordingly.
 
 ## Architecture
 
 ### Core Components
 
 ```
-lib/invasion_extractor/
-├── invasion_extractor.rb    # Main entry point, dependency checks, VideoHasher
+lib/invasion_studio/
+├── invasion_studio.rb       # Main entry point, dependency checks, VideoHasher
 ├── cli.rb                   # CLI orchestrator (parses args, dispatches commands)
 ├── commands/
 │   ├── base.rb              # Abstract command base class
 │   ├── extract.rb           # Extract/scan command implementation
-│   └── export_kdenlive.rb   # Kdenlive timeline export command
+│   ├── concat.rb            # Concatenate clips into a single video
+│   ├── export_kdenlive.rb   # Kdenlive timeline export command
+│   └── webui.rb             # WebUI server command
+├── database/
+│   ├── database.rb          # Sequel connection and migration runner
+│   ├── migrations/          # SQLite schema migrations
+│   ├── clip_repository.rb   # Clip persistence and queries
+│   ├── group_repository.rb  # Group persistence and queries
+│   └── tag_repository.rb    # Tag persistence and queries
 ├── kdenlive_exporter.rb     # Kdenlive MLT XML project generator
 ├── engine.rb                # High-level orchestration with 3-stage pipeline
 ├── video.rb                 # Video file representation & YAML caching
@@ -31,6 +39,8 @@ lib/invasion_extractor/
 ├── frame.rb                 # Data structure for frame metadata
 ├── scanner.rb               # Pattern matching for invasion detection
 ├── clip.rb                  # Video clip generation (ffmpeg)
+├── clip_finalizer.rb        # Applies saved cuts to source clip
+├── clip_trash.rb            # Soft-deletes/restores clips
 ├── time_helper.rb           # Time manipulation utilities
 ├── version.rb               # Version constant
 └── ocr/
@@ -71,9 +81,50 @@ Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Outpu
                 ↓        (YAML)
 ```
 
+### WebUI Data Flow
+
+```
+Project Folder → project.db (SQLite) ← WebUI/Project ← Clip files on disk
+```
+
 ### Key Classes
 
-#### 1. CLI (`cli.rb`) & Commands (`commands/`)
+#### 1. Database & Repositories (`database/`)
+
+- **Responsibility**: Centralized, database-backed persistence for the web UI clip library
+- **Database**: SQLite (`project.db`) stored in the project folder
+- **Migration system**: `Sequel::IntegerMigrator` running `database/migrations/*.rb`
+- **Legacy import**: `LegacyProjectImporter` reads an existing `project.json` and migrates clips, groups, and cut markers into the database on first open
+- **Tables**:
+  - `clips` — id, title, note, rating, result, source_kind, filename, storage_path, duration, filesize, width, height, fps, codecs, thumbnail_path, deleted_at, deleted_path, timestamps
+  - `cuts` — per-clip cut markers (start/end/position)
+  - `tags` — unique tag names
+  - `clip_tags` — many-to-many clip/tag associations
+  - `groups` — named clip collections
+  - `group_clips` — ordered many-to-many group/clip associations
+  - `project_metadata` — project-level key/value store (e.g., legacy import timestamp)
+- **Repositories**:
+  - `ClipRepository` — CRUD, cut persistence, path resolution, soft-delete, tag lookup
+  - `GroupRepository` — group CRUD, membership, reordering
+  - `TagRepository` — tag creation/lookup, clip tagging, unused cleanup
+- **Design**: Repositories are plain Ruby objects that depend only on a Sequel database instance and a folder path. No Sinatra/Rails dependency.
+
+#### 2. Project (`project.rb`)
+
+- **Responsibility**: Coordinates repositories, file discovery, trash, and finalization for a single project folder
+- **Key Methods**:
+  - `initialize(folder_path)` — creates/opens `project.db`, runs migrations, syncs clips from disk
+  - `clips`, `all_clips`, `deleted_clips` — query clip records
+  - `groups` — list groups
+  - `create_group`, `rename_group`, `delete_group` — group mutations
+  - `add_clip_to_group`, `remove_clip_from_group`, `reorder_group` — membership mutations
+  - `update_note`, `update_rating`, `update_result`, `update_title`, `update_cuts` — clip metadata mutations
+  - `delete_clip`, `restore_clip` — soft delete / restore via `ClipTrash`
+  - `finalize_cuts` — apply saved cuts via `ClipFinalizer` and clear them
+  - `effective_duration` — compute duration after saved cuts
+- **Design**: Keeps the existing WebUI-facing contract while persisting through repositories instead of `project.json`
+
+#### 3. CLI (`cli.rb`) & Commands (`commands/`)
 - **Responsibility**: Parse command-line arguments and dispatch to the appropriate command handler
 - **CLI Class**:
   - `run` - Main entry point: parses global options, detects command, delegates execution
@@ -99,7 +150,7 @@ Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Outpu
   - Error handling with `continue_on_error` option
   - Debug mode writes frame-by-frame OCR results to YAML and prints matched timestamps
 
-#### 3. OCRWorker (`ocr_worker.rb`)
+#### 4. OCRWorker (`ocr_worker.rb`)
 - **Responsibility**: Orchestrate frame extraction and OCR collaborators
 - **Process**:
   1. `VideoMetadataProbe` gathers video and audio-stream metadata
@@ -117,7 +168,7 @@ Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Outpu
   - OCR batch size: 1 by default (experimental, configurable via `--ocr-batch-size`)
 - **Temporary disk I/O**: JPEG frames exist only inside a temporary directory during OCR
 
-#### 4. Video (`video.rb`)
+#### 5. Video (`video.rb`)
 - **Responsibility**: Represents a video file with caching
 - **Features**:
   - Caches OCR results to YAML (in `~/.invasion_extractor/cache/`)
@@ -125,7 +176,7 @@ Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Outpu
   - Avoids re-processing same video
   - Exposes metadata (height, width, fps)
 
-#### 5. Scanner (`scanner.rb`)
+#### 6. Scanner (`scanner.rb`)
 - **Responsibility**: Detects invasion start/end from frame text
 - **Pattern Matching**:
   - Start: `/Defeat.*Host of Fingers|Commencing combat/i`
@@ -136,7 +187,7 @@ Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Outpu
   - Supports multi-file invasions (when invasion spans video files)
 - **Debug support**: `matched_frames` exposes every frame that hit a pattern
 
-#### 6. Clip (`clip.rb`)
+#### 7. Clip (`clip.rb`)
 - **Responsibility**: Generates output video clips
 - **Features**:
   - Adjusts timestamps via `TimeHelper.wind_back` / `wind_forward`
@@ -145,7 +196,7 @@ Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Outpu
   - Uses ffmpeg for lossless cutting (copy codec)
   - Writes ffmpeg logs alongside output files
 
-#### 7. KdenliveExporter (`kdenlive_exporter.rb`)
+#### 8. KdenliveExporter (`kdenlive_exporter.rb`)
 - **Responsibility**: Two-step export: splices clips into a single video, then generates a Kdenlive 26.04 `.kdenlive` project file
 - **Process**:
   1. Discovers video files in the target folder (filtered by extension)
@@ -164,7 +215,7 @@ Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Outpu
   - `timeline.kdenlive` — Kdenlive 26.04+ compatible MLT XML
 - **Design**: Self-contained class with no dependencies beyond existing `Video` metadata helper
 
-#### 8. OCR Providers (`ocr/`)
+#### 9. OCR Providers (`ocr/`)
 - **Provider (Base)**: Abstract interface with `recognize(image_path)`
 - **TesseractProvider**: Default, uses RTesseract gem
 
@@ -179,6 +230,7 @@ The WebUI is a single-page application built with **Sinatra** and **Stimulus.js*
   - `GET /api/clips` — Returns clips (with optional group/all/deleted filters)
   - `GET /api/clip/:id` — Returns a single clip's metadata
   - `POST /api/clip/:id/open` — Opens the clip file in the system's default video player
+  - `POST /api/clip/:id/reveal` — Reveals the clip file in the system file manager
   - `DELETE /api/clip/:id` — Deletes (moves to trash) or restores a clip
   - `POST /api/reorder` — Reorders clips within a group (drag-and-drop)
   - `POST /api/note` — Updates a clip's note
@@ -272,8 +324,9 @@ All controllers extend `ApplicationController` (base class with shared utilities
 
 ### Shared Utilities
 
-- **`InvasionExtractor::VideoHasher`** - Single source of truth for video path hashing (used by Video and cache)
-- **`InvasionExtractor::CACHE_DIR`** - `~/.invasion_extractor/cache/`
+- **`InvasionStudio::VideoHasher`** - Single source of truth for video path hashing (used by Video and cache)
+- **`InvasionStudio::Paths.cache_dir`** - `~/.cache/invasion-studio/`
+- **`InvasionStudio::Paths.data_dir`** - `~/.local/share/invasion-studio/`
 
 ## Dependencies
 
@@ -284,12 +337,15 @@ All controllers extend `ApplicationController` (base class with shared utilities
 ### Ruby Dependencies
 - `optparse` (~> 0.5): CLI argument parsing
 - `tty-progressbar` (~> 0.18): Extraction and OCR progress display
+- `sequel` (~> 5.0): Database access and migrations
+- `sqlite3` (~> 2.0): SQLite database driver
 
 ### Development Dependencies
-- `minitest` (~> 5.16): Testing framework
+- `minitest` (~> 6.0): Testing framework
 - `pry` (~> 0.14): Debugging
 - `rake` (~> 13.0): Build tasks
 - `bundler` (~> 2.0): Dependency management
+- `rack-test` (~> 2.0): WebUI route testing
 
 ## Testing
 
@@ -309,6 +365,12 @@ Test suite uses Minitest with sample video files:
 - `test/test_commands.rb` - Command class tests
 - `test/test_kdenlive_exporter.rb` - Kdenlive exporter (splice + project generation) tests
 - `test/test_concat.rb` - Concat command tests
+- `test/test_database.rb` - Database connection and migration tests
+- `test/test_clip_repository.rb` - Clip repository tests
+- `test/test_group_repository.rb` - Group repository tests
+- `test/test_tag_repository.rb` - Tag repository tests
+- `test/test_legacy_project_importer.rb` - `project.json` → SQLite migration tests
+- `test/test_webui_server.rb` - WebUI route tests
 
 Run tests: `rake test` (default task)
 
@@ -316,28 +378,31 @@ Run tests: `rake test` (default task)
 
 ```bash
 # Basic extraction
-bin/invasion_extractor ~/Videos/Capture/*.mp4
+bin/invasion-studio extract ~/Videos/Capture/*.mp4
 
 # With prefix and output directory
-bin/invasion_extractor extract -p ps-daggers-tt-04 -o ~/Videos/ER/clips ~/Videos/Capture/*.mp4
+bin/invasion-studio extract -p ps-daggers-tt-04 -o ~/Videos/ER/clips ~/Videos/Capture/*.mp4
 
 # Scan only - find invasions without extracting
-bin/invasion_extractor scan ~/Videos/Capture/*.mp4
+bin/invasion-studio scan ~/Videos/Capture/*.mp4
 
 # Debug mode - see every matched frame and write YAML debug file
-bin/invasion_extractor extract -d ~/Videos/Capture/*.mp4
+bin/invasion-studio extract -d ~/Videos/Capture/*.mp4
 
 # Export clips folder to Kdenlive project
-bin/invasion_extractor export-kdenlive ~/Videos/ER/clips
+bin/invasion-studio export-kdenlive ~/Videos/ER/clips
 
 # Export with a custom output path
-bin/invasion_extractor export-kdenlive -o ~/Videos/ER/project.kdenlive ~/Videos/ER/clips
+bin/invasion-studio export-kdenlive -o ~/Videos/ER/project.kdenlive ~/Videos/ER/clips
 
 # Concatenate clips into a single video (no re-encoding, with chapter markers)
-bin/invasion_extractor concat ~/Videos/ER/clips
+bin/invasion-studio concat ~/Videos/ER/clips
 
 # Concat with custom output
-bin/invasion_extractor concat -o ~/Videos/ER/final.mp4 ~/Videos/ER/clips
+bin/invasion-studio concat -o ~/Videos/ER/final.mp4 ~/Videos/ER/clips
+
+# Launch the web UI for a project folder
+bin/invasion-studio webui ~/Videos/ER/clips
 ```
 
 ### CLI Options
@@ -371,23 +436,36 @@ bin/invasion_extractor concat -o ~/Videos/ER/final.mp4 ~/Videos/ER/clips
 ```
 /
 ├── bin/
-│   ├── invasion_extractor    # CLI executable
+│   ├── invasion-studio       # CLI executable
 │   ├── console               # Interactive console
 │   └── setup                 # Setup script
 ├── lib/
-│   └── invasion_extractor/
+│   └── invasion_studio/
 │       ├── [core files]
 │       ├── commands/
 │       │   ├── base.rb
 │       │   ├── concat.rb
 │       │   ├── extract.rb
-│       │   └── export_kdenlive.rb
+│       │   ├── export_kdenlive.rb
+│       │   └── webui.rb
+│   ├── database/
+│   │   ├── database.rb
+│   │   ├── migrations/
+│   │   ├── legacy_project_importer.rb
+│   │   ├── clip_repository.rb
+│   │   ├── group_repository.rb
+│   │   └── tag_repository.rb
 │       ├── kdenlive_exporter.rb
 │       ├── ocr/
 │       │   ├── provider.rb
 │       │   └── tesseract_provider.rb
 │       └── webui/           # WebUI components
 │           ├── server.rb
+│           ├── routes/
+│           │   ├── clips.rb
+│           │   ├── groups.rb
+│           │   ├── exports.rb
+│           │   └── pages.rb
 │           ├── views/
 │           │   ├── index.erb
 │           │   ├── _header.erb
@@ -412,7 +490,7 @@ bin/invasion_extractor concat -o ~/Videos/ER/final.mp4 ~/Videos/ER/clips
 ├── tmp/
 │   └── [temp files]
 ├── Gemfile
-├── invasion_extractor.gemspec
+├── invasion-studio.gemspec
 ├── Rakefile
 ├── README.md
 └── AGENTS.md
