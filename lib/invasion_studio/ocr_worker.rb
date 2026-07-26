@@ -27,13 +27,14 @@ module InvasionStudio
 
     def run!
       fps = @options[:fps] || 1
+      crop = @crop_geometry.call(@video_metadata || {})
 
       Dir.mktmpdir do |frames_dir|
         producer = @frame_extractor.start(
           video_path: @video_path,
           frames_dir: frames_dir,
           fps: fps,
-          crop: @crop_geometry.call(@video_metadata || {}),
+          crop: crop,
           options: @options
         )
         results = @ocr_pool.process(

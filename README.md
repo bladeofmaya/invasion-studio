@@ -276,7 +276,7 @@ lib/invasion_studio/
 │   └── webui.rb            # WebUI server launcher
 ├── engine.rb                # High-level orchestration with 3-stage pipeline
 ├── video.rb                 # Video file representation & YAML caching
-├── ocr_worker.rb            # Frame extraction (rawvideo pipe) and OCR processing
+├── ocr_worker.rb            # Frame extraction/OCR pipeline orchestration
 ├── frame.rb                 # Data structure for frame metadata
 ├── scanner.rb               # Pattern matching for invasion detection
 ├── clip.rb                  # Video clip generation (ffmpeg)
@@ -302,8 +302,8 @@ lib/invasion_studio/
 ```
 Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Output Files
      ↓            ↓          ↓         ↓          ↓       ↓
-   ffmpeg    rawvideo    Cache    Regex     Struct   ffmpeg
-   pipe        pipe     (YAML)
+   ffmpeg    temp JPEGs   Cache    Regex     Struct   ffmpeg
+                ↓        (YAML)
 
 Extracted Clips → Project.json → WebUI → Groups → Export (Spliced + Kdenlive)
 ```

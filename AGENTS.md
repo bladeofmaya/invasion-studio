@@ -27,7 +27,7 @@ lib/invasion_extractor/
 ├── kdenlive_exporter.rb     # Kdenlive MLT XML project generator
 ├── engine.rb                # High-level orchestration with 3-stage pipeline
 ├── video.rb                 # Video file representation & YAML caching
-├── ocr_worker.rb            # Frame extraction (rawvideo pipe) and OCR processing
+├── ocr_worker.rb            # Frame extraction/OCR pipeline orchestration
 ├── frame.rb                 # Data structure for frame metadata
 ├── scanner.rb               # Pattern matching for invasion detection
 ├── clip.rb                  # Video clip generation (ffmpeg)
@@ -67,8 +67,8 @@ lib/invasion_extractor/webui/
 ```
 Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Output Files
      ↓            ↓          ↓         ↓          ↓       ↓
-   ffmpeg    rawvideo    Cache    Regex     Struct   ffmpeg
-   pipe        pipe     (YAML)
+   ffmpeg    temp JPEGs   Cache    Regex     Struct   ffmpeg
+                ↓        (YAML)
 ```
 
 ### Key Classes
@@ -100,20 +100,21 @@ Video Files → OCRWorker → Frames → Scanner → Segments → Clip → Outpu
   - Debug mode writes frame-by-frame OCR results to YAML and prints matched timestamps
 
 #### 3. OCRWorker (`ocr_worker.rb`)
-- **Responsibility**: Extract frames from video and run OCR
+- **Responsibility**: Orchestrate frame extraction and OCR collaborators
 - **Process**:
-  1. Uses ffmpeg with a `rawvideo` pipe to output grayscale frames directly to memory
-  2. Crops video to specific region (game text area)
-  3. Applies contrast/brightness enhancement
-  4. A producer thread reads fixed-size chunks from the ffmpeg pipe
-  5. Consumer threads write each frame to a temporary PGM file and run OCR
-  6. Temporary files are immediately deleted
-  7. Returns array of Frame objects
+  1. `VideoMetadataProbe` gathers video and audio-stream metadata
+  2. `CropGeometry` scales the game-text crop to the source resolution
+  3. `FrameExtractor` writes cropped JPEG frames to a temporary directory
+  4. `FrameDiscovery` schedules sequential frame files without repeated directory scans
+  5. `OcrPool` runs a bounded number of Tesseract workers with queue backpressure
+  6. The temporary directory and its frames are deleted after processing
+  7. Returns an ordered array of Frame objects
 - **Configuration**:
   - Base resolution: 2560x1440
   - Crop region: 700x130 @ 950x960
-  - Frame rate: 2 fps (configurable via `--fps`)
-- **No disk I/O**: Frames are never written to disk as JPEGs
+  - Frame rate: 1 fps (configurable via `--fps`)
+  - OCR workers: up to 4 by default (configurable via `--ocr-workers`)
+- **Temporary disk I/O**: JPEG frames exist only inside a temporary directory during OCR
 
 #### 4. Video (`video.rb`)
 - **Responsibility**: Represents a video file with caching
@@ -280,9 +281,8 @@ All controllers extend `ApplicationController` (base class with shared utilities
 - **Tesseract OCR**: Text recognition from frames (default provider)
 
 ### Ruby Dependencies
-- `rtesseract` (~> 3.1.3): Ruby wrapper for Tesseract
 - `optparse` (~> 0.5): CLI argument parsing
-- `parallel` (~> 1.25): Multi-process parallel processing
+- `tty-progressbar` (~> 0.18): Extraction and OCR progress display
 
 ### Development Dependencies
 - `minitest` (~> 5.16): Testing framework
