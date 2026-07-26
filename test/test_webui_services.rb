@@ -29,7 +29,17 @@ class TestWebuiServices < Minitest::Test
     assert_equal [500, { error: 'boom' }], mapper.map(StandardError.new('boom'))
   end
 
-  def test_file_opener_selects_platform_command_without_a_shell
+  def test_file_opener_reveals_the_file_without_a_shell
+    linux_runner = TestSupport::FakeProcessRunner.new
+    mac_runner = TestSupport::FakeProcessRunner.new
+
+    assert InvasionStudio::Webui::FileOpener.new(process_runner: linux_runner, platform: 'linux').reveal('/tmp/a file.mp4')
+    assert InvasionStudio::Webui::FileOpener.new(process_runner: mac_runner, platform: 'darwin').reveal('/tmp/a file.mp4')
+    assert_equal ['xdg-open', '/tmp'], linux_runner.commands.first[:command]
+    assert_equal ['open', '-R', '/tmp/a file.mp4'], mac_runner.commands.first[:command]
+  end
+
+  def test_file_opener_opens_the_file_without_a_shell
     linux_runner = TestSupport::FakeProcessRunner.new
     mac_runner = TestSupport::FakeProcessRunner.new
 

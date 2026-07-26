@@ -8,9 +8,10 @@ module InvasionStudio
         @platform = platform
       end
 
-      def open(path)
-        command = @platform.match?(/darwin/) ? 'open' : 'xdg-open'
-        @process_runner.run(command, path)
+      def reveal(path)
+        return @process_runner.run('open', '-R', path) if @platform.match?(/darwin/)
+
+        @process_runner.run('xdg-open', File.dirname(path))
       end
     end
   end
