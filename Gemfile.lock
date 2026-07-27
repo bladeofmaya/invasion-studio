@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    invasion-studio (0.5.0)
+    invasion-studio (0.6.0)
       optparse (~> 0.5)
       puma (~> 6.0)
       sequel (~> 5.0)

@@ -104,6 +104,12 @@ class TestWebuiServer < Minitest::Test
     assert_equal '1.27.0', package.dig('dependencies', 'lucide')
   end
 
+  def test_sortablejs_is_a_bundled_dependency
+    package = JSON.parse(File.read(File.expand_path('../package.json', __dir__)))
+
+    assert_equal '1.15.7', package.dig('dependencies', 'sortablejs')
+  end
+
   def test_sets_security_headers
     get '/'
 
