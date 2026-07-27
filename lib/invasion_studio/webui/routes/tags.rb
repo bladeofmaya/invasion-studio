@@ -9,6 +9,34 @@ module InvasionStudio
             json_response(project.tags)
           end
 
+          app.get '/api/tags/details' do
+            json_response(project.tag_details)
+          end
+
+          app.post '/api/tags/rename' do
+            body = json_body
+            old_name = body['old_name'].to_s.strip
+            new_name = body['new_name'].to_s.strip
+            if old_name.empty? || new_name.empty?
+              status 400
+              return json_response(error: 'Tag names cannot be empty')
+            end
+            if project.rename_tag(old_name, new_name)
+              json_response(success: true, new_name: new_name)
+            else
+              status 409
+              json_response(error: 'Tag name already exists or not found')
+            end
+          end
+
+          app.delete '/api/tags/:name' do
+            if project.delete_tag(params['name'])
+              json_response(success: true)
+            else
+              halt 404, json_response(error: 'Tag not found')
+            end
+          end
+
           app.post %r{/api/clip/(.+)/tags} do
             clip_id = params['captures'][0]
             find_clip!(clip_id)

@@ -80,4 +80,59 @@ class TestTagRepository < Minitest::Test
 
     assert_equal ['a'], @repository.clips_for('pvp').map { |c| c['id'] }
   end
+
+  def test_details_counts_non_trashed_clips
+    create_clip('a.mp4')
+    create_clip('b.mp4')
+    create_clip('c.mp4')
+    @repository.add_to_clip('a', 'pvp')
+    @repository.add_to_clip('b', 'pvp')
+    @repository.add_to_clip('c', 'pvp')
+    @repository.add_to_clip('a', 'ambush')
+    @repository.find_or_create('lonely')
+    @clip_repository.mark_deleted('c', deleted_path: '.trashed/c.mp4')
+
+    assert_equal(
+      [
+        { 'name' => 'ambush', 'clip_count' => 1 },
+        { 'name' => 'lonely', 'clip_count' => 0 },
+        { 'name' => 'pvp', 'clip_count' => 2 }
+      ],
+      @repository.details
+    )
+  end
+
+  def test_rename_updates_tag_and_keeps_assignments
+    create_clip('a.mp4')
+    @repository.add_to_clip('a', 'pvp')
+
+    assert @repository.rename('pvp', 'Duels')
+    assert_equal ['duels'], @repository.all
+    assert_equal ['a'], @repository.clips_for('duels').map { |c| c['id'] }
+  end
+
+  def test_rename_rejects_missing_or_conflicting_names
+    create_clip('a.mp4')
+    @repository.add_to_clip('a', 'pvp')
+    @repository.add_to_clip('a', 'ambush')
+
+    refute @repository.rename('nope', 'new')
+    refute @repository.rename('pvp', 'ambush')
+    refute @repository.rename('pvp', '   ')
+    assert @repository.rename('pvp', 'PVP')
+  end
+
+  def test_delete_removes_tag_and_clip_assignments
+    create_clip('a.mp4')
+    create_clip('b.mp4')
+    @repository.add_to_clip('a', 'pvp')
+    @repository.add_to_clip('b', 'pvp')
+    @repository.add_to_clip('a', 'ambush')
+
+    assert @repository.delete('pvp')
+    assert_equal ['ambush'], @repository.all
+    assert_empty @repository.clips_for('pvp')
+    assert_equal ['ambush'], @clip_repository.tags_for('a')
+    refute @repository.delete('pvp')
+  end
 end

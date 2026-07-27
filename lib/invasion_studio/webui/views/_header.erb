@@ -6,6 +6,12 @@
   </div>
   <button class="bg-surface-secondary text-text-primary border-none px-4 py-2 rounded text-sm cursor-pointer mr-2 hover:bg-surface-hover" data-navigation-target="backBtn" data-action="click->navigation#goBack" style="display:none">&larr; Back</button>
   <button type="button" class="ml-auto inline-flex items-center justify-center bg-surface-secondary text-text-secondary border border-border p-2 rounded-full cursor-pointer hover:bg-surface-hover hover:text-text-primary" data-controller="theme" data-action="click->theme#toggle" aria-label="Switch color theme"></button>
+  <div class="inline-flex" data-controller="settings">
+    <button type="button" class="inline-flex items-center justify-center bg-surface-secondary text-text-secondary border border-border p-2 rounded-full cursor-pointer hover:bg-surface-hover hover:text-text-primary" data-action="click->settings#open" aria-label="Settings" title="Settings">
+      <i data-lucide="settings" class="size-4"></i>
+    </button>
+    <%= erb :_settings %>
+  </div>
   <div class="inline-flex" data-controller="info">
     <button type="button" class="inline-flex items-center justify-center bg-surface-secondary text-text-secondary border border-border p-2 rounded-full cursor-pointer hover:bg-surface-hover hover:text-text-primary" data-action="click->info#open" aria-label="About Invasion Studio" title="About Invasion Studio">
       <i data-lucide="info" class="size-4"></i>

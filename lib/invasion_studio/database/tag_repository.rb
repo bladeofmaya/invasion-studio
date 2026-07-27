@@ -12,6 +12,43 @@ module InvasionStudio
         tags_dataset.order(:name).select_map(:name)
       end
 
+      # All tags with the number of non-trashed clips carrying each.
+      def details
+        counts = clip_tags_dataset
+                 .join(:clips, id: :clip_id)
+                 .where(Sequel[:clips][:deleted_at] => nil)
+                 .group_and_count(:tag_id)
+                 .to_hash(:tag_id, :count)
+        tags_dataset.order(:name).all.map do |tag|
+          { 'name' => tag[:name], 'clip_count' => counts[tag[:id]] || 0 }
+        end
+      end
+
+      def rename(old_name, new_name)
+        old_name = normalize_name(old_name)
+        new_name = normalize_name(new_name)
+        return false if new_name.empty?
+
+        tag = tags_dataset.where(name: old_name).first
+        return false unless tag
+        return true if new_name == old_name
+        return false if tags_dataset.where(name: new_name).count.positive?
+
+        tags_dataset.where(id: tag[:id]).update(name: new_name)
+        true
+      end
+
+      def delete(name)
+        tag_id = find_id(name)
+        return false unless tag_id
+
+        @database.transaction do
+          clip_tags_dataset.where(tag_id: tag_id).delete
+          tags_dataset.where(id: tag_id).delete
+        end
+        true
+      end
+
       def find_or_create(name)
         name = normalize_name(name)
         return nil if name.empty?
