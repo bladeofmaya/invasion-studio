@@ -97,7 +97,7 @@ class TestWebuiServices < Minitest::Test
       )
 
       assert_nil remuxer.remux(source, 1)
-      assert_equal [], Dir.glob(File.join(directory, '.preview_tmp', '*'))
+      assert_equal [], Dir.glob(File.join(directory, '.preview_cache', '*'))
     end
   end
 end

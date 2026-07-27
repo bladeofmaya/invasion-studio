@@ -16,6 +16,9 @@ module InvasionStudio
       set :quiet, false
       set :file_opener, nil
       set :preview_remuxer, nil
+      # nil = default cache locations; tests inject temp dirs so clearing the
+      # cache never touches the real user cache.
+      set :cache_dirs, nil
 
       before do
         headers 'X-Content-Type-Options' => 'nosniff',
@@ -103,6 +106,10 @@ module InvasionStudio
           GroupStatistics.new(project)
         end
 
+        def storage_statistics
+          StorageStatistics.new(project, cache_dirs: settings.cache_dirs)
+        end
+
         def project_exporter
           InvasionStudio::ProjectExporter.new(project, quiet: settings.quiet)
         end
@@ -137,6 +144,7 @@ module InvasionStudio
       register Routes::Groups
       register Routes::Uploads
       register Routes::Exports
+      register Routes::Storage
       register Routes::Pages
     end
   end

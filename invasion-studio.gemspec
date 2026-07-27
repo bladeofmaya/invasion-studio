@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
 
   spec.summary       = 'Scans multiple video files for the start and end of invasions and creates single clips.'
   spec.description   = 'Detect, review, organize, and export Elden Ring invasion clips.'
-  spec.homepage      = 'https://bladeofmaya.com'
+  spec.homepage      = 'http://bladeofmaya.com'
   spec.license       = 'MIT'
 
   spec.files         = Dir['lib/**/*', 'MIT-LICENSE', 'README.md', 'THIRD_PARTY_LICENSES.md']

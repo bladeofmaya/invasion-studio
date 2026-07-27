@@ -394,6 +394,43 @@ class TestWebuiServer < Minitest::Test
     assert_includes last_response.body, 'click->settings#open'
     assert_includes last_response.body, 'data-settings-target="tagList"'
     assert_includes last_response.body, 'data-category="tags"'
+    assert_includes last_response.body, 'data-category="storage"'
+    assert_includes last_response.body, 'data-settings-target="storagePanel"'
+  end
+
+  # ========== Storage Routes ==========
+
+  def test_get_api_storage_stats
+    cache_dir = Dir.mktmpdir
+    File.write(File.join(cache_dir, 'cached.yml'), 'x' * 25)
+    InvasionStudio::Webui::Server.set :cache_dirs, [cache_dir]
+
+    get '/api/storage/stats'
+
+    assert last_response.ok?
+    stats = JSON.parse(last_response.body)
+    assert_equal 2, stats['clips']['count']
+    assert_equal 25, stats['cache']['bytes']
+    assert stats['total_bytes'].positive?
+  ensure
+    InvasionStudio::Webui::Server.set :cache_dirs, nil
+    FileUtils.rm_rf(cache_dir)
+  end
+
+  def test_post_api_storage_clear_cache
+    cache_dir = Dir.mktmpdir
+    File.write(File.join(cache_dir, 'cached.yml'), 'x' * 25)
+    InvasionStudio::Webui::Server.set :cache_dirs, [cache_dir]
+
+    post '/api/storage/clear-cache'
+
+    assert last_response.ok?
+    data = JSON.parse(last_response.body)
+    assert_equal 25, data['freed_bytes']
+    assert_empty Dir.children(cache_dir)
+  ensure
+    InvasionStudio::Webui::Server.set :cache_dirs, nil
+    FileUtils.rm_rf(cache_dir)
   end
 
   def test_post_clip_tag_adds_tag_and_returns_tags
