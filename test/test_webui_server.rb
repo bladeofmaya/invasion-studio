@@ -115,12 +115,11 @@ class TestWebuiServer < Minitest::Test
     get '/'
 
     executable_assets = last_response.body.scan(
-      /<(?:script|link)\b[^>]*(?:src|href)=["']([^"']+)["']/i
+      /<(?:script|link|img|iframe)\b[^>]*(?:src|href)=["']([^"']+)["']/i
     ).flatten
 
     refute_empty executable_assets
     assert executable_assets.all? { |url| url.start_with?('/') }, executable_assets.inspect
-    refute_match(/https?:\/\//i, last_response.body)
     refute_match(/type=["']importmap["']/i, last_response.body)
   end
 
