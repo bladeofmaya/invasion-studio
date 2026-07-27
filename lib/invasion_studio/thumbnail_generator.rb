@@ -22,7 +22,13 @@ module InvasionStudio
 
       thumbnail_key = thumbnail_key_for(clip_id)
       thumbnail_path = @storage.resolve(thumbnail_key)
-      return @repository.find(clip_id) if thumbnail_path && File.exist?(thumbnail_path)
+      if thumbnail_path && File.exist?(thumbnail_path)
+        # The file can exist while the record was never updated (e.g. an
+        # earlier job lost a database race after writing the file) — repair
+        # the record instead of leaving the clip permanently thumbnail-less.
+        @repository.update(clip_id, 'thumbnail_path' => thumbnail_key) unless clip['thumbnail_path'] == thumbnail_key
+        return @repository.find(clip_id)
+      end
 
       timestamp = extract_timestamp(source_path)
       FileUtils.mkdir_p(File.dirname(thumbnail_path))

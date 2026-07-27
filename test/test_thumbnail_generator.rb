@@ -81,6 +81,20 @@ class TestThumbnailGenerator < Minitest::Test
     assert_equal 0, runner.commands.length
   end
 
+  def test_records_existing_thumbnail_file_missing_from_the_database
+    create_clip('a', path: 'a.mp4')
+    FileUtils.mkdir_p(File.join(@tmp_dir, 'thumbnails'))
+    File.write(File.join(@tmp_dir, 'thumbnails', 'a.jpg'), 'thumb')
+    runner = ThumbnailRunner.new
+    generator = InvasionStudio::ThumbnailGenerator.new(@project, process_runner: runner)
+
+    result = generator.generate('a')
+
+    assert_equal 'thumbnails/a.jpg', result['thumbnail_path']
+    assert_equal 'thumbnails/a.jpg', @repository.find('a')['thumbnail_path']
+    assert_equal 0, runner.commands.length
+  end
+
   def test_returns_false_when_clip_missing
     runner = TestSupport::FakeProcessRunner.new
     generator = InvasionStudio::ThumbnailGenerator.new(@project, process_runner: runner)

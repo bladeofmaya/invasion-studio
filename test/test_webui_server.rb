@@ -256,6 +256,16 @@ class TestWebuiServer < Minitest::Test
     assert_equal({ 'error' => 'Clip not found' }, JSON.parse(last_response.body))
   end
 
+  def test_shell_includes_upload_progress_overlay
+    get '/'
+
+    assert_includes last_response.body, 'data-upload-target="overlay"'
+    assert_includes last_response.body, 'data-upload-target="progressBar"'
+    assert_includes last_response.body, 'data-upload-target="progressStatus"'
+    assert_includes last_response.body, 'data-upload-target="closeBtn"'
+    assert_includes last_response.body, 'click->upload#closeOverlay'
+  end
+
   def test_shell_includes_search_controls
     get '/'
 
