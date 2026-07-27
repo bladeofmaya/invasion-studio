@@ -234,6 +234,44 @@ class TestProject < Minitest::Test
     assert_equal [], project2.all_clips
   end
 
+  def test_sync_relocates_clips_moved_to_clips_subfolder
+    create_clip_file('a.mp4')
+    project = InvasionStudio::Project.new(@tmp_dir)
+    project.update_note('a', 'moved clip')
+
+    clips_dir = File.join(@tmp_dir, 'clips')
+    FileUtils.mkdir_p(clips_dir)
+    FileUtils.mv(File.join(@tmp_dir, 'a.mp4'), File.join(clips_dir, 'a.mp4'))
+
+    project2 = InvasionStudio::Project.new(@tmp_dir)
+    assert_equal 1, project2.clips.length
+    clip = project2.find_clip('a')
+    assert_equal 'clips/a.mp4', clip['path']
+    assert_equal 'moved clip', clip['note']
+  end
+
+  def test_sync_discovers_new_clips_in_clips_subfolder
+    clips_dir = File.join(@tmp_dir, 'clips')
+    FileUtils.mkdir_p(clips_dir)
+    File.write(File.join(clips_dir, 'a.mp4'), 'dummy')
+
+    project = InvasionStudio::Project.new(@tmp_dir)
+    assert_equal 1, project.clips.length
+    assert_equal 'clips/a.mp4', project.find_clip('a')['path']
+  end
+
+  def test_sync_keeps_root_clips_and_clips_subfolder_clips
+    create_clip_file('a.mp4')
+    clips_dir = File.join(@tmp_dir, 'clips')
+    FileUtils.mkdir_p(clips_dir)
+    File.write(File.join(clips_dir, 'b.mp4'), 'dummy')
+
+    project = InvasionStudio::Project.new(@tmp_dir)
+    assert_equal 2, project.clips.length
+    assert_includes project.clips.map { |c| c['id'] }, 'a'
+    assert_includes project.clips.map { |c| c['id'] }, 'b'
+  end
+
   def test_delete_uses_unique_trash_path_when_filename_already_exists
     create_clip_file('a.mp4')
     trash_dir = File.join(@tmp_dir, '.trashed')

@@ -2,7 +2,9 @@
   <div class="flex justify-between items-center mb-1.5">
     <input type="text" class="flex-1 bg-transparent border-none text-text-primary font-semibold text-xl focus:outline-none" id="title-input" data-editor-target="titleInput" placeholder="Clip title (optional)" disabled data-action="blur->editor#debouncedSaveTitle">
     <button class="bg-primary text-primary-fg border-none px-3 py-1.5 text-xs rounded cursor-pointer ml-2 hover:bg-primary-hover" id="finalize-btn" data-editor-target="finalizeBtn" data-action="click->editor#finalizeCuts" style="display:none">Finalize Cuts</button>
-    <button class="bg-danger text-danger-fg border-none px-4 py-1.5 text-xs rounded cursor-pointer ml-2 hover:bg-danger-hover" id="delete-btn" data-editor-target="deleteBtn" data-action="click->editor#deleteClip" style="display:none">Delete</button>
+    <button class="bg-danger text-danger-fg border-none px-3 py-1.5 text-xs rounded cursor-pointer ml-2 hover:bg-danger-hover" id="delete-btn" data-editor-target="deleteBtn" data-action="click->editor#deleteClip" style="display:none" aria-label="Delete">
+      <i data-lucide="trash-2" class="size-4"></i>
+    </button>
     <button class="bg-transparent border border-text-muted text-text-muted px-4 py-1.5 text-xs rounded cursor-pointer ml-auto hover:border-text-primary hover:text-text-primary" id="restore-btn" data-editor-target="restoreBtn" data-action="click->editor#restoreClip" style="display:none">Restore</button>
   </div>
     <textarea class="bg-input-bg text-text-primary border border-input-border rounded p-3 text-base leading-snug resize-none mb-3 focus:outline-none focus:border-input-focus-ring" id="note-input" rows="2" data-editor-target="noteInput" placeholder="Add a note about this clip..." disabled data-action="blur->editor#debouncedSaveNote"></textarea>
