@@ -100,6 +100,22 @@ class TestExtractionStages < Minitest::Test
     end
   end
 
+  def test_clip_extraction_stage_honors_min_clip_number_floor
+    Dir.mktmpdir do |directory|
+      File.write(File.join(directory, 'clip_00002.mp4'), 'existing')
+      clip = FakeClip.new
+      stage = InvasionStudio::Extraction::ClipExtractionStage.new(
+        { outdir: directory, prefix: 'clip', min_clip_number: 7 },
+        reporter: Reporter.new,
+        clip_factory: ->(_segment, _options) { clip }
+      )
+
+      stage.run([FakeSegment.new('/recordings/a.mp4')])
+
+      assert_equal File.join(directory, 'clip_00008.mp4'), clip.written_path
+    end
+  end
+
   def test_clip_extraction_stage_tracks_created_clips_with_sources
     Dir.mktmpdir do |directory|
       clips = [FakeClip.new, FakeClip.new]

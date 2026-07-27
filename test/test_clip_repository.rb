@@ -141,6 +141,21 @@ class TestClipRepository < Minitest::Test
     assert_nil @repository.find('clip1')['trash_path']
   end
 
+  def test_highest_clip_number_covers_trashed_and_non_mp4_clips
+    assert_equal 0, @repository.highest_clip_number
+
+    create_clip('clip_00003.mp4')
+    create_clip('demo-upload.mp4')
+    @db[:clips].insert(
+      id: 'clip_00021', original_filename: 'clip_00021.mkv',
+      storage_path: 'clips/clip_00021.mkv', source_kind: 'uploaded', note: '',
+      rating: 0, deleted_at: '2026-07-27T00:00:00Z', deleted_path: '.trashed/clip_00021.mkv',
+      created_at: '2026-07-27T00:00:00Z', updated_at: '2026-07-27T00:00:00Z'
+    )
+
+    assert_equal 21, @repository.highest_clip_number
+  end
+
   def test_remove_missing_deletes_clips_without_files
     create_clip('present.mp4')
     create_clip('missing.mp4')

@@ -249,6 +249,16 @@ module InvasionStudio
       @clip_repository.tags_for(clip_id)
     end
 
+    # Re-scan the folder for new/removed clip files. Public because callers
+    # that add files after the project was opened (e.g. ExtractionImporter)
+    # need to trigger it explicitly.
+    def sync_clips!
+      discover_new_clips
+      @clip_repository.remove_missing
+      @group_repository.prune(@clip_repository.all.map { |clip| clip['id'] })
+      @tag_repository.delete_unused
+    end
+
     private
 
     def created_at
@@ -258,12 +268,6 @@ module InvasionStudio
       Time.now.utc.iso8601
     end
 
-    def sync_clips!
-      discover_new_clips
-      @clip_repository.remove_missing
-      @group_repository.prune(@clip_repository.all.map { |clip| clip['id'] })
-      @tag_repository.delete_unused
-    end
 
     def ensure_default_group!
       return if @group_repository.all.any?
