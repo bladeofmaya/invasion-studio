@@ -45,6 +45,20 @@ invasion-studio extract \
 The output folder is created automatically. Each detected encounter becomes an
 MP4 clip inside it.
 
+Once a project exists, later extractions can target it directly:
+
+```bash
+invasion-studio extract \
+  --project ~/Videos/ER/my-invasion-project \
+  ~/Videos/Capture/*.mp4
+```
+
+`--project` writes the clips into the project's `clips/` folder as
+`clip_00022.mp4`, `clip_00023.mp4`, ... (continuing from the highest existing
+number) and registers them in `project.db` right away, with the source
+recording stored as provenance. Thumbnails are generated the next time the
+WebUI starts.
+
 If OBS split one recording into several files, pass them together in
 chronological order. Invasions spanning two files are joined automatically.
 
@@ -128,6 +142,11 @@ invasion-studio concat ~/Videos/ER/my-invasion-project
 # Build a combined video and Kdenlive project directly
 invasion-studio export-kdenlive ~/Videos/ER/my-invasion-project
 
+# Rename a project's clips to clip_00001.mp4, clip_00002.mp4, ...
+# (updates the database, thumbnails, compilations, tags, and cuts;
+#  stop the WebUI first, use --dry-run to preview)
+invasion-studio normalize ~/Videos/ER/my-invasion-project
+
 # Show global or command-specific help
 invasion-studio --help
 invasion-studio extract --help
@@ -142,6 +161,7 @@ Commands:
 | `webui` | Start the local project WebUI |
 | `concat` | Join clips into one chaptered video |
 | `export-kdenlive` | Create a combined video and Kdenlive timeline |
+| `normalize` | Rename a project's clips to the generic sequential naming |
 
 ## Useful extraction options
 
@@ -149,6 +169,7 @@ Commands:
 |---|---:|---|
 | `--outdir DIR` | `./invasion_clips` | Folder for generated clips |
 | `--prefix NAME` | `invasion` | Generated filename prefix |
+| `--project DIR` | — | Extract into a project (`clips/`, `clip_` prefix, DB registration); excludes the two options above |
 | `--fps RATE` | `1` | OCR samples per second |
 | `--pad-start SEC` | `10` | Extra time before an encounter |
 | `--pad-end SEC` | `7.5` | Extra time after an encounter |

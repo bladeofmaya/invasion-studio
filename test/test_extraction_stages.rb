@@ -63,6 +63,8 @@ class TestExtractionStages < Minitest::Test
     assert_equal %i[scanning scan_complete], reporter.events.map(&:first)
   end
 
+  FakeSegment = Struct.new(:start_video)
+
   def test_clip_extraction_stage_names_and_writes_clips
     Dir.mktmpdir do |directory|
       reporter = Reporter.new
@@ -74,11 +76,49 @@ class TestExtractionStages < Minitest::Test
         clip_factory: factory
       )
 
-      errors = stage.run([:segment])
+      errors = stage.run([FakeSegment.new('/recordings/a.mp4')])
 
       assert_empty errors
       assert_equal File.join(directory, 'duel_00001.mp4'), clip.written_path
       assert_includes reporter.events.map(&:first), :clip_extracted
+    end
+  end
+
+  def test_clip_extraction_stage_continues_numbering_across_prefixes
+    Dir.mktmpdir do |directory|
+      File.write(File.join(directory, 'str-invasions_00021.mp4'), 'existing')
+      clip = FakeClip.new
+      stage = InvasionStudio::Extraction::ClipExtractionStage.new(
+        { outdir: directory, prefix: 'clip' },
+        reporter: Reporter.new,
+        clip_factory: ->(_segment, _options) { clip }
+      )
+
+      stage.run([FakeSegment.new('/recordings/a.mp4')])
+
+      assert_equal File.join(directory, 'clip_00022.mp4'), clip.written_path
+    end
+  end
+
+  def test_clip_extraction_stage_tracks_created_clips_with_sources
+    Dir.mktmpdir do |directory|
+      clips = [FakeClip.new, FakeClip.new]
+      factory = ->(_segment, _options) { clips.shift }
+      stage = InvasionStudio::Extraction::ClipExtractionStage.new(
+        { outdir: directory, prefix: 'clip' },
+        reporter: Reporter.new,
+        clip_factory: factory
+      )
+
+      stage.run([FakeSegment.new('/recordings/a.mp4'), FakeSegment.new('/recordings/b.mp4')])
+
+      assert_equal(
+        [
+          { path: File.join(directory, 'clip_00001.mp4'), source: '/recordings/a.mp4' },
+          { path: File.join(directory, 'clip_00002.mp4'), source: '/recordings/b.mp4' }
+        ],
+        stage.created
+      )
     end
   end
 end

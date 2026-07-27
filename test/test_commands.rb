@@ -83,6 +83,29 @@ class TestCommandsExtract < Minitest::Test
     assert_equal 8, options[:ocr_batch_size]
   end
 
+  def test_validate_rejects_project_combined_with_explicit_outdir
+    options = InvasionStudio::CLI::DEFAULT_OPTIONS.dup
+    cmd = InvasionStudio::Commands::Extract.new(options, ['--project', 'proj', '-o', 'out', __FILE__])
+    cmd.send(:parse_options!)
+
+    error = assert_raises(InvasionStudio::Error) { cmd.send(:validate!) }
+
+    assert_equal '--project cannot be combined with --outdir or --prefix', error.message
+  end
+
+  def test_validate_project_accepts_default_filled_options
+    # The CLI pre-fills :outdir/:prefix defaults; --project alone must not
+    # trip the exclusivity check.
+    options = InvasionStudio::CLI::DEFAULT_OPTIONS.dup
+    cmd = InvasionStudio::Commands::Extract.new(options, ['--project', 'proj', __FILE__])
+    cmd.send(:parse_options!)
+
+    cmd.send(:validate!)
+
+    assert_equal File.join('proj', 'clips'), options[:outdir]
+    assert_equal 'clip', options[:prefix]
+  end
+
   def test_validate_rejects_non_positive_ocr_workers
     options = { command: 'extract', ocr_workers: 0 }
     cmd = InvasionStudio::Commands::Extract.new(options, [__FILE__])

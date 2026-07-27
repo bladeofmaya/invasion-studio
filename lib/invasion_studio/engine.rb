@@ -1,6 +1,6 @@
 module InvasionStudio
   class Engine
-    attr_reader :videos, :options, :errors
+    attr_reader :videos, :options, :errors, :clip_extraction_stage
 
     def self.run!(videos, options = {})
       new(videos, options).tap(&:run!)

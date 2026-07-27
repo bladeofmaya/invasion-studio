@@ -18,13 +18,14 @@ module InvasionStudio
       ffmpeg_threads: 4
     }.freeze
 
-    VALID_COMMANDS = %w[extract scan export-kdenlive concat webui].freeze
+    VALID_COMMANDS = %w[extract scan export-kdenlive concat webui normalize].freeze
     COMMANDS = {
       'extract' => Commands::Extract,
       'scan' => Commands::Extract,
       'export-kdenlive' => Commands::ExportKdenlive,
       'concat' => Commands::Concat,
-      'webui' => Commands::Webui
+      'webui' => Commands::Webui,
+      'normalize' => Commands::Normalize
     }.freeze
 
     attr_reader :options
@@ -96,11 +97,13 @@ module InvasionStudio
       puts "  export-kdenlive      Splice clips and create a Kdenlive project"
       puts "  concat               Concatenate clips into a single video (no re-encoding)"
       puts "  webui                Launch a web UI to manage clips and export"
+      puts "  normalize            Rename a project's clips to clip_00001.mp4, clip_00002.mp4, ..."
       puts ""
       puts "Options:"
       puts "  Output:"
       puts "    -p, --prefix PREFIX          Prefix for output files (default: invasion)"
       puts "    -o, --outdir DIRECTORY       Output directory (default: ./invasion_clips)"
+      puts "    --project DIRECTORY          Extract into a project's clips/ folder and register the clips"
       puts ""
   puts "  Processing:"
   puts "    --fps RATE                   Frame extraction rate (default: 1)"
