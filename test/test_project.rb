@@ -336,7 +336,7 @@ class TestProject < Minitest::Test
     threads.each(&:value)
 
     db = InvasionStudio::Database.connect(@db_path)
-    persisted_names = db[:groups].select_map(:name)
+    persisted_names = db[:compilations].select_map(:name)
     20.times { |index| assert_includes persisted_names, "Concurrent #{index}" }
   end
 
