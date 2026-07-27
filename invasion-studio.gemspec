@@ -21,6 +21,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'optparse', '~> 0.5'
   spec.add_dependency 'tty-progressbar', '~> 0.18'
   spec.add_dependency 'sinatra', '~> 4.1'
+  spec.add_dependency 'rackup', '~> 2.1'
   spec.add_dependency 'puma', '~> 6.0'
   spec.add_dependency 'sequel', '~> 5.0'
   spec.add_dependency 'sqlite3', '~> 2.0'

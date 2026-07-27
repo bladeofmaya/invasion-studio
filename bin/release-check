@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# Release gate: proves a clean tree produces a gem that installs and runs
+# from scratch. Needs network access (npm ci, dependency install) and a
+# compiler toolchain for native extensions (sqlite3, puma).
+#
+#   bin/release-check                 full run (requires a clean working tree)
+#   ALLOW_DIRTY=1 bin/release-check   skip the clean-tree requirement
+set -euo pipefail
+IFS=$'\n\t'
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_DIR"
+
+PORT="${RELEASE_CHECK_PORT:-4621}"
+TMP_GEM_HOME=""
+TMP_PROJECT=""
+SERVER_PID=""
+
+cleanup() {
+  [ -n "$SERVER_PID" ] && kill "$SERVER_PID" 2>/dev/null || true
+  [ -n "$TMP_GEM_HOME" ] && rm -rf "$TMP_GEM_HOME"
+  [ -n "$TMP_PROJECT" ] && rm -rf "$TMP_PROJECT"
+}
+trap cleanup EXIT
+
+fail() { echo "FAIL: $*" >&2; exit 1; }
+step() { echo; echo "==> $*"; }
+
+step "Checking working tree"
+if [ -z "${ALLOW_DIRTY:-}" ] && [ -n "$(git status --porcelain)" ]; then
+  fail "working tree is dirty (set ALLOW_DIRTY=1 to override)"
+fi
+if [ -n "$(git ls-files -- 'lib/invasion_studio/webui/public/assets')" ]; then
+  fail "generated assets are committed to the repository; they must stay ignored"
+fi
+
+step "Building frontend assets"
+bin/build-assets
+
+step "Running test suite (non-video)"
+bundle exec rake test
+
+step "Building gem"
+VERSION="$(bundle exec ruby -Ilib -rinvasion_studio/version -e 'print InvasionStudio::VERSION')"
+GEM_FILE="invasion-studio-${VERSION}.gem"
+rm -f "$GEM_FILE"
+bundle exec gem build invasion-studio.gemspec
+
+step "Verifying gem contents"
+bin/verify-gem "$GEM_FILE"
+
+step "Installing into an empty GEM_HOME"
+TMP_GEM_HOME="$(mktemp -d)"
+run_installed() {
+  env -u BUNDLE_GEMFILE -u BUNDLE_PATH -u RUBYOPT \
+    GEM_HOME="$TMP_GEM_HOME" GEM_PATH="$TMP_GEM_HOME" "$@"
+}
+run_installed gem install --no-document "./$GEM_FILE"
+
+step "CLI smoke test"
+CLI="$TMP_GEM_HOME/bin/invasion-studio"
+run_installed "$CLI" --version | grep -qF "Invasion Studio v${VERSION}" \
+  || fail "CLI --version did not report v${VERSION}"
+
+step "WebUI smoke test (installed gem, empty project)"
+TMP_PROJECT="$(mktemp -d)"
+run_installed "$CLI" webui -p "$PORT" "$TMP_PROJECT" &
+SERVER_PID=$!
+for _ in $(seq 1 30); do
+  curl -sf "http://localhost:${PORT}/" >/dev/null 2>&1 && break
+  kill -0 "$SERVER_PID" 2>/dev/null || fail "webui exited before serving"
+  sleep 1
+done
+
+BODY="$(curl -sf "http://localhost:${PORT}/")" || fail "GET / failed"
+echo "$BODY" | grep -qF "Invasion Studio" || fail "GET / does not render the app shell"
+if echo "$BODY" | grep -qiE '<(script|link)[^>]*(src|href)="https?://'; then
+  fail "GET / references remote executable assets"
+fi
+[ -n "$(curl -sf "http://localhost:${PORT}/assets/app.css")" ] || fail "packaged stylesheet not served"
+[ -n "$(curl -sf "http://localhost:${PORT}/assets/app.js")" ] || fail "packaged javascript not served"
+
+kill "$SERVER_PID" 2>/dev/null || true
+wait "$SERVER_PID" 2>/dev/null || true
+SERVER_PID=""
+
+echo
+echo "Release check passed: ${GEM_FILE}"
