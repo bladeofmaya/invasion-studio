@@ -13,6 +13,7 @@
     "tailwindcss": "4.3.3"
   },
   "dependencies": {
-    "lucide": "1.27.0"
+    "lucide": "1.27.0",
+    "sortablejs": "1.15.7"
   }
 }
