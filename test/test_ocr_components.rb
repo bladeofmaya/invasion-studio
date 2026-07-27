@@ -3,8 +3,8 @@ require 'test_helper'
 class TestOCRComponents < Minitest::Test
   def test_metadata_probe_parses_video_and_audio_streams
     runner = TestSupport::FakeProcessRunner.new(stdout: JSON.generate({ streams: [
-      { codec_type: 'video', height: 720, width: 1280, r_frame_rate: '30000/1001', duration: '12.5' },
-      { codec_type: 'audio' }
+      { codec_type: 'video', height: 720, width: 1280, r_frame_rate: '30000/1001', duration: '12.5', codec_name: 'h264' },
+      { codec_type: 'audio', codec_name: 'aac' }
     ] }))
 
     metadata = InvasionStudio::OCR::VideoMetadataProbe.new(process_runner: runner).call('video.mp4')
@@ -12,6 +12,20 @@ class TestOCRComponents < Minitest::Test
     assert_equal 720, metadata[:height]
     assert_in_delta 29.97, metadata[:fps], 0.001
     assert_equal 1, metadata[:audio_stream_count]
+    assert_in_delta 12.5, metadata[:duration], 0.001
+    assert_equal 'h264', metadata[:video_codec]
+    assert_equal 'aac', metadata[:audio_codec]
+  end
+
+  def test_metadata_probe_falls_back_to_container_duration
+    runner = TestSupport::FakeProcessRunner.new(stdout: JSON.generate({
+      streams: [{ codec_type: 'video', height: 1080, width: 1920, r_frame_rate: '60/1', codec_name: 'h264' }],
+      format: { duration: '321.7' }
+    }))
+
+    metadata = InvasionStudio::OCR::VideoMetadataProbe.new(process_runner: runner).call('video.mkv')
+
+    assert_in_delta 321.7, metadata[:duration], 0.001
   end
 
   def test_crop_geometry_scales_and_keeps_even_dimensions

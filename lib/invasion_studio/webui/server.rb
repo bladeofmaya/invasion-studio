@@ -42,6 +42,7 @@ module InvasionStudio
         set :preview_remuxer, PreviewRemuxer.new(folder_path)
 
         project.enqueue_missing_thumbnails
+        project.enqueue_missing_metadata
 
         puts "Starting WebUI on http://localhost:#{port}"
         puts "Folder: #{folder_path}"

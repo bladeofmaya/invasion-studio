@@ -59,6 +59,14 @@ module InvasionStudio
       end
     end
 
+    def enqueue_missing_metadata
+      clips.each do |clip|
+        next if clip['duration']
+
+        InvasionStudio::Workers::MetadataJob.perform_async(clip['id'], @folder_path)
+      end
+    end
+
     def data
       {
         'schema_version' => DB_SCHEMA_VERSION,

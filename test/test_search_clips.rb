@@ -141,12 +141,13 @@ class TestSearchClips < Minitest::Test
     assert_equal %w[zzz Banana c], result_ids(sort: 'title')
   end
 
-  def test_sort_by_duration
+  def test_sort_by_duration_keeps_unknown_durations_last
+    create_clip('unknown.mp4')
     create_clip('short.mp4', 'duration' => 10.0)
     create_clip('long.mp4', 'duration' => 99.0)
 
-    assert_equal %w[long short], result_ids(sort: 'duration-desc')
-    assert_equal %w[short long], result_ids(sort: 'duration-asc')
+    assert_equal %w[long short unknown], result_ids(sort: 'duration-desc')
+    assert_equal %w[short long unknown], result_ids(sort: 'duration-asc')
   end
 
   def test_blank_params_are_ignored

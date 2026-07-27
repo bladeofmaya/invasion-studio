@@ -36,6 +36,23 @@ class TestClipRepository < Minitest::Test
     @repository.create(defaults.merge(attributes))
   end
 
+  def test_update_accepts_media_metadata_fields
+    create_clip('clip1.mp4')
+
+    assert @repository.update('clip1',
+                              'duration' => 12.5, 'filesize' => 1024, 'width' => 1920, 'height' => 1080,
+                              'fps' => 59.94, 'video_codec' => 'h264', 'audio_codec' => 'aac')
+
+    clip = @repository.find('clip1')
+    assert_equal 12.5, clip['duration']
+    assert_equal 1024, clip['filesize']
+    assert_equal 1920, clip['width']
+    assert_equal 1080, clip['height']
+    assert_equal 59.94, clip['fps']
+    assert_equal 'h264', clip['video_codec']
+    assert_equal 'aac', clip['audio_codec']
+  end
+
   def test_create_and_find_clip
     clip = create_clip('clip1.mp4', 'title' => 'First clip')
 

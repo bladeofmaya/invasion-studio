@@ -84,9 +84,9 @@ module InvasionStudio
       when 'title'
         dataset.order(Sequel.function(:lower, Sequel.function(:coalesce, :title, :original_filename)), :id)
       when 'duration-desc'
-        dataset.order(Sequel.desc(:duration), :created_at, :id)
+        dataset.order(Sequel.desc(:duration, nulls: :last), :created_at, :id)
       when 'duration-asc'
-        dataset.order(:duration, :created_at, :id)
+        dataset.order(Sequel.asc(:duration, nulls: :last), :created_at, :id)
       else
         # 'oldest' and the default project order are both creation order
         dataset.order(:created_at, :id)

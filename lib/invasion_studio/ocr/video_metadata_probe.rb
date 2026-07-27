@@ -10,19 +10,25 @@ module InvasionStudio
 
       def call(video_path)
         result = @process_runner.capture(
-          'ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_streams', video_path
+          'ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_streams', '-show_format', video_path
         )
         raise Error, "ffprobe failed for #{video_path}: #{result.stderr}" unless result.success?
 
-        streams = JSON.parse(result.stdout).fetch('streams', [])
+        payload = JSON.parse(result.stdout)
+        streams = payload.fetch('streams', [])
+        container = payload.fetch('format', {})
         video_stream = streams.find { |stream| stream['codec_type'] == 'video' } || streams.first
         raise Error, "ffprobe returned no video stream for #{video_path}" unless video_stream
 
+        audio_stream = streams.find { |stream| stream['codec_type'] == 'audio' }
         {
           height: video_stream['height'],
           width: video_stream['width'],
           fps: parse_frame_rate(video_stream['r_frame_rate']),
-          duration: video_stream['duration']&.to_f || 0,
+          # Some containers (e.g. MKV) carry the duration only at format level
+          duration: (video_stream['duration'] || container['duration'])&.to_f || 0,
+          video_codec: video_stream['codec_name'],
+          audio_codec: audio_stream && audio_stream['codec_name'],
           audio_stream_count: streams.count { |stream| stream['codec_type'] == 'audio' }
         }
       rescue JSON::ParserError, StandardError => error
