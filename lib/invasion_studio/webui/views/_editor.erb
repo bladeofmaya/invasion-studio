@@ -11,8 +11,10 @@
   <div class="flex flex-wrap gap-1.5 mb-3 items-center" id="editor-tags" data-action="click->editor#removeTag">
     <i data-lucide="tag" class="size-3.5 text-text-muted"></i>
     <span class="contents" data-editor-target="tagList"></span>
-    <input type="text" list="tag-suggestions" class="bg-transparent text-text-primary border border-transparent focus:border-input-border rounded px-2 py-0.5 text-xs w-28 focus:outline-none" placeholder="Add tag..." data-editor-target="tagInput" disabled data-action="keydown.enter->editor#addTag change->editor#addTag">
-    <datalist id="tag-suggestions" data-editor-target="tagSuggestions"></datalist>
+    <span class="relative">
+      <input type="text" autocomplete="off" class="bg-transparent text-text-primary border border-transparent focus:border-input-border rounded px-2 py-0.5 text-xs w-28 focus:outline-none" placeholder="Add tag..." data-editor-target="tagInput" disabled data-action="input->editor#tagInputChanged focus->editor#tagInputChanged keydown->editor#tagKeydown blur->editor#hideTagSuggestions">
+      <div class="absolute left-0 top-full z-40 mt-1 min-w-32 max-h-48 overflow-y-auto bg-surface border border-border rounded shadow-lg" hidden data-editor-target="tagSuggestions" data-action="mousedown->editor#pickTagSuggestion"></div>
+    </span>
   </div>
   <div class="flex flex-wrap gap-3 mb-1.5 text-sm text-text-muted items-center">
     <div class="flex gap-1 cursor-pointer text-[1.75rem] leading-none" id="editor-rating" data-editor-target="ratingContainer" data-action="click->editor#setRating">

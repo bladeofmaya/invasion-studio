@@ -315,8 +315,9 @@ class TestWebuiServer < Minitest::Test
 
     assert_includes last_response.body, 'data-editor-target="tagList"'
     assert_includes last_response.body, 'data-editor-target="tagInput"'
-    assert_includes last_response.body, 'list="tag-suggestions"'
-    assert_includes last_response.body, 'keydown.enter->editor#addTag'
+    assert_includes last_response.body, 'data-editor-target="tagSuggestions"'
+    assert_includes last_response.body, 'keydown->editor#tagKeydown'
+    assert_includes last_response.body, 'mousedown->editor#pickTagSuggestion'
     assert_includes last_response.body, 'click->editor#removeTag'
   end
 
