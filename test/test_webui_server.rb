@@ -697,6 +697,27 @@ class TestWebuiServer < Minitest::Test
     restore_video_new
   end
 
+  def test_post_api_upload_imports_multiple_files
+    mock_video_metadata
+    path1 = File.join(@folder, 'upload1.mp4')
+    path2 = File.join(@folder, 'upload2.mp4')
+    File.write(path1, 'first video')
+    File.write(path2, 'second video')
+
+    post '/api/upload', { 'files' => [
+      Rack::Test::UploadedFile.new(path1, 'video/mp4'),
+      Rack::Test::UploadedFile.new(path2, 'video/mp4')
+    ] }
+
+    assert last_response.ok?
+    data = JSON.parse(last_response.body)
+    assert_equal 2, data['imported']
+    assert File.exist?(File.join(@folder, 'clips', 'upload1.mp4'))
+    assert File.exist?(File.join(@folder, 'clips', 'upload2.mp4'))
+  ensure
+    restore_video_new
+  end
+
   def test_api_clip_handles_slash_in_clip_id
     mock_video_metadata
     file_path = File.join(@folder, 'upload.mp4')
