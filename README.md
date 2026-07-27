@@ -2,9 +2,8 @@
 
 Invasion Studio finds invasions and arena encounters in Elden Ring recordings,
 extracts them as individual clips, and provides a local WebUI for reviewing,
-organizing, trimming, and exporting them.
-
-[Watch the demo](https://www.youtube.com/watch?v=-G9ARNrhMOI)
+organizing, trimming, and exporting them. Clips cut elsewhere can be uploaded
+straight into the WebUI, so the library is not limited to extractor output.
 
 ![Invasion Studio](images/invasion-studio.png)
 
@@ -49,28 +48,63 @@ MP4 clip inside it.
 If OBS split one recording into several files, pass them together in
 chronological order. Invasions spanning two files are joined automatically.
 
+![How Invasion Studio detects and extracts encounters](images/invasion-extractor.jpg)
+
 ### 2. Start the WebUI with that folder
 
 ```bash
 invasion-studio webui ~/Videos/ER/my-invasion-project
 ```
 
-Open [http://localhost:4567](http://localhost:4567). The WebUI stores its
-project metadata alongside the clips in the selected folder.
+Open [http://localhost:4567](http://localhost:4567). All project metadata
+lives in a SQLite database (`project.db`) inside the selected folder; projects
+created by versions before 0.6.0 (`project.json`) are migrated automatically
+the first time they are opened.
 
 From the WebUI you can:
 
 - preview clips and switch audio tracks;
-- add titles, notes, ratings, and results;
-- organize clips into groups;
+- add titles, notes, ratings, results, and tags;
+- search the library and filter by tag, rating, or result;
+- upload clips;
+- organize clips into compilations and reorder them by drag & drop;
 - mark unwanted sections for removal;
-- export a group as a combined video and Kdenlive project.
+- move clips to the trash, restore them, or empty the trash for good;
+- export a compilation as a combined video and Kdenlive project.
 
 To use another port:
 
 ```bash
 invasion-studio webui --port 8080 ~/Videos/ER/my-invasion-project
 ```
+
+## Project folder layout
+
+A project is a plain folder. Everything Invasion Studio knows about it lives
+inside:
+
+```text
+my-invasion-project/
+├── clips/            clips added through the WebUI upload
+├── thumbnails/       generated preview thumbnails
+├── exports/          combined videos and Kdenlive projects
+├── .trashed/         clips moved to the trash (until the trash is emptied)
+└── project.db        SQLite database: titles, notes, ratings, tags,
+                      compilations, cut markers
+```
+
+The video files stay ordinary files — deleting `project.db` loses the metadata
+but never the clips. Video files copied into the folder by hand are picked up
+the next time the WebUI starts.
+
+### Uploading clips
+
+The **Upload** button in the WebUI accepts one or more video files
+(`.mp4`, `.mkv`, `.mov`, `.avi`, `.webm`, `.flv`, `.m4v`, `.mpeg`, `.mpg`,
+up to 4 GB each). Files are validated with ffprobe before they enter the
+library, stored under `clips/`, and get a preview thumbnail generated in the
+background. Files that fail validation are reported individually and the rest
+of the batch is imported normally.
 
 ## How detection works
 
@@ -81,8 +115,6 @@ The extractor samples the game-text area and uses OCR to find these messages:
 
 Clips include 10 seconds before the detected start and 7.5 seconds after the
 detected end by default.
-
-![How Invasion Studio detects and extracts encounters](images/invasion-extractor.jpg)
 
 ## Other commands
 
@@ -167,6 +199,10 @@ bin/test
 
 # Build and verify the gem
 bin/build-gem
+
+# Full release gate: assets, tests, gem build, install into an empty
+# GEM_HOME, CLI and WebUI smoke tests (see RELEASING.md)
+bin/release-check
 ```
 
 Generated WebUI assets under `lib/invasion_studio/webui/public/assets/` are
