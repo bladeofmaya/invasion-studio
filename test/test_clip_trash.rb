@@ -6,10 +6,10 @@ class TestClipTrash < Minitest::Test
     @source = File.join(@directory, 'fight.mp4')
     File.write(@source, 'video')
     @clip = { 'id' => 'fight', 'filename' => 'fight.mp4', 'path' => 'fight.mp4', 'deleted' => false }
-    @repository = TestSupport::FakeClipRepository.new(@directory, [@clip])
+    @storage = TestSupport::FakeStorage.new(@directory)
     @trash = InvasionStudio::ClipTrash.new(
       @directory,
-      @repository,
+      @storage,
       clock: -> { Time.at(123) },
       random_suffix: -> { 'abcd' }
     )

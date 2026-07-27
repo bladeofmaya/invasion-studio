@@ -37,31 +37,56 @@ module TestSupport
 
   FakeMetadataProbe = Data.define(:metadata)
 
-  class FakeClipRepository
-    def initialize(folder_path, clips)
+  class FakeStorage
+    def initialize(folder_path, files = {})
       @folder_path = File.expand_path(folder_path)
-      @clips = clips
+      @files = files
     end
 
-    def find(id)
-      @clips.find { |clip| clip['id'] == id }
-    end
+    def resolve(key)
+      return nil if key.nil? || key.empty?
 
-    def path_for(clip)
-      resolve(clip['path'])
-    end
-
-    def resolve(path)
-      return nil if path.nil? || path.empty?
-
-      expanded = File.expand_path(path, @folder_path)
+      expanded = File.expand_path(key, @folder_path)
       return nil unless expanded.start_with?("#{@folder_path}#{File::SEPARATOR}")
 
       expanded
     end
 
+    def exist?(key)
+      path = resolve(key)
+      path && File.exist?(path)
+    end
+
     def relative_path(path)
       path.to_s.delete_prefix("#{@folder_path}#{File::SEPARATOR}")
+    end
+
+    def move(source_key, destination_key)
+      source = resolve(source_key)
+      destination = resolve(destination_key)
+      return nil unless source && destination
+      return nil unless File.exist?(source)
+
+      FileUtils.mkdir_p(File.dirname(destination))
+      FileUtils.mv(source, destination)
+      destination_key
+    end
+
+    def store(source_path, key)
+      destination = resolve(key)
+      return nil unless destination
+
+      FileUtils.mkdir_p(File.dirname(destination))
+      FileUtils.cp(source_path, destination)
+      key
+    end
+
+    def delete(key)
+      path = resolve(key)
+      return false unless path
+
+      FileUtils.rm_f(path)
+      true
     end
   end
 end

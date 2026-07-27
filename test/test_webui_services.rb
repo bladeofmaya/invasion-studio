@@ -32,11 +32,33 @@ class TestWebuiServices < Minitest::Test
   def test_file_opener_reveals_the_file_without_a_shell
     linux_runner = TestSupport::FakeProcessRunner.new
     mac_runner = TestSupport::FakeProcessRunner.new
+    linux_opener = InvasionStudio::Webui::FileOpener.new(process_runner: linux_runner, platform: 'linux')
+    linux_opener.define_singleton_method(:executable?) { |_name| false }
 
-    assert InvasionStudio::Webui::FileOpener.new(process_runner: linux_runner, platform: 'linux').reveal('/tmp/a file.mp4')
+    assert linux_opener.reveal('/tmp/a file.mp4')
     assert InvasionStudio::Webui::FileOpener.new(process_runner: mac_runner, platform: 'darwin').reveal('/tmp/a file.mp4')
     assert_equal ['xdg-open', '/tmp'], linux_runner.commands.first[:command]
     assert_equal ['open', '-R', '/tmp/a file.mp4'], mac_runner.commands.first[:command]
+  end
+
+  def test_file_opener_uses_nautilus_folder_when_available
+    runner = TestSupport::FakeProcessRunner.new
+    opener = InvasionStudio::Webui::FileOpener.new(process_runner: runner, platform: 'linux')
+    opener.define_singleton_method(:executable?) { |name| name == 'nautilus' }
+
+    assert opener.reveal('/tmp/a file.mp4')
+    assert_equal ['nautilus', '/tmp'], runner.commands.first[:command]
+    assert_equal 1, runner.commands.length
+  end
+
+  def test_file_opener_uses_dolphin_folder_when_nautilus_missing
+    runner = TestSupport::FakeProcessRunner.new
+    opener = InvasionStudio::Webui::FileOpener.new(process_runner: runner, platform: 'linux')
+    opener.define_singleton_method(:executable?) { |name| name == 'dolphin' }
+
+    assert opener.reveal('/tmp/a file.mp4')
+    assert_equal ['dolphin', '/tmp'], runner.commands.first[:command]
+    assert_equal 1, runner.commands.length
   end
 
   def test_file_opener_opens_the_file_without_a_shell

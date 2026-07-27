@@ -113,7 +113,7 @@ Project Folder → project.db (SQLite) ← WebUI/Project ← Clip files on disk
 
 - **Responsibility**: Coordinates repositories, file discovery, trash, and finalization for a single project folder
 - **Key Methods**:
-  - `initialize(folder_path)` — creates/opens `project.db`, runs migrations, syncs clips from disk
+  - `initialize(folder_path)` — creates/opens `project.db`, runs migrations, creates a `LocalDiskStorage` instance, syncs clips from disk
   - `clips`, `all_clips`, `deleted_clips` — query clip records
   - `groups` — list groups
   - `create_group`, `rename_group`, `delete_group` — group mutations
@@ -215,7 +215,14 @@ Project Folder → project.db (SQLite) ← WebUI/Project ← Clip files on disk
   - `timeline.kdenlive` — Kdenlive 26.04+ compatible MLT XML
 - **Design**: Self-contained class with no dependencies beyond existing `Video` metadata helper
 
-#### 9. OCR Providers (`ocr/`)
+#### 9. Storage (`storage/`)
+- **Responsibility**: Abstract file storage so the app is not hardcoded to local disk
+- **Adapter** (`storage/adapter.rb`): abstract interface with `store`, `move`, `delete`, `resolve`, `exist?`, `relative_path`, and `url`
+- **LocalDiskStorage** (`storage/local_disk_storage.rb`): first backend; resolves keys under the project folder, rejects paths that escape the root, and preserves safe relative paths
+- **Future backends**: S3/MinIO-compatible object storage can implement the same adapter interface
+- **Integration**: `Project` creates a storage instance and injects it into repositories, `ClipTrash`, and `ClipFinalizer`; repositories no longer manipulate filesystem paths directly
+
+#### 10. OCR Providers (`ocr/`)
 - **Provider (Base)**: Abstract interface with `recognize(image_path)`
 - **TesseractProvider**: Default, uses RTesseract gem
 
@@ -370,6 +377,7 @@ Test suite uses Minitest with sample video files:
 - `test/test_group_repository.rb` - Group repository tests
 - `test/test_tag_repository.rb` - Tag repository tests
 - `test/test_legacy_project_importer.rb` - `project.json` → SQLite migration tests
+- `test/test_storage.rb` - Storage adapter and local disk backend tests
 - `test/test_webui_server.rb` - WebUI route tests
 
 Run tests: `rake test` (default task)
@@ -443,18 +451,10 @@ bin/invasion-studio webui ~/Videos/ER/clips
 │   └── invasion_studio/
 │       ├── [core files]
 │       ├── commands/
-│       │   ├── base.rb
-│       │   ├── concat.rb
-│       │   ├── extract.rb
-│       │   ├── export_kdenlive.rb
-│       │   └── webui.rb
-│   ├── database/
-│   │   ├── database.rb
-│   │   ├── migrations/
-│   │   ├── legacy_project_importer.rb
-│   │   ├── clip_repository.rb
-│   │   ├── group_repository.rb
-│   │   └── tag_repository.rb
+│       ├── database/
+│       ├── storage/
+│       │   ├── adapter.rb          # Storage interface
+│       │   └── local_disk_storage.rb # Local disk backend
 │       ├── kdenlive_exporter.rb
 │       ├── ocr/
 │       │   ├── provider.rb

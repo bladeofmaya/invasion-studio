@@ -24,22 +24,23 @@ module InvasionStudio
 
     attr_reader :folder_path
 
-    def initialize(folder_path, database: nil, process_runner: nil,
+    def initialize(folder_path, database: nil, storage: nil, process_runner: nil,
                    clip_repository: nil, group_repository: nil, tag_repository: nil,
                    clip_trash: nil, clip_finalizer: nil)
       @folder_path = File.expand_path(folder_path)
       @mutation_lock = Monitor.new
       @database = database || InvasionStudio::Database.migrate_to_current!(@folder_path)
-      @clip_repository = clip_repository || InvasionStudio::Database::ClipRepository.new(@database, @folder_path)
+      @storage = storage || InvasionStudio::Storage::LocalDiskStorage.new(@folder_path)
+      @clip_repository = clip_repository || InvasionStudio::Database::ClipRepository.new(@database, @storage)
       @group_repository = group_repository || InvasionStudio::Database::GroupRepository.new(
         @database, clip_repository: @clip_repository
       )
       @tag_repository = tag_repository || InvasionStudio::Database::TagRepository.new(
         @database, clip_repository: @clip_repository
       )
-      @clip_trash = clip_trash || ClipTrash.new(@folder_path, @clip_repository)
+      @clip_trash = clip_trash || ClipTrash.new(@folder_path, @storage)
       @clip_finalizer = clip_finalizer || ClipFinalizer.new(
-        @folder_path, @clip_repository, process_runner: process_runner || ProcessRunner.new
+        @folder_path, @storage, process_runner: process_runner || ProcessRunner.new
       )
 
       InvasionStudio::Database::LegacyProjectImporter.new(
