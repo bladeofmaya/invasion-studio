@@ -4,7 +4,9 @@ module InvasionStudio
   module Webui
     class PreviewRemuxer
       def initialize(folder_path, process_runner: ProcessRunner.new)
-        @preview_dir = File.join(folder_path, '.preview_tmp')
+        # Must stay in sync with Server.run! (wipe on startup) and
+        # StorageStatistics (cache size / Clear Cache in settings).
+        @preview_dir = File.join(folder_path, '.preview_cache')
         @process_runner = process_runner
       end
 
