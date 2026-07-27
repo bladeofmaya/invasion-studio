@@ -7,14 +7,18 @@ module InvasionStudio
         def self.registered(app)
           app.get '/api/clips' do
             group = params['group']
-            list = if params['all'] == 'true'
-                     project.all_clips
-                   elsif params['deleted'] == 'true'
-                     project.deleted_clips
-                   elsif group && !group.empty?
+            list = if group && !group.empty?
                      project.group_clips(group)
                    else
-                     project.clips
+                     state = params['deleted'] == 'true' ? 'deleted' : params['filter']
+                     project.search_clips(
+                       query: params['q'],
+                       tag: params['tag'],
+                       min_rating: params['rating'],
+                       result: params['result'],
+                       state: state,
+                       sort: params['sort']
+                     )
                    end
             json_response(list.map { |clip| clip_with_thumbnail_url(clip) })
           end

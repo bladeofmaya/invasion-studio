@@ -74,6 +74,11 @@ module InvasionStudio
       @clip_repository.active
     end
 
+    def search_clips(**params)
+      @search_clips ||= SearchClips.new(@database, clip_repository: @clip_repository)
+      @search_clips.call(**params)
+    end
+
     def all_clips
       @clip_repository.all
     end
@@ -195,6 +200,10 @@ module InvasionStudio
 
     def save!
       true
+    end
+
+    def tags
+      @tag_repository.all
     end
 
     def add_tag(clip_id, name)

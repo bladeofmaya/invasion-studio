@@ -8,6 +8,12 @@
     <button class="bg-transparent border border-text-muted text-text-muted px-4 py-1.5 text-xs rounded cursor-pointer ml-auto hover:border-text-primary hover:text-text-primary" id="restore-btn" data-editor-target="restoreBtn" data-action="click->editor#restoreClip" style="display:none">Restore</button>
   </div>
     <textarea class="bg-input-bg text-text-primary border border-input-border rounded p-3 text-base leading-snug resize-none mb-3 focus:outline-none focus:border-input-focus-ring" id="note-input" rows="2" data-editor-target="noteInput" placeholder="Add a note about this clip..." disabled data-action="blur->editor#debouncedSaveNote"></textarea>
+  <div class="flex flex-wrap gap-1.5 mb-3 items-center" id="editor-tags" data-action="click->editor#removeTag">
+    <i data-lucide="tag" class="size-3.5 text-text-muted"></i>
+    <span class="contents" data-editor-target="tagList"></span>
+    <input type="text" list="tag-suggestions" class="bg-transparent text-text-primary border border-transparent focus:border-input-border rounded px-2 py-0.5 text-xs w-28 focus:outline-none" placeholder="Add tag..." data-editor-target="tagInput" disabled data-action="keydown.enter->editor#addTag change->editor#addTag">
+    <datalist id="tag-suggestions" data-editor-target="tagSuggestions"></datalist>
+  </div>
   <div class="flex flex-wrap gap-3 mb-1.5 text-sm text-text-muted items-center">
     <div class="flex gap-1 cursor-pointer text-[1.75rem] leading-none" id="editor-rating" data-editor-target="ratingContainer" data-action="click->editor#setRating">
       <span class="text-star-empty transition-colors hover:text-accent-hover" data-value="1">★</span>

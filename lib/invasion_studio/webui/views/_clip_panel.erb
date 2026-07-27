@@ -21,8 +21,13 @@
       <div class="block" data-clip-list-target="sortDropdown" id="sort-dropdown">
         <select class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="sortSelect" data-action="change->clip-list#setSort" id="clip-sort">
           <option value="" selected>Default order</option>
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
           <option value="rating-desc">Rating &#8595;</option>
           <option value="rating-asc">Rating &#8593;</option>
+          <option value="title">Title</option>
+          <option value="duration-desc">Longest</option>
+          <option value="duration-asc">Shortest</option>
         </select>
       </div>
     </div>
@@ -30,6 +35,26 @@
       <input type="text" class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm w-40" id="export-filename" placeholder="combined (optional)">
       <button class="bg-primary text-primary-fg border-none px-4 py-1.5 rounded text-sm font-semibold cursor-pointer hover:bg-primary-hover" data-action="click->clip-list#exportGroup">Export</button>
     </div>
+  </div>
+  <div class="px-4 py-2 border-b border-border flex flex-wrap gap-2 items-center" data-clip-list-target="searchControls" id="search-controls">
+    <input type="search" class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm flex-1 min-w-32 focus:outline-none focus:border-input-focus-ring" id="clip-search" placeholder="Search title, note or filename..." autocomplete="off" data-clip-list-target="searchInput" data-action="input->clip-list#setSearch">
+    <select class="bg-input-bg text-text-primary border border-input-border px-2 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="tagFilter" data-action="change->clip-list#setTagFilter" id="clip-tag-filter">
+      <option value="">All tags</option>
+    </select>
+    <select class="bg-input-bg text-text-primary border border-input-border px-2 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="ratingFilter" data-action="change->clip-list#setRatingFilter" id="clip-rating-filter">
+      <option value="">Any rating</option>
+      <option value="1">&#9733; 1+</option>
+      <option value="2">&#9733; 2+</option>
+      <option value="3">&#9733; 3+</option>
+      <option value="4">&#9733; 4+</option>
+      <option value="5">&#9733; 5</option>
+    </select>
+    <select class="bg-input-bg text-text-primary border border-input-border px-2 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="resultFilter" data-action="change->clip-list#setResultFilter" id="clip-result-filter">
+      <option value="">Any result</option>
+      <option value="win">Win</option>
+      <option value="loss">Loss</option>
+      <option value="dc">DC</option>
+    </select>
   </div>
   <div class="flex-1 overflow-y-auto px-4 py-3 min-h-0" data-clip-list-target="container" id="clip-list"></div>
   <div class="flex-1 overflow-y-auto p-4 grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 content-start hidden" data-controller="group-manager" data-group-manager-target="grid" data-navigation-target="groupGrid" id="group-grid">

@@ -15,7 +15,7 @@ class TestWebuiServer < Minitest::Test
     @folder = Dir.mktmpdir
     File.write(File.join(@folder, 'clip1.mp4'), 'dummy')
     File.write(File.join(@folder, 'clip2.mp4'), 'dummy')
-    project = InvasionStudio::Project.new(@folder)
+    @project = InvasionStudio::Project.new(@folder)
     project.delete_group('Video 1')
     project.create_group('Group1')
     project.add_clip_to_group('Group1', 'clip1')
@@ -31,6 +31,10 @@ class TestWebuiServer < Minitest::Test
 
   def teardown
     FileUtils.rm_rf(@folder) if @folder
+  end
+
+  def project
+    @project
   end
 
   # ========== Page Routes ==========
@@ -206,6 +210,39 @@ class TestWebuiServer < Minitest::Test
     assert_equal 'clip1', data[0]['id']
   end
 
+  def test_get_api_clips_supports_search_params
+    get '/api/clips?q=Test'
+    assert_equal %w[clip2], JSON.parse(last_response.body).map { |c| c['id'] }
+
+    get '/api/clips?filter=unassigned'
+    assert_equal %w[clip2], JSON.parse(last_response.body).map { |c| c['id'] }
+
+    get '/api/clips?filter=assigned'
+    assert_equal %w[clip1], JSON.parse(last_response.body).map { |c| c['id'] }
+
+    get '/api/clips?rating=3&result=win'
+    assert_equal %w[clip2], JSON.parse(last_response.body).map { |c| c['id'] }
+
+    get '/api/clips?sort=rating-desc'
+    assert_equal %w[clip2 clip1], JSON.parse(last_response.body).map { |c| c['id'] }
+  end
+
+  def test_get_api_clips_supports_tag_param
+    project.add_tag('clip1', 'parry')
+
+    get '/api/clips?tag=parry'
+
+    assert_equal %w[clip1], JSON.parse(last_response.body).map { |c| c['id'] }
+  end
+
+  def test_get_api_clips_filter_deleted
+    project.delete_clip('clip1')
+
+    get '/api/clips?filter=deleted'
+
+    assert_equal %w[clip1], JSON.parse(last_response.body).map { |c| c['id'] }
+  end
+
   def test_get_api_clip_returns_single_clip
     get '/api/clip/clip1'
     assert last_response.ok?
@@ -217,6 +254,103 @@ class TestWebuiServer < Minitest::Test
     get '/api/clip/nonexistent'
     assert_equal 404, last_response.status
     assert_equal({ 'error' => 'Clip not found' }, JSON.parse(last_response.body))
+  end
+
+  def test_shell_includes_search_controls
+    get '/'
+
+    assert_includes last_response.body, 'data-clip-list-target="searchControls"'
+    assert_includes last_response.body, 'data-clip-list-target="searchInput"'
+    assert_includes last_response.body, 'data-clip-list-target="tagFilter"'
+    assert_includes last_response.body, 'data-clip-list-target="ratingFilter"'
+    assert_includes last_response.body, 'data-clip-list-target="resultFilter"'
+    assert_includes last_response.body, 'input->clip-list#setSearch'
+  end
+
+  def test_shell_includes_tag_editor
+    get '/'
+
+    assert_includes last_response.body, 'data-editor-target="tagList"'
+    assert_includes last_response.body, 'data-editor-target="tagInput"'
+    assert_includes last_response.body, 'list="tag-suggestions"'
+    assert_includes last_response.body, 'keydown.enter->editor#addTag'
+    assert_includes last_response.body, 'click->editor#removeTag'
+  end
+
+  # ========== Tag Routes ==========
+
+  def test_get_api_tags_returns_sorted_names
+    project.add_tag('clip1', 'Parry')
+    project.add_tag('clip2', 'ambush')
+
+    get '/api/tags'
+
+    assert last_response.ok?
+    assert_equal %w[ambush parry], JSON.parse(last_response.body)
+  end
+
+  def test_post_clip_tag_adds_tag_and_returns_tags
+    post '/api/clip/clip1/tags', JSON.generate({ name: 'Parry' }), 'CONTENT_TYPE' => 'application/json'
+
+    assert last_response.ok?
+    data = JSON.parse(last_response.body)
+    assert_equal true, data['success']
+    assert_equal ['parry'], data['tags']
+    assert_equal ['parry'], project.clip_tags('clip1')
+  end
+
+  def test_post_clip_tag_rejects_blank_name
+    post '/api/clip/clip1/tags', JSON.generate({ name: '   ' }), 'CONTENT_TYPE' => 'application/json'
+
+    assert_equal 400, last_response.status
+    assert_equal 'Failed to add tag', JSON.parse(last_response.body)['error']
+  end
+
+  def test_post_clip_tag_clip_not_found
+    post '/api/clip/nonexistent/tags', JSON.generate({ name: 'parry' }), 'CONTENT_TYPE' => 'application/json'
+
+    assert_equal 404, last_response.status
+    assert_equal({ 'error' => 'Clip not found' }, JSON.parse(last_response.body))
+  end
+
+  def test_delete_clip_tag_removes_tag
+    project.add_tag('clip1', 'parry')
+
+    delete '/api/clip/clip1/tags/parry'
+
+    assert last_response.ok?
+    data = JSON.parse(last_response.body)
+    assert_equal true, data['success']
+    assert_equal [], data['tags']
+    assert_equal [], project.clip_tags('clip1')
+  end
+
+  def test_delete_clip_tag_with_encoded_name
+    project.add_tag('clip1', 'no estus')
+
+    delete '/api/clip/clip1/tags/' + URI.encode_www_form_component('no estus')
+
+    assert last_response.ok?
+    assert_equal [], project.clip_tags('clip1')
+  end
+
+  def test_delete_clip_still_works_with_tag_routes_registered
+    delete '/api/clip/clip1'
+
+    assert last_response.ok?
+    assert_equal true, JSON.parse(last_response.body)['success']
+    assert project.find_clip('clip1')['deleted']
+  end
+
+  def test_api_clips_include_tags
+    project.add_tag('clip1', 'parry')
+
+    get '/api/clips?all=true'
+    clip = JSON.parse(last_response.body).find { |c| c['id'] == 'clip1' }
+    assert_equal ['parry'], clip['tags']
+
+    get '/api/clip/clip1'
+    assert_equal ['parry'], JSON.parse(last_response.body)['tags']
   end
 
   def test_open_clip_not_found_contract
