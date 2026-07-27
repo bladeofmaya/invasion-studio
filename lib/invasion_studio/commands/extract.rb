@@ -83,16 +83,25 @@ module InvasionStudio
       end
 
       def execute
+        importer = nil
+        if @options[:project] && @options[:command] != 'scan'
+          # Open the project up front: the database is the source of truth
+          # for clip numbering (trashed clips keep their number even though
+          # their file has left clips/).
+          importer = InvasionStudio::ExtractionImporter.new(@options[:project])
+          @options[:min_clip_number] = importer.highest_clip_number
+        end
+
         engine = InvasionStudio::Engine.new(video_files, @options)
         engine.run!
 
         print_scan_results(engine) if @options[:command] == 'scan'
-        record_in_project(engine) if @options[:project] && @options[:command] != 'scan'
+        record_in_project(engine, importer) if importer
       end
 
-      def record_in_project(engine)
+      def record_in_project(engine, importer)
         created = engine.clip_extraction_stage.created
-        recorded = InvasionStudio::ExtractionImporter.new(@options[:project]).record(created)
+        recorded = importer.record(created)
         return if @options[:quiet]
 
         puts "Registered #{recorded} clip(s) in #{File.join(@options[:project], 'project.db')}."

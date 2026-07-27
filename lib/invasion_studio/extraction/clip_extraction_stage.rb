@@ -22,7 +22,10 @@ module InvasionStudio
         outdir = @options[:outdir] || 'invasion_clips'
         prefix = @options[:prefix] || 'invasion'
         FileUtils.mkdir_p(outdir)
-        start_index = highest_clip_number(outdir)
+        # The folder scan is a safety floor for files the database does not
+        # know (crashed runs, hand-copied files); :min_clip_number carries
+        # the database's allocation in project mode.
+        start_index = [highest_clip_number(outdir), @options[:min_clip_number].to_i].max
         @reporter.extracting
         @reporter.extraction_start(prefix, start_index)
         errors = extract(segments, outdir, prefix, start_index)

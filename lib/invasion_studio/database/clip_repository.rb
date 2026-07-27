@@ -17,6 +17,16 @@ module InvasionStudio
         active_records.map { |record| clip_attributes(record) }
       end
 
+      # Highest sequence number used by any registered clip — including
+      # trashed clips and non-mp4 files — parsed from the stored filename
+      # (e.g. clips/clip_00021.mkv -> 21). The number allocator must never
+      # re-mint these even when the file is not in clips/ right now.
+      def highest_clip_number
+        clip_dataset.select_map(:storage_path).filter_map do |path|
+          File.basename(path.to_s)[/_(\d+)\.[^.]+\z/, 1]&.to_i
+        end.max || 0
+      end
+
       def active
         all.reject { |clip| clip['deleted'] }
       end
