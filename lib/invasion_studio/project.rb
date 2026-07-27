@@ -10,7 +10,7 @@ module InvasionStudio
       MUTATIONS = %i[
         create_group rename_group delete_group add_clip_to_group remove_clip_from_group
         reorder_group update_note update_rating update_result update_title update_cuts
-        finalize_cuts delete_clip restore_clip save!
+        finalize_cuts delete_clip restore_clip empty_trash save!
       ].freeze
 
       MUTATIONS.each do |method_name|
@@ -166,6 +166,17 @@ module InvasionStudio
       return false unless success
 
       @clip_repository.mark_deleted(clip_id, deleted_path: clip['trash_path'])
+    end
+
+    def empty_trash
+      trashed = deleted_clips
+      trashed.each do |clip|
+        @clip_trash.purge(clip)
+        @storage.delete(clip['thumbnail_path']) if clip['thumbnail_path']
+        @clip_repository.purge(clip['id'])
+      end
+      @tag_repository.delete_unused
+      trashed.length
     end
 
     def restore_clip(clip_id)

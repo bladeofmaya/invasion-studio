@@ -77,6 +77,11 @@ module InvasionStudio
             send_file(path, type: 'image/jpeg', disposition: 'inline')
           end
 
+          app.post '/api/trash/empty' do
+            purged = project.empty_trash
+            json_response(success: true, purged: purged)
+          end
+
           app.post '/api/reorder' do
             body = json_body
             success = project.reorder_group(body['group'], body['old_index'].to_i, body['new_index'].to_i)

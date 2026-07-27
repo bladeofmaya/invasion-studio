@@ -141,6 +141,16 @@ module InvasionStudio
         missing_ids.length
       end
 
+      def purge(id)
+        @database.transaction do
+          group_clips_dataset.where(clip_id: id).delete
+          cuts_dataset.where(clip_id: id).delete
+          clip_tags_dataset.where(clip_id: id).delete
+          clip_dataset.where(id: id).delete
+        end
+        true
+      end
+
       def path_for(clip)
         @storage.resolve(clip['path'])
       end
