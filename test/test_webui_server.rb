@@ -333,6 +333,69 @@ class TestWebuiServer < Minitest::Test
     assert_equal %w[ambush parry], JSON.parse(last_response.body)
   end
 
+  def test_get_api_tag_details_returns_counts
+    project.add_tag('clip1', 'parry')
+    project.add_tag('clip2', 'parry')
+    project.add_tag('clip1', 'ambush')
+
+    get '/api/tags/details'
+
+    assert last_response.ok?
+    assert_equal(
+      [
+        { 'name' => 'ambush', 'clip_count' => 1 },
+        { 'name' => 'parry', 'clip_count' => 2 }
+      ],
+      JSON.parse(last_response.body)
+    )
+  end
+
+  def test_post_api_tags_rename
+    project.add_tag('clip1', 'parry')
+
+    post '/api/tags/rename', JSON.generate({ old_name: 'parry', new_name: 'riposte' }),
+         'CONTENT_TYPE' => 'application/json'
+
+    assert last_response.ok?
+    assert_equal %w[riposte], project.tags
+    assert_equal %w[riposte], project.clip_tags('clip1')
+  end
+
+  def test_post_api_tags_rename_conflict_and_blank
+    project.add_tag('clip1', 'parry')
+    project.add_tag('clip1', 'ambush')
+
+    post '/api/tags/rename', JSON.generate({ old_name: 'parry', new_name: 'ambush' }),
+         'CONTENT_TYPE' => 'application/json'
+    assert_equal 409, last_response.status
+
+    post '/api/tags/rename', JSON.generate({ old_name: 'parry', new_name: '  ' }),
+         'CONTENT_TYPE' => 'application/json'
+    assert_equal 400, last_response.status
+  end
+
+  def test_delete_api_tag_removes_tag_everywhere
+    project.add_tag('clip1', 'parry')
+    project.add_tag('clip2', 'parry')
+
+    delete '/api/tags/parry'
+
+    assert last_response.ok?
+    assert_empty project.tags
+    assert_empty project.clip_tags('clip1')
+
+    delete '/api/tags/parry'
+    assert_equal 404, last_response.status
+  end
+
+  def test_shell_includes_settings_dialog
+    get '/'
+
+    assert_includes last_response.body, 'click->settings#open'
+    assert_includes last_response.body, 'data-settings-target="tagList"'
+    assert_includes last_response.body, 'data-category="tags"'
+  end
+
   def test_post_clip_tag_adds_tag_and_returns_tags
     post '/api/clip/clip1/tags', JSON.generate({ name: 'Parry' }), 'CONTENT_TYPE' => 'application/json'
 

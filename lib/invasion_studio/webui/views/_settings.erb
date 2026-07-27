@@ -1,0 +1,20 @@
+<div class="fixed inset-0 z-50 bg-black/60 items-center justify-center" style="display:none" data-settings-target="overlay" data-action="click->settings#backdropClose">
+  <div class="bg-surface border border-border rounded-lg w-[40rem] max-w-[90vw] shadow-lg overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-border">
+      <h3 class="m-0 text-base font-semibold text-text-primary">Settings</h3>
+      <button type="button" class="inline-flex items-center justify-center bg-transparent text-text-muted border-none p-1 rounded cursor-pointer hover:text-text-primary" data-action="click->settings#close" aria-label="Close settings">
+        <i data-lucide="x" class="size-4"></i>
+      </button>
+    </div>
+    <div class="flex h-[36rem] max-h-[80vh]">
+      <div class="w-36 shrink-0 border-r border-border p-2 flex flex-col gap-1">
+        <button type="button" class="flex items-center gap-2 px-3 py-2 rounded text-sm text-left cursor-pointer border-none bg-surface-hover text-text-primary" data-settings-target="tab" data-category="tags" data-action="click->settings#switchCategory">
+          <i data-lucide="tag" class="size-4"></i><span>Tags</span>
+        </button>
+      </div>
+      <div class="flex-1 min-w-0 overflow-y-auto p-4" data-settings-target="panel" data-category="tags">
+        <div class="flex flex-col gap-2" data-settings-target="tagList"></div>
+      </div>
+    </div>
+  </div>
+</div>

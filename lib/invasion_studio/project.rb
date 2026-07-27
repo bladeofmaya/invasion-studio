@@ -225,6 +225,18 @@ module InvasionStudio
       @tag_repository.all
     end
 
+    def tag_details
+      @tag_repository.details
+    end
+
+    def rename_tag(old_name, new_name)
+      @tag_repository.rename(old_name, new_name)
+    end
+
+    def delete_tag(name)
+      @tag_repository.delete(name)
+    end
+
     def add_tag(clip_id, name)
       @tag_repository.add_to_clip(clip_id, name)
     end
