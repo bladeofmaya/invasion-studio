@@ -37,6 +37,13 @@ module InvasionStudio
       true
     end
 
+    def purge(clip)
+      trash_path = @storage.resolve(clip['trash_path']) ||
+                   @storage.resolve(File.join('.trashed', clip['filename'].to_s))
+      FileUtils.rm_f(trash_path) if trash_path && File.exist?(trash_path)
+      true
+    end
+
     private
 
     def unique_destination(directory, filename)

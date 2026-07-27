@@ -31,6 +31,19 @@ class TestClipTrash < Minitest::Test
     refute @clip.key?('trash_path')
   end
 
+  def test_purge_removes_trashed_file
+    @trash.delete(@clip)
+    trashed = File.join(@directory, @clip['trash_path'])
+    assert File.exist?(trashed)
+
+    assert @trash.purge(@clip)
+    refute File.exist?(trashed)
+  end
+
+  def test_purge_without_trashed_file_still_succeeds
+    assert @trash.purge('id' => 'x', 'filename' => 'x.mp4')
+  end
+
   def test_delete_uses_collision_safe_destination
     trash_dir = File.join(@directory, '.trashed')
     FileUtils.mkdir_p(trash_dir)

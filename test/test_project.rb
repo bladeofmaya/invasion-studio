@@ -166,6 +166,35 @@ class TestProject < Minitest::Test
     assert_equal [], project.clips
   end
 
+  def test_empty_trash_purges_deleted_clips_files_thumbnails_and_tags
+    create_clip_file('invasion_00001.mp4')
+    create_clip_file('invasion_00002.mp4')
+    project = InvasionStudio::Project.new(@tmp_dir)
+    thumb = File.join(@tmp_dir, 'thumbnails', 'invasion_00001.jpg')
+    FileUtils.mkdir_p(File.dirname(thumb))
+    File.write(thumb, 'thumb')
+    project.clip_repository.update('invasion_00001', 'thumbnail_path' => 'thumbnails/invasion_00001.jpg')
+    project.add_tag('invasion_00001', 'solo')
+    project.delete_clip('invasion_00001')
+
+    assert_equal 1, project.empty_trash
+
+    refute File.exist?(File.join(@tmp_dir, '.trashed', 'invasion_00001.mp4'))
+    refute File.exist?(thumb)
+    assert_nil project.find_clip('invasion_00001')
+    assert_equal [], project.deleted_clips
+    assert_equal [], project.tags
+    assert_equal 1, project.clips.length
+  end
+
+  def test_empty_trash_with_nothing_deleted_is_a_noop
+    create_clip_file('invasion_00001.mp4')
+    project = InvasionStudio::Project.new(@tmp_dir)
+
+    assert_equal 0, project.empty_trash
+    assert_equal 1, project.clips.length
+  end
+
   def test_restore_clip
     create_clip_file('invasion_00001.mp4')
     project = InvasionStudio::Project.new(@tmp_dir)

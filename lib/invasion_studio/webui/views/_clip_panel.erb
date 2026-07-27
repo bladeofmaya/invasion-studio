@@ -26,9 +26,10 @@
           <option value="everything">Everything</option>
           <option value="unassigned" selected>Unassigned</option>
           <option value="assigned">Assigned</option>
-          <option value="deleted">Deleted</option>
+          <option value="deleted">Trash</option>
         </select>
       </div>
+      <button type="button" class="bg-danger text-danger-fg border-none px-3 py-1.5 rounded text-xs font-semibold cursor-pointer hover:bg-danger-hover" style="display:none" data-clip-list-target="emptyTrashBtn" data-action="click->clip-list#emptyTrash" id="empty-trash-btn">Empty Trash</button>
       <div class="block" data-clip-list-target="sortDropdown" id="sort-dropdown">
         <select class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="sortSelect" data-action="change->clip-list#setSort" id="clip-sort">
           <option value="" selected>Default order</option>

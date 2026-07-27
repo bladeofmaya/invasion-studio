@@ -256,6 +256,28 @@ class TestWebuiServer < Minitest::Test
     assert_equal({ 'error' => 'Clip not found' }, JSON.parse(last_response.body))
   end
 
+  def test_post_empty_trash_purges_deleted_clips
+    project.delete_clip('clip1')
+
+    post '/api/trash/empty'
+
+    assert last_response.ok?
+    data = JSON.parse(last_response.body)
+    assert_equal true, data['success']
+    assert_equal 1, data['purged']
+    assert_nil project.find_clip('clip1')
+    refute File.exist?(File.join(@folder, '.trashed', 'clip1.mp4'))
+    assert File.exist?(File.join(@folder, 'clip2.mp4'))
+  end
+
+  def test_shell_labels_deleted_filter_as_trash_with_empty_trash_button
+    get '/'
+
+    assert_includes last_response.body, '<option value="deleted">Trash</option>'
+    assert_includes last_response.body, 'data-clip-list-target="emptyTrashBtn"'
+    assert_includes last_response.body, 'click->clip-list#emptyTrash'
+  end
+
   def test_shell_includes_upload_progress_overlay
     get '/'
 
