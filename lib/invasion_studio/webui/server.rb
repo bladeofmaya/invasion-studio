@@ -117,6 +117,7 @@ module InvasionStudio
         def clip_with_thumbnail_url(clip)
           clip.merge(
             'groups' => project.clip_groups(clip['id']),
+            'tags' => project.clip_tags(clip['id']),
             'thumbnail_url' => thumbnail_url_for(clip)
           )
         end
@@ -128,6 +129,9 @@ module InvasionStudio
         end
       end
 
+      # Tags must register before Clips: the greedy clip routes
+      # (e.g. delete %r{/api/clip/(.+)}) would otherwise match tag paths.
+      register Routes::Tags
       register Routes::Clips
       register Routes::Groups
       register Routes::Uploads
