@@ -3,20 +3,26 @@
 module InvasionStudio
   module Extraction
     class ClipExtractionStage
+      # Clips written by the last run, as { path:, source: } hashes; source is
+      # the recording the encounter starts in.
+      attr_reader :created
+
       def initialize(options, reporter: Reporter.new(options),
                      clip_factory: ->(segment, clip_options) { Clip.new(segment, clip_options) })
         @options = options
         @reporter = reporter
         @clip_factory = clip_factory
+        @created = []
       end
 
       def run(segments)
+        @created = []
         return [] if segments.empty?
 
         outdir = @options[:outdir] || 'invasion_clips'
         prefix = @options[:prefix] || 'invasion'
         FileUtils.mkdir_p(outdir)
-        start_index = highest_clip_number(outdir, prefix)
+        start_index = highest_clip_number(outdir)
         @reporter.extracting
         @reporter.extraction_start(prefix, start_index)
         errors = extract(segments, outdir, prefix, start_index)
@@ -35,6 +41,7 @@ module InvasionStudio
             @reporter.clip_skipped(output)
           else
             clip.write(output)
+            @created << { path: output, source: segment.start_video }
             @reporter.clip_extracted(output)
           end
         rescue StandardError => error
@@ -46,8 +53,11 @@ module InvasionStudio
         errors
       end
 
-      def highest_clip_number(outdir, prefix)
-        pattern = /^#{Regexp.escape(prefix)}_(\d{5})\.mp4$/
+      # Numbering continues from the highest numbered clip regardless of its
+      # prefix, so mixed-prefix folders never produce a colliding or
+      # out-of-sequence filename.
+      def highest_clip_number(outdir)
+        pattern = /\A.+_(\d{5})\.mp4\z/
         Dir.each_child(outdir).filter_map { |entry| entry.match(pattern)&.[](1)&.to_i }.max || 0
       end
     end

@@ -33,6 +33,8 @@ require_relative 'invasion_studio/extraction/clip_extraction_stage'
 
 require_relative 'invasion_studio/clip_trash'
 require_relative 'invasion_studio/clip_importer'
+require_relative 'invasion_studio/clip_normalizer'
+require_relative 'invasion_studio/extraction_importer'
 require_relative 'invasion_studio/clip_finalizer'
 require_relative 'invasion_studio/search_clips'
 require_relative 'invasion_studio/thumbnail_generator'
@@ -75,6 +77,7 @@ require_relative 'invasion_studio/commands/extract'
 require_relative 'invasion_studio/commands/export_kdenlive'
 require_relative 'invasion_studio/commands/concat'
 require_relative 'invasion_studio/commands/webui'
+require_relative 'invasion_studio/commands/normalize'
 require_relative 'invasion_studio/cli'
 
 # WebUI

@@ -20,8 +20,9 @@ module InvasionStudio
         OptionParser.new do |opts|
           opts.banner = "Usage: invasion-studio #{@options[:command]} [OPTIONS] VIDEO_FILES..."
 
-          opts.on("-p", "--prefix PREFIX", "Prefix for output files") { |v| @options[:prefix] = v }
-          opts.on("-o", "--outdir DIRECTORY", "Output directory") { |v| @options[:outdir] = v }
+          opts.on("-p", "--prefix PREFIX", "Prefix for output files") { |v| @options[:prefix] = v; @prefix_given = true }
+          opts.on("-o", "--outdir DIRECTORY", "Output directory") { |v| @options[:outdir] = v; @outdir_given = true }
+          opts.on("--project DIRECTORY", "Extract into a project's clips/ folder and register the clips in its database") { |v| @options[:project] = v }
           opts.on("--fps RATE", Integer, "Frame extraction rate") { |v| @options[:fps] = v }
           opts.on("--no-cache", "Skip OCR cache") { @options[:no_cache] = true }
           opts.on("--ffmpeg-threads N", Integer, "ffmpeg encoding threads (default: 4)") { |v| @options[:ffmpeg_threads] = v }
@@ -54,6 +55,17 @@ module InvasionStudio
           puts "Warning: #{@argv.length - video_files.length} file(s) not found, skipping."
         end
 
+        if @options[:project]
+          # The CLI pre-fills :outdir/:prefix with defaults, so explicit use
+          # is tracked at parse time, not by key presence.
+          if @outdir_given || @prefix_given
+            raise Error, '--project cannot be combined with --outdir or --prefix'
+          end
+
+          @options[:outdir] = File.join(@options[:project], 'clips')
+          @options[:prefix] = 'clip'
+        end
+
         raise Error, '--fps must be greater than zero' unless @options.fetch(:fps, 1).to_f.positive?
         raise Error, '--ffmpeg-threads must be greater than zero' unless @options.fetch(:ffmpeg_threads, 4).to_i.positive?
         raise Error, '--ocr-workers must be greater than zero' unless @options.fetch(:ocr_workers, 4).to_i.positive?
@@ -75,6 +87,16 @@ module InvasionStudio
         engine.run!
 
         print_scan_results(engine) if @options[:command] == 'scan'
+        record_in_project(engine) if @options[:project] && @options[:command] != 'scan'
+      end
+
+      def record_in_project(engine)
+        created = engine.clip_extraction_stage.created
+        recorded = InvasionStudio::ExtractionImporter.new(@options[:project]).record(created)
+        return if @options[:quiet]
+
+        puts "Registered #{recorded} clip(s) in #{File.join(@options[:project], 'project.db')}."
+        puts "Thumbnails and metadata are generated the next time the WebUI starts." if recorded.positive?
       end
 
       def video_files

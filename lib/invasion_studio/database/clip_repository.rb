@@ -45,6 +45,7 @@ module InvasionStudio
           rating: normalize_rating(attributes['rating']),
           result: normalize_result(attributes['result']),
           source_kind: attributes.fetch('source_kind', 'uploaded'),
+          source_video: attributes['source_video'],
           original_filename: attributes.fetch('filename'),
           storage_path: attributes.fetch('path'),
           duration: attributes['duration'],
@@ -74,6 +75,8 @@ module InvasionStudio
         updates[:result] = normalize_result(attributes['result']) if attributes.key?('result')
         updates[:storage_path] = attributes['path'] if attributes.key?('path')
         updates[:thumbnail_path] = attributes['thumbnail_path'] if attributes.key?('thumbnail_path')
+        updates[:source_kind] = attributes['source_kind'] if attributes.key?('source_kind')
+        updates[:source_video] = attributes['source_video'] if attributes.key?('source_video')
         %w[duration filesize width height fps video_codec audio_codec].each do |field|
           updates[field.to_sym] = attributes[field] if attributes.key?(field)
         end
@@ -233,6 +236,7 @@ module InvasionStudio
           'rating' => record[:rating],
           'result' => record[:result],
           'source_kind' => record[:source_kind],
+          'source_video' => record[:source_video],
           'duration' => record[:duration],
           'filesize' => record[:filesize],
           'width' => record[:width],
