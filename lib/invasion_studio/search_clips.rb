@@ -94,7 +94,7 @@ module InvasionStudio
     end
 
     def assigned_clip_ids
-      @database[:group_clips].select(:clip_id)
+      @database[:compilation_clips].select(:clip_id)
     end
   end
 end

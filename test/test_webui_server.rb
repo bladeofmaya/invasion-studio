@@ -75,7 +75,7 @@ class TestWebuiServer < Minitest::Test
     get '/'
 
     assert_includes last_response.body, 'submit->group-manager#createGroup'
-    assert_match(/<button[^>]+type="submit"[^>]*>Create group<\/button>/, last_response.body)
+    assert_match(/<button[^>]+type="submit"[^>]*>Create compilation<\/button>/, last_response.body)
     assert_includes last_response.body, 'click->group-manager#cancelNewGroupForm'
   end
 

@@ -10,7 +10,7 @@
 <body class="m-0 font-sans bg-app-bg text-text-primary h-screen overflow-hidden">
   <div class="h-full grid grid-rows-[auto_1fr]" data-controller="router navigation" data-navigation-current-view-value="all">
     <%= erb :_header %>
-    <main class="grid grid-cols-2 min-h-0 overflow-hidden">
+    <main class="grid grid-cols-2 min-h-0 overflow-hidden" data-navigation-target="main">
       <%= erb :_clip_panel %>
       <%= erb :_preview_panel %>
     </main>

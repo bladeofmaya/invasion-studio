@@ -57,7 +57,7 @@ module InvasionStudio
         return false unless group
 
         @database.transaction do
-          group_clips_dataset.where(group_id: group['id']).delete
+          group_clips_dataset.where(compilation_id: group['id']).delete
           groups_dataset.where(id: group['id']).delete
           compact_positions
         end
@@ -68,11 +68,11 @@ module InvasionStudio
         group = find(group_name)
         return false unless group
         return false unless @clip_repository.exist?(clip_id)
-        return false if group_clips_dataset.where(group_id: group['id'], clip_id: clip_id).count.positive?
+        return false if group_clips_dataset.where(compilation_id: group['id'], clip_id: clip_id).count.positive?
 
-        max_position = group_clips_dataset.where(group_id: group['id']).max(:position) || 0
+        max_position = group_clips_dataset.where(compilation_id: group['id']).max(:position) || 0
         group_clips_dataset.insert(
-          group_id: group['id'],
+          compilation_id: group['id'],
           clip_id: clip_id,
           position: max_position + 1,
           created_at: current_timestamp
@@ -84,7 +84,7 @@ module InvasionStudio
         group = find(group_name)
         return false unless group
 
-        deleted = group_clips_dataset.where(group_id: group['id'], clip_id: clip_id).delete
+        deleted = group_clips_dataset.where(compilation_id: group['id'], clip_id: clip_id).delete
         return false if deleted.zero?
 
         compact_group_positions(group['id'])
@@ -95,7 +95,7 @@ module InvasionStudio
         group = find(group_name)
         return false unless group
 
-        clip_ids = group_clips_dataset.where(group_id: group['id'])
+        clip_ids = group_clips_dataset.where(compilation_id: group['id'])
                                     .order(:position, :created_at)
                                     .select_map(:clip_id)
         return false unless valid_index?(old_index, clip_ids) && valid_index?(new_index, clip_ids)
@@ -103,7 +103,7 @@ module InvasionStudio
         clip_ids.insert(new_index, clip_ids.delete_at(old_index))
         @database.transaction do
           clip_ids.each_with_index do |clip_id, position|
-            group_clips_dataset.where(group_id: group['id'], clip_id: clip_id)
+            group_clips_dataset.where(compilation_id: group['id'], clip_id: clip_id)
                               .update(position: position)
           end
           groups_dataset.where(id: group['id']).update(updated_at: current_timestamp)
@@ -115,7 +115,7 @@ module InvasionStudio
         group = find(group_name)
         return [] unless group
 
-        clip_ids = group_clips_dataset.where(group_id: group['id'])
+        clip_ids = group_clips_dataset.where(compilation_id: group['id'])
                                     .order(:position, :created_at)
                                     .select_map(:clip_id)
         clip_ids.filter_map { |id| @clip_repository.find(id) }
@@ -127,9 +127,9 @@ module InvasionStudio
       end
 
       def names_for_clip(clip_id)
-        groups_dataset.join(:group_clips, group_id: :id)
-                      .where(Sequel[:group_clips][:clip_id] => clip_id)
-                      .select_map(Sequel[:groups][:name])
+        groups_dataset.join(:compilation_clips, compilation_id: :id)
+                      .where(Sequel[:compilation_clips][:clip_id] => clip_id)
+                      .select_map(Sequel[:compilations][:name])
       end
 
       def prune(valid_ids)
@@ -143,11 +143,11 @@ module InvasionStudio
       private
 
       def groups_dataset
-        @database[:groups]
+        @database[:compilations]
       end
 
       def group_clips_dataset
-        @database[:group_clips]
+        @database[:compilation_clips]
       end
 
       def group_attributes(group)
@@ -155,7 +155,7 @@ module InvasionStudio
           'id' => group[:id],
           'name' => group[:name],
           'position' => group[:position],
-          'clip_ids' => group_clips_dataset.where(group_id: group[:id])
+          'clip_ids' => group_clips_dataset.where(compilation_id: group[:id])
                                           .order(:position, :created_at)
                                           .select_map(:clip_id),
           'created_at' => group[:created_at],
@@ -170,10 +170,10 @@ module InvasionStudio
       end
 
       def compact_group_positions(group_id)
-        group_clips_dataset.where(group_id: group_id)
+        group_clips_dataset.where(compilation_id: group_id)
                           .order(:position, :created_at)
                           .all.each_with_index do |row, index|
-          group_clips_dataset.where(group_id: group_id, clip_id: row[:clip_id])
+          group_clips_dataset.where(compilation_id: group_id, clip_id: row[:clip_id])
                             .update(position: index)
         end
       end

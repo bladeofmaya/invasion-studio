@@ -27,10 +27,13 @@ class TestDatabase < Minitest::Test
     assert_includes tables, :clips
     assert_includes tables, :tags
     assert_includes tables, :clip_tags
-    assert_includes tables, :groups
-    assert_includes tables, :group_clips
+    assert_includes tables, :compilations
+    assert_includes tables, :compilation_clips
     assert_includes tables, :cuts
     assert_includes tables, :schema_info
+    refute_includes tables, :groups
+    refute_includes tables, :group_clips
+    assert_includes db[:compilation_clips].columns, :compilation_id
   ensure
     db&.disconnect
   end

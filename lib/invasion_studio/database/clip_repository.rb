@@ -205,7 +205,7 @@ module InvasionStudio
       end
 
       def group_clips_dataset
-        @database[:group_clips]
+        @database[:compilation_clips]
       end
 
       def clip_tags_dataset

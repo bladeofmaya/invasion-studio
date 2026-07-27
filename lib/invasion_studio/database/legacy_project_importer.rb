@@ -123,7 +123,7 @@ module InvasionStudio
             next unless clip_ids.key?(clip_id)
 
             group_clips_dataset.insert(
-              group_id: group_id,
+              compilation_id: group_id,
               clip_id: clip_id,
               position: position,
               created_at: timestamp
@@ -172,11 +172,11 @@ module InvasionStudio
       end
 
       def groups_dataset
-        @database[:groups]
+        @database[:compilations]
       end
 
       def group_clips_dataset
-        @database[:group_clips]
+        @database[:compilation_clips]
       end
 
       def project_metadata_dataset
