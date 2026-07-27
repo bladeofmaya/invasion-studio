@@ -11,7 +11,9 @@ module InvasionStudio
     end
 
     def discover(folder)
-      Dir.glob(File.join(folder, '*')).select { |path| video?(path) }.sort
+      root = Dir.glob(File.join(folder, '*')).select { |path| video?(path) }
+      clips_dir = Dir.glob(File.join(folder, 'clips', '*')).select { |path| video?(path) }
+      (root + clips_dir).sort
     end
   end
 end

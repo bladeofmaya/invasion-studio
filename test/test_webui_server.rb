@@ -2,6 +2,7 @@ require 'test_helper'
 require 'rack/test'
 require 'fileutils'
 require 'json'
+require 'uri'
 
 class TestWebuiServer < Minitest::Test
   include Rack::Test::Methods
@@ -481,7 +482,7 @@ class TestWebuiServer < Minitest::Test
     fake_exporter = Object.new
     fake_exporter.define_singleton_method(:export_group) do |group, basename|
       raise 'unexpected arguments' unless group == 'Group1' && basename == 'episode'
-      ['/project/export/episode.mp4', '/project/export/episode.kdenlive']
+      ['/project/exports/episode.mp4', '/project/exports/episode.kdenlive']
     end
     original_new = InvasionStudio::ProjectExporter.method(:new)
     InvasionStudio::ProjectExporter.define_singleton_method(:new) { |*_args, **_options| fake_exporter }
@@ -491,8 +492,8 @@ class TestWebuiServer < Minitest::Test
     assert last_response.ok?
     assert_equal({
       'success' => true,
-      'spliced' => '/project/export/episode.mp4',
-      'kdenlive' => '/project/export/episode.kdenlive'
+      'spliced' => '/project/exports/episode.mp4',
+      'kdenlive' => '/project/exports/episode.kdenlive'
     }, JSON.parse(last_response.body))
   ensure
     InvasionStudio::ProjectExporter.define_singleton_method(:new, original_new) if original_new
@@ -542,5 +543,79 @@ class TestWebuiServer < Minitest::Test
     assert_equal 422, last_response.status
     data = JSON.parse(last_response.body)
     assert_equal 'Failed to finalize cuts', data['error']
+  end
+
+  # ========== Upload Routes ==========
+
+  def test_post_api_upload_creates_clip_record
+    mock_video_metadata
+    file_path = File.join(@folder, 'upload.mp4')
+    File.write(file_path, 'video bytes')
+
+    post '/api/upload', { 'files' => Rack::Test::UploadedFile.new(file_path, 'video/mp4') }
+
+    assert last_response.ok?
+    data = JSON.parse(last_response.body)
+    assert_equal 1, data['imported']
+    assert data['clips'].any? { |id| id.start_with?('clips/upload') }
+    assert File.exist?(File.join(@folder, 'clips', 'upload.mp4'))
+  ensure
+    restore_video_new
+  end
+
+  def test_api_clip_handles_slash_in_clip_id
+    mock_video_metadata
+    file_path = File.join(@folder, 'upload.mp4')
+    File.write(file_path, 'video bytes')
+
+    post '/api/upload', { 'files' => Rack::Test::UploadedFile.new(file_path, 'video/mp4') }
+    clip_id = JSON.parse(last_response.body)['clips'].first
+
+    get '/api/clip/' + URI.encode_www_form_component(clip_id)
+    assert last_response.ok?
+    clip = JSON.parse(last_response.body)
+    assert_equal clip_id, clip['id']
+
+    get '/clip/' + URI.encode_www_form_component(clip['filename'])
+    assert last_response.ok?
+    assert_equal 'video bytes', last_response.body
+  ensure
+    restore_video_new
+  end
+
+  def test_post_api_upload_rejects_unsupported_file_type
+    file_path = File.join(@folder, 'upload.txt')
+    File.write(file_path, 'not a video')
+
+    post '/api/upload', { 'files' => Rack::Test::UploadedFile.new(file_path, 'text/plain') }
+
+    assert_equal 422, last_response.status
+    data = JSON.parse(last_response.body)
+    assert data['error'].include?('Unsupported')
+  end
+
+  def test_post_api_upload_without_files_returns_zero
+    post '/api/upload', {}
+
+    assert last_response.ok?
+    data = JSON.parse(last_response.body)
+    assert_equal 0, data['imported']
+  end
+
+  private
+
+  def mock_video_metadata
+    @original_video_new = InvasionStudio::Video.method(:new)
+    InvasionStudio::Video.define_singleton_method(:new) do |path|
+      obj = Object.new
+      def obj.metadata
+        { duration: 10.0, width: 1920, height: 1080, fps: 30, video_codec: 'h264', audio_codec: 'aac' }
+      end
+      obj
+    end
+  end
+
+  def restore_video_new
+    InvasionStudio::Video.define_singleton_method(:new, @original_video_new) if @original_video_new
   end
 end

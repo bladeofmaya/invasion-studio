@@ -22,7 +22,7 @@ module InvasionStudio
 
     prepend MutationLock
 
-    attr_reader :folder_path
+    attr_reader :folder_path, :storage, :clip_repository
 
     def initialize(folder_path, database: nil, storage: nil, process_runner: nil,
                    clip_repository: nil, group_repository: nil, tag_repository: nil,
@@ -224,12 +224,23 @@ module InvasionStudio
     end
 
     def discover_new_clips
-      known_ids = @clip_repository.all.map { |clip| clip['id'] }
-      known_filenames = @clip_repository.all.map { |clip| clip['filename'] }
+      clips = @clip_repository.all
+      known_paths = clips.map { |clip| clip['path'] }
+      known_ids = clips.map { |clip| clip['id'] }
+      clips_by_filename = clips.group_by { |clip| clip['filename'] }
 
       MediaFiles.discover(@folder_path).each do |path|
+        relative = @clip_repository.relative_path(path)
+        next if known_paths.include?(relative)
+
         filename = File.basename(path)
-        next if known_filenames.include?(filename)
+        existing = Array(clips_by_filename[filename]).find { |clip| clip['path'] != relative }
+
+        if existing
+          @clip_repository.update(existing['id'], 'path' => relative)
+          known_paths << relative
+          next
+        end
 
         base_id = File.basename(filename, '.*')
         clip_id = known_ids.include?(base_id) ? "#{base_id}-#{SecureRandom.uuid}" : base_id
@@ -238,7 +249,7 @@ module InvasionStudio
         @clip_repository.create(
           'id' => clip_id,
           'filename' => filename,
-          'path' => @clip_repository.relative_path(path),
+          'path' => relative,
           'title' => nil,
           'note' => '',
           'rating' => 0,

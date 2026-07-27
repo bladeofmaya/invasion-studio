@@ -1,7 +1,15 @@
 <div class="flex flex-col min-h-0 overflow-hidden bg-app-bg" id="clip-panel" data-controller="clip-list" data-clip-list-view-value="all" data-clip-list-filter-value="unassigned" data-clip-list-sort-value="" data-clip-list-group-value="" data-clip-list-selected-clip-id-value="">
   <div class="px-4 py-3 border-b border-border flex justify-between items-center">
     <h2 class="m-0 text-base text-text-muted" data-clip-list-target="panelTitle">All Clips</h2>
-    <div class="flex gap-2 items-center" id="list-controls">
+    <div class="flex gap-2 items-center">
+      <div class="inline-flex items-center gap-2" data-controller="upload" data-clip-list-target="uploadButton">
+        <button type="button" class="inline-flex items-center gap-1.5 bg-primary text-primary-fg border-none px-3 py-1.5 rounded text-xs font-semibold cursor-pointer hover:bg-primary-hover" data-action="click->upload#trigger">
+          <i data-lucide="upload" class="size-3.5"></i>
+          <span>Upload</span>
+        </button>
+        <input type="file" multiple accept="video/*" name="files" class="hidden" data-upload-target="input" data-action="change->upload#selected">
+        <span class="hidden text-xs text-text-muted" data-upload-target="hint"></span>
+      </div>
       <div class="block" data-clip-list-target="filterDropdown" id="filter-dropdown">
         <select class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="filterSelect" data-action="change->clip-list#setFilter" id="clip-filter">
           <option value="everything">Everything</option>

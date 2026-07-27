@@ -10,7 +10,7 @@ module InvasionStudio
       clip_paths = @project.group_clip_paths(group_name)
       raise Error, "No clips in group '#{group_name}'" if clip_paths.empty?
 
-      output_dir = File.join(@project.folder_path, 'export')
+      output_dir = File.join(@project.folder_path, 'exports')
       FileUtils.mkdir_p(output_dir)
 
       output_basename = sanitize_basename(output_basename || group_name)

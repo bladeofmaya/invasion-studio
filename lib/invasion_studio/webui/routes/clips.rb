@@ -19,12 +19,9 @@ module InvasionStudio
             json_response(list.map { |clip| clip.merge('groups' => project.clip_groups(clip['id'])) })
           end
 
-          app.get '/api/clip/:id' do
-            json_response(find_clip!(params['id']))
-          end
-
-          app.post '/api/clip/:id/open' do
-            clip = find_clip!(params['id'])
+          app.post %r{/api/clip/(.+)/open} do
+            clip_id = params['captures'][0]
+            clip = find_clip!(clip_id)
             path = project.resolve_clip_path(clip)
             halt 400, json_response(error: 'File not found') unless path && File.exist?(path)
 
@@ -32,8 +29,9 @@ module InvasionStudio
             json_response(success: true, path: path)
           end
 
-          app.post '/api/clip/:id/reveal' do
-            clip = find_clip!(params['id'])
+          app.post %r{/api/clip/(.+)/reveal} do
+            clip_id = params['captures'][0]
+            clip = find_clip!(clip_id)
             path = project.resolve_clip_path(clip)
             halt 400, json_response(error: 'File not found') unless path && File.exist?(path)
 
@@ -41,10 +39,27 @@ module InvasionStudio
             json_response(success: true, path: path)
           end
 
-          app.delete '/api/clip/:id' do
-            clip = find_clip!(params['id'])
-            clip['deleted'] ? project.restore_clip(params['id']) : project.delete_clip(params['id'])
+          app.post %r{/api/clip/(.+)/finalize} do
+            clip_id = params['captures'][0]
+            find_clip!(clip_id)
+            if project.finalize_cuts(clip_id)
+              json_response(success: true)
+            else
+              status 422
+              json_response(error: 'Failed to finalize cuts')
+            end
+          end
+
+          app.delete %r{/api/clip/(.+)} do
+            clip_id = params['captures'][0]
+            clip = find_clip!(clip_id)
+            clip['deleted'] ? project.restore_clip(clip_id) : project.delete_clip(clip_id)
             json_response(success: true)
+          end
+
+          app.get %r{/api/clip/(.+)} do
+            clip_id = params['captures'][0]
+            json_response(find_clip!(clip_id))
           end
 
           app.post '/api/reorder' do
@@ -64,16 +79,6 @@ module InvasionStudio
               body = json_body
               success = project.public_send(method_name, body['id'], coercion.call(body[field]))
               mutation_response(success, failure: failure)
-            end
-          end
-
-          app.post '/api/clip/:id/finalize' do
-            find_clip!(params['id'])
-            if project.finalize_cuts(params['id'])
-              json_response(success: true)
-            else
-              status 422
-              json_response(error: 'Failed to finalize cuts')
             end
           end
 

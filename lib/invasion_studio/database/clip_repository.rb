@@ -72,6 +72,7 @@ module InvasionStudio
         updates[:note] = attributes['note'].to_s if attributes.key?('note')
         updates[:rating] = normalize_rating(attributes['rating']) if attributes.key?('rating')
         updates[:result] = normalize_result(attributes['result']) if attributes.key?('result')
+        updates[:storage_path] = attributes['path'] if attributes.key?('path')
         updates[:updated_at] = current_timestamp
 
         return false if updates.empty?

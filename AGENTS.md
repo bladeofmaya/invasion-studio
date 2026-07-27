@@ -39,6 +39,7 @@ lib/invasion_studio/
 ├── frame.rb                 # Data structure for frame metadata
 ├── scanner.rb               # Pattern matching for invasion detection
 ├── clip.rb                  # Video clip generation (ffmpeg)
+├── clip_importer.rb         # Stores uploaded files and creates clip records
 ├── clip_finalizer.rb        # Applies saved cuts to source clip
 ├── clip_trash.rb            # Soft-deletes/restores clips
 ├── time_helper.rb           # Time manipulation utilities
@@ -108,6 +109,7 @@ Project Folder → project.db (SQLite) ← WebUI/Project ← Clip files on disk
   - `GroupRepository` — group CRUD, membership, reordering
   - `TagRepository` — tag creation/lookup, clip tagging, unused cleanup
 - **Design**: Repositories are plain Ruby objects that depend only on a Sequel database instance and a folder path. No Sinatra/Rails dependency.
+- **Project folder layout**: `clips/` for clip files, `exports/` for generated export files. Legacy clips in the project root are still discovered for backward compatibility.
 
 #### 2. Project (`project.rb`)
 
@@ -221,6 +223,7 @@ Project Folder → project.db (SQLite) ← WebUI/Project ← Clip files on disk
 - **LocalDiskStorage** (`storage/local_disk_storage.rb`): first backend; resolves keys under the project folder, rejects paths that escape the root, and preserves safe relative paths
 - **Future backends**: S3/MinIO-compatible object storage can implement the same adapter interface
 - **Integration**: `Project` creates a storage instance and injects it into repositories, `ClipTrash`, and `ClipFinalizer`; repositories no longer manipulate filesystem paths directly
+- **Project folder layout**: clips live in `clips/`, generated exports in `exports/`; legacy clips in the project root are still discovered for backward compatibility
 
 #### 10. OCR Providers (`ocr/`)
 - **Provider (Base)**: Abstract interface with `recognize(image_path)`
@@ -252,6 +255,7 @@ The WebUI is a single-page application built with **Sinatra** and **Stimulus.js*
   - `DELETE /api/groups/:name` — Deletes a group
   - `POST /api/group/:name/add` — Adds a clip to a group
   - `POST /api/group/:name/remove` — Removes a clip from a group
+  - `POST /api/upload` — Uploads one or more video files and creates clip records
   - `POST /api/export` — Exports a group to spliced video + Kdenlive project
   - `GET /clip/:filename` — Serves a clip video (with optional audio track selection)
 - **Design**: Stateless API with a `Project` instance holding data; all mutations return JSON
@@ -378,6 +382,7 @@ Test suite uses Minitest with sample video files:
 - `test/test_tag_repository.rb` - Tag repository tests
 - `test/test_legacy_project_importer.rb` - `project.json` → SQLite migration tests
 - `test/test_storage.rb` - Storage adapter and local disk backend tests
+- `test/test_clip_importer.rb` - Upload/import logic tests
 - `test/test_webui_server.rb` - WebUI route tests
 
 Run tests: `rake test` (default task)
@@ -464,6 +469,7 @@ bin/invasion-studio webui ~/Videos/ER/clips
 │           ├── routes/
 │           │   ├── clips.rb
 │           │   ├── groups.rb
+│           │   ├── uploads.rb
 │           │   ├── exports.rb
 │           │   └── pages.rb
 │           ├── views/
@@ -482,7 +488,8 @@ bin/invasion-studio webui ~/Videos/ER/clips
 │                   ├── editor_controller.js
 │                   ├── clip_list_controller.js
 │                   ├── navigation_controller.js
-│                   └── group_manager_controller.js
+│                   ├── group_manager_controller.js
+│                   └── upload_controller.js
 ├── test/
 │   ├── test_helper.rb
 │   ├── test_*.rb             # Test files
