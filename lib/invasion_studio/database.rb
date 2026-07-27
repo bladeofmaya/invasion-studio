@@ -10,9 +10,12 @@ module InvasionStudio
     MIGRATIONS_PATH = File.expand_path('database/migrations', __dir__)
 
     def self.connect(path)
-      Sequel.connect("sqlite://#{path}",
-                     timeout: 5000,
-                     connection_validation_timeout: 30)
+      db = Sequel.connect("sqlite://#{path}",
+                          timeout: 5000,
+                          connection_validation_timeout: 30)
+      db.execute('PRAGMA journal_mode = WAL')
+      db.execute('PRAGMA busy_timeout = 5000')
+      db
     end
 
     def self.migrate(database)

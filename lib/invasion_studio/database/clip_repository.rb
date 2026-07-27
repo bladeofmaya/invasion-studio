@@ -73,6 +73,7 @@ module InvasionStudio
         updates[:rating] = normalize_rating(attributes['rating']) if attributes.key?('rating')
         updates[:result] = normalize_result(attributes['result']) if attributes.key?('result')
         updates[:storage_path] = attributes['path'] if attributes.key?('path')
+        updates[:thumbnail_path] = attributes['thumbnail_path'] if attributes.key?('thumbnail_path')
         updates[:updated_at] = current_timestamp
 
         return false if updates.empty?

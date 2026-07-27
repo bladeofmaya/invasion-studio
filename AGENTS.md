@@ -42,6 +42,7 @@ lib/invasion_studio/
 ├── clip_importer.rb         # Stores uploaded files and creates clip records
 ├── clip_finalizer.rb        # Applies saved cuts to source clip
 ├── clip_trash.rb            # Soft-deletes/restores clips
+├── thumbnail_generator.rb   # Extracts preview thumbnails from clips
 ├── time_helper.rb           # Time manipulation utilities
 ├── version.rb               # Version constant
 └── ocr/
@@ -225,7 +226,14 @@ Project Folder → project.db (SQLite) ← WebUI/Project ← Clip files on disk
 - **Integration**: `Project` creates a storage instance and injects it into repositories, `ClipTrash`, and `ClipFinalizer`; repositories no longer manipulate filesystem paths directly
 - **Project folder layout**: clips live in `clips/`, generated exports in `exports/`; legacy clips in the project root are still discovered for backward compatibility
 
-#### 10. OCR Providers (`ocr/`)
+#### 10. Thumbnail Generation
+- **`ThumbnailGenerator`** (`thumbnail_generator.rb`) — extracts a single JPEG frame near the 25% mark of a clip using ffmpeg, scales it to 480px width, and stores it under `thumbnails/`
+- **`Workers::ThumbnailJob`** (`workers/thumbnail_job.rb`) — SuckerPunch background job that instantiates the project and runs the generator
+- **Upload flow**: `ClipImporter` enqueues a `ThumbnailJob` after storing each uploaded clip
+- **Startup catch-up**: `Project#enqueue_missing_thumbnails` is called on server start to queue thumbnails for any clips that lack them
+- **UI**: the clip list renders `thumbnail_url` as an `<img>` when available, otherwise a placeholder
+
+#### 11. OCR Providers (`ocr/`)
 - **Provider (Base)**: Abstract interface with `recognize(image_path)`
 - **TesseractProvider**: Default, uses RTesseract gem
 
@@ -255,7 +263,8 @@ The WebUI is a single-page application built with **Sinatra** and **Stimulus.js*
   - `DELETE /api/groups/:name` — Deletes a group
   - `POST /api/group/:name/add` — Adds a clip to a group
   - `POST /api/group/:name/remove` — Removes a clip from a group
-  - `POST /api/upload` — Uploads one or more video files and creates clip records
+  - `POST /api/upload` — Uploads one or more video files and creates clip records; enqueues a thumbnail job per clip
+  - `GET /thumbnail/:id` — Serves a clip's thumbnail JPEG
   - `POST /api/export` — Exports a group to spliced video + Kdenlive project
   - `GET /clip/:filename` — Serves a clip video (with optional audio track selection)
 - **Design**: Stateless API with a `Project` instance holding data; all mutations return JSON
@@ -350,6 +359,7 @@ All controllers extend `ApplicationController` (base class with shared utilities
 - `tty-progressbar` (~> 0.18): Extraction and OCR progress display
 - `sequel` (~> 5.0): Database access and migrations
 - `sqlite3` (~> 2.0): SQLite database driver
+- `sucker_punch` (~> 3.0): In-process background job processing
 
 ### Development Dependencies
 - `minitest` (~> 6.0): Testing framework
@@ -383,6 +393,8 @@ Test suite uses Minitest with sample video files:
 - `test/test_legacy_project_importer.rb` - `project.json` → SQLite migration tests
 - `test/test_storage.rb` - Storage adapter and local disk backend tests
 - `test/test_clip_importer.rb` - Upload/import logic tests
+- `test/test_thumbnail_generator.rb` - Thumbnail generator tests
+- `test/test_thumbnail_worker.rb` - Sidekiq thumbnail worker tests
 - `test/test_webui_server.rb` - WebUI route tests
 
 Run tests: `rake test` (default task)
@@ -417,6 +429,17 @@ bin/invasion-studio concat -o ~/Videos/ER/final.mp4 ~/Videos/ER/clips
 # Launch the web UI for a project folder
 bin/invasion-studio webui ~/Videos/ER/clips
 ```
+
+### Running background jobs
+
+The WebUI uses **SuckerPunch** for asynchronous work (e.g., thumbnail generation). Jobs run inside the Puma process using an in-memory thread pool — no Redis or separate worker process is required.
+
+```bash
+# Single command starts everything (web server + background jobs)
+bin/invasion-studio webui ~/Videos/ER/clips
+```
+
+On startup, the server automatically enqueues thumbnail generation for any clips that are missing a thumbnail.
 
 ### CLI Options
 
@@ -460,6 +483,8 @@ bin/invasion-studio webui ~/Videos/ER/clips
 │       ├── storage/
 │       │   ├── adapter.rb          # Storage interface
 │       │   └── local_disk_storage.rb # Local disk backend
+│       ├── workers/
+│       │   └── thumbnail_job.rb     # SuckerPunch background job for thumbnail generation
 │       ├── kdenlive_exporter.rb
 │       ├── ocr/
 │       │   ├── provider.rb

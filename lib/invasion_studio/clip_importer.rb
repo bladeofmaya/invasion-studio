@@ -5,11 +5,13 @@ module InvasionStudio
     SUPPORTED_EXTENSIONS = %w[.mp4 .mkv .mov .avi .webm .flv .m4v .mpeg .mpg].freeze
 
     def initialize(project, storage: nil, repository: nil,
-                   metadata_probe: ->(path) { Video.new(path).metadata })
+                   metadata_probe: ->(path) { Video.new(path).metadata },
+                   thumbnail_job: InvasionStudio::Workers::ThumbnailJob)
       @project = project
       @storage = storage || project.storage
       @repository = repository || project.clip_repository
       @metadata_probe = metadata_probe
+      @thumbnail_job = thumbnail_job
     end
 
     def import_upload(tempfile:, filename:)
@@ -24,7 +26,7 @@ module InvasionStudio
       metadata = probe_metadata(path)
       clip_id = stored_key.sub(/\.[^.]*\z/, '')
 
-      @repository.create(
+      clip = @repository.create(
         'id' => clip_id,
         'filename' => filename,
         'path' => stored_key,
@@ -37,9 +39,16 @@ module InvasionStudio
         'audio_codec' => metadata[:audio_codec],
         'filesize' => File.size(path)
       )
+
+      enqueue_thumbnail(clip['id'])
+      clip
     end
 
     private
+
+    def enqueue_thumbnail(clip_id)
+      @thumbnail_job.perform_async(clip_id, @project.folder_path)
+    end
 
     def unique_key(filename)
       ext = File.extname(filename)
