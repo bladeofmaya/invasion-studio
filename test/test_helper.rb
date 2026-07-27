@@ -13,5 +13,16 @@ end
 require "invasion_studio"
 require "pry"
 
+# Disable SuckerPunch background jobs during tests to avoid async SQLite conflicts
+module SuckerPunch
+  module Job
+    module ClassMethods
+      def perform_async(*)
+        # no-op in test environment
+      end
+    end
+  end
+end
+
 require "minitest/autorun"
 require_relative "support/fakes"

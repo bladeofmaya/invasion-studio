@@ -2,6 +2,7 @@
 
 require 'sinatra/base'
 require 'json'
+require 'uri'
 
 module InvasionStudio
   module Webui
@@ -34,10 +35,13 @@ module InvasionStudio
         FileUtils.rm_rf(preview_cache) if File.directory?(preview_cache)
 
         set :folder_path, folder_path
-        set :project, InvasionStudio::Project.new(folder_path)
+        project = InvasionStudio::Project.new(folder_path)
+        set :project, project
         set :quiet, quiet
         set :file_opener, FileOpener.new
         set :preview_remuxer, PreviewRemuxer.new(folder_path)
+
+        project.enqueue_missing_thumbnails
 
         puts "Starting WebUI on http://localhost:#{port}"
         puts "Folder: #{folder_path}"
@@ -108,6 +112,19 @@ module InvasionStudio
           else
             project.resolve_clip_path(clip)
           end
+        end
+
+        def clip_with_thumbnail_url(clip)
+          clip.merge(
+            'groups' => project.clip_groups(clip['id']),
+            'thumbnail_url' => thumbnail_url_for(clip)
+          )
+        end
+
+        def thumbnail_url_for(clip)
+          return nil unless clip['thumbnail_path']
+
+          '/thumbnail/' + URI.encode_www_form_component(clip['id'])
         end
       end
 

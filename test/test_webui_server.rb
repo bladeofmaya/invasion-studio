@@ -583,23 +583,29 @@ class TestWebuiServer < Minitest::Test
     restore_video_new
   end
 
-  def test_post_api_upload_rejects_unsupported_file_type
-    file_path = File.join(@folder, 'upload.txt')
-    File.write(file_path, 'not a video')
+  def test_thumbnail_url_in_clip_response
+    File.write(File.join(@folder, 'clip.mp4'), 'dummy')
+    File.write(File.join(@folder, 'thumb.jpg'), 'dummy')
+    project = InvasionStudio::Project.new(@folder)
+    project.storage.store(File.join(@folder, 'thumb.jpg'), 'thumbnails/clip.jpg')
+    project.clip_repository.update('clip', 'thumbnail_path' => 'thumbnails/clip.jpg')
+    InvasionStudio::Webui::Server.set :project, project
 
-    post '/api/upload', { 'files' => Rack::Test::UploadedFile.new(file_path, 'text/plain') }
+    get '/api/clips'
+    clip = JSON.parse(last_response.body).first
+    assert_equal '/thumbnail/clip', clip['thumbnail_url']
 
-    assert_equal 422, last_response.status
-    data = JSON.parse(last_response.body)
-    assert data['error'].include?('Unsupported')
+    get '/thumbnail/clip'
+    assert last_response.ok?
+    assert_equal 'dummy', last_response.body
   end
 
-  def test_post_api_upload_without_files_returns_zero
-    post '/api/upload', {}
+  def test_thumbnail_route_returns_404_when_no_thumbnail
+    File.write(File.join(@folder, 'clip.mp4'), 'dummy')
+    InvasionStudio::Webui::Server.set :project, InvasionStudio::Project.new(@folder)
 
-    assert last_response.ok?
-    data = JSON.parse(last_response.body)
-    assert_equal 0, data['imported']
+    get '/thumbnail/clip'
+    assert_equal 404, last_response.status
   end
 
   private

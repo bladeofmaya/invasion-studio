@@ -16,7 +16,7 @@ module InvasionStudio
                    else
                      project.clips
                    end
-            json_response(list.map { |clip| clip.merge('groups' => project.clip_groups(clip['id'])) })
+            json_response(list.map { |clip| clip_with_thumbnail_url(clip) })
           end
 
           app.post %r{/api/clip/(.+)/open} do
@@ -59,7 +59,18 @@ module InvasionStudio
 
           app.get %r{/api/clip/(.+)} do
             clip_id = params['captures'][0]
-            json_response(find_clip!(clip_id))
+            json_response(clip_with_thumbnail_url(find_clip!(clip_id)))
+          end
+
+          app.get %r{/thumbnail/(.+)} do
+            clip_id = params['captures'][0]
+            clip = find_clip!(clip_id)
+            halt 404, json_response(error: 'No thumbnail') unless clip['thumbnail_path']
+
+            path = project.storage.resolve(clip['thumbnail_path'])
+            halt 404 unless path && File.exist?(path)
+
+            send_file(path, type: 'image/jpeg', disposition: 'inline')
           end
 
           app.post '/api/reorder' do

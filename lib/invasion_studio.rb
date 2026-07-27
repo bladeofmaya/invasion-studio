@@ -34,6 +34,11 @@ require_relative 'invasion_studio/extraction/clip_extraction_stage'
 require_relative 'invasion_studio/clip_trash'
 require_relative 'invasion_studio/clip_importer'
 require_relative 'invasion_studio/clip_finalizer'
+require_relative 'invasion_studio/thumbnail_generator'
+require_relative 'invasion_studio/workers/thumbnail_job'
+require_relative 'invasion_studio/project'
+require_relative 'invasion_studio/project_exporter'
+
 require_relative 'invasion_studio/kdenlive/build_context'
 require_relative 'invasion_studio/kdenlive/profile'
 require_relative 'invasion_studio/kdenlive/media_chains'
@@ -82,9 +87,6 @@ require_relative 'invasion_studio/webui/routes/exports'
 require_relative 'invasion_studio/webui/routes/pages'
 require_relative 'invasion_studio/webui/server'
 
-# Project and Exporters
-require_relative 'invasion_studio/project'
-require_relative 'invasion_studio/project_exporter'
 require_relative 'invasion_studio/kdenlive_exporter'
 
 module InvasionStudio

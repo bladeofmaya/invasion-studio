@@ -51,6 +51,14 @@ module InvasionStudio
       ensure_default_group!
     end
 
+    def enqueue_missing_thumbnails
+      all_clips.each do |clip|
+        next if clip['thumbnail_path']
+
+        InvasionStudio::Workers::ThumbnailJob.perform_async(clip['id'], @folder_path)
+      end
+    end
+
     def data
       {
         'schema_version' => DB_SCHEMA_VERSION,
