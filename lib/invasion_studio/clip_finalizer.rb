@@ -4,11 +4,11 @@ require 'securerandom'
 
 module InvasionStudio
   class ClipFinalizer
-    def initialize(folder_path, catalog, process_runner: ProcessRunner.new,
+    def initialize(folder_path, storage, process_runner: ProcessRunner.new,
                    metadata_probe: ->(path) { Video.new(path).metadata },
                    clock: -> { Time.now }, random_suffix: -> { SecureRandom.hex(4) })
       @folder_path = File.expand_path(folder_path)
-      @catalog = catalog
+      @storage = storage
       @process_runner = process_runner
       @metadata_probe = metadata_probe
       @clock = clock
@@ -19,7 +19,7 @@ module InvasionStudio
       plan = CutPlan.build(clip['cuts'])
       return false unless plan && plan.cuts.any?
 
-      source_path = @catalog.path_for(clip)
+      source_path = @storage.resolve(clip['path'])
       return false unless source_path && File.exist?(source_path)
 
       metadata = @metadata_probe.call(source_path)

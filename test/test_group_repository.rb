@@ -6,7 +6,8 @@ class TestGroupRepository < Minitest::Test
   def setup
     @tmp_dir = Dir.mktmpdir
     @db = InvasionStudio::Database.migrate_to_current!(@tmp_dir)
-    @clip_repository = InvasionStudio::Database::ClipRepository.new(@db, @tmp_dir)
+    @storage = InvasionStudio::Storage::LocalDiskStorage.new(@tmp_dir)
+    @clip_repository = InvasionStudio::Database::ClipRepository.new(@db, @storage)
     @repository = InvasionStudio::Database::GroupRepository.new(@db, clip_repository: @clip_repository)
   end
 

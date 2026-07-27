@@ -8,9 +8,9 @@ module InvasionStudio
       MAX_RATING = 5
       MIN_RATING = 0
 
-      def initialize(database, folder_path)
+      def initialize(database, storage)
         @database = database
-        @folder_path = File.expand_path(folder_path)
+        @storage = storage
       end
 
       def all
@@ -122,9 +122,9 @@ module InvasionStudio
       def remove_missing
         missing_ids = active_records.filter_map do |record|
           record_id = record[:id]
-          path = resolve(record[:storage_path])
-          deleted_path = record[:deleted_path] ? resolve(record[:deleted_path]) : nil
-          record_id unless (path && File.exist?(path)) || (deleted_path && File.exist?(deleted_path))
+          path_exists = @storage.exist?(record[:storage_path])
+          deleted_path_exists = record[:deleted_path] && @storage.exist?(record[:deleted_path])
+          record_id unless path_exists || deleted_path_exists
         end
 
         return 0 if missing_ids.empty?
@@ -140,26 +140,15 @@ module InvasionStudio
       end
 
       def path_for(clip)
-        resolve(clip['path'])
+        @storage.resolve(clip['path'])
       end
 
       def resolve(path)
-        return nil if path.nil? || path.empty?
-
-        expanded = File.expand_path(path, @folder_path)
-        project_root = File.realpath(@folder_path)
-        candidate = canonical_candidate(expanded)
-        return nil unless candidate.start_with?("#{project_root}#{File::SEPARATOR}")
-
-        candidate
-      rescue Errno::ENOENT, Errno::EACCES
-        nil
+        @storage.resolve(path)
       end
 
       def relative_path(path)
-        return path if path.nil? || path.empty? || !File.absolute_path(path).eql?(path)
-
-        path.delete_prefix("#{@folder_path}#{File::SEPARATOR}")
+        @storage.relative_path(path)
       end
 
       def tags_for(id)
@@ -260,14 +249,6 @@ module InvasionStudio
         return DEFAULT_RESULT if result.nil?
 
         VALID_RESULTS.include?(result.to_s) ? result.to_s : DEFAULT_RESULT
-      end
-
-      def canonical_candidate(expanded)
-        return File.realpath(expanded) if File.exist?(expanded)
-
-        parent = File.dirname(expanded)
-        canonical_parent = File.exist?(parent) ? File.realpath(parent) : File.expand_path(parent)
-        File.join(canonical_parent, File.basename(expanded))
       end
 
       def current_timestamp

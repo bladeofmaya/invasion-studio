@@ -6,7 +6,8 @@ class TestClipRepository < Minitest::Test
   def setup
     @tmp_dir = Dir.mktmpdir
     @db = InvasionStudio::Database.migrate_to_current!(@tmp_dir)
-    @repository = InvasionStudio::Database::ClipRepository.new(@db, @tmp_dir)
+    @storage = InvasionStudio::Storage::LocalDiskStorage.new(@tmp_dir)
+    @repository = InvasionStudio::Database::ClipRepository.new(@db, @storage)
   end
 
   def teardown

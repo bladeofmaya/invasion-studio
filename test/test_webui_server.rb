@@ -85,6 +85,12 @@ class TestWebuiServer < Minitest::Test
     assert_includes last_response.body, '>Result...</option>'
     assert_includes last_response.body, 'Reveal File'
     assert_includes last_response.body, 'data-lucide="folder-open"'
+
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/video_player_controller.js', __dir__
+    ))
+    assert_includes controller, "revealFile"
+    assert_match(/\/api\/clip\/.*\+\s*['\"]\/reveal['\"]/, controller)
   end
 
   def test_lucide_is_a_bundled_dependency

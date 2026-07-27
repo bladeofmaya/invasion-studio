@@ -23,7 +23,7 @@ class TestClipFinalizer < Minitest::Test
       'id' => 'fight', 'filename' => 'fight.mp4', 'path' => 'fight.mp4',
       'cuts' => [{ 'start' => 2.0, 'end' => 4.0 }]
     }
-    @repository = TestSupport::FakeClipRepository.new(@directory, [@clip])
+    @storage = TestSupport::FakeStorage.new(@directory)
   end
 
   def teardown
@@ -93,7 +93,7 @@ class TestClipFinalizer < Minitest::Test
     resolved_metadata = metadata == :duration ? { duration: duration } : metadata
     InvasionStudio::ClipFinalizer.new(
       @directory,
-      @repository,
+      @storage,
       process_runner: process_runner,
       metadata_probe: ->(_path) { resolved_metadata },
       clock: -> { Time.at(123) },

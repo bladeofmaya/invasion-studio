@@ -6,6 +6,7 @@ class TestLegacyProjectImporter < Minitest::Test
   def setup
     @tmp_dir = Dir.mktmpdir
     @db = InvasionStudio::Database.migrate_to_current!(@tmp_dir)
+    @storage = InvasionStudio::Storage::LocalDiskStorage.new(@tmp_dir)
     @importer = InvasionStudio::Database::LegacyProjectImporter.new(@db, @tmp_dir)
   end
 
