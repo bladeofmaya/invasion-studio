@@ -8,7 +8,18 @@
           <span>Upload</span>
         </button>
         <input type="file" multiple accept="video/*" name="files" class="hidden" data-upload-target="input" data-action="change->upload#selected">
-        <span class="hidden text-xs text-text-muted" data-upload-target="hint"></span>
+        <div class="fixed inset-0 z-50 bg-black/60 items-center justify-center" style="display:none" data-upload-target="overlay" id="upload-overlay">
+          <div class="bg-surface border border-border rounded-lg p-6 w-96 max-w-[90vw] shadow-lg">
+            <h3 class="m-0 mb-4 text-base font-semibold text-text-primary">Uploading clips</h3>
+            <div class="h-2 bg-surface-secondary rounded-full overflow-hidden mb-3">
+              <div class="h-full w-0 bg-primary transition-[width] duration-200" data-upload-target="progressBar"></div>
+            </div>
+            <div class="text-sm text-text-muted mb-4" data-upload-target="progressStatus">Preparing...</div>
+            <div class="flex justify-end">
+              <button type="button" class="bg-primary text-primary-fg border-none px-4 py-1.5 rounded text-sm font-semibold cursor-pointer hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed" data-upload-target="closeBtn" data-action="click->upload#closeOverlay" disabled>Close</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="block" data-clip-list-target="filterDropdown" id="filter-dropdown">
         <select class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="filterSelect" data-action="change->clip-list#setFilter" id="clip-filter">
