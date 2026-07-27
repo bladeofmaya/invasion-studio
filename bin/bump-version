@@ -1,0 +1,48 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Bump the gem version and refresh Gemfile.lock.
+#
+#   bin/bump-version patch      0.6.0 -> 0.6.1
+#   bin/bump-version minor      0.6.0 -> 0.7.0
+#   bin/bump-version major      0.6.0 -> 1.0.0
+#   bin/bump-version 1.2.3      set an explicit version
+
+VERSION_FILE = File.expand_path('../lib/invasion_studio/version.rb', __dir__)
+
+arg = ARGV.fetch(0) do
+  warn 'Usage: bin/bump-version patch|minor|major|X.Y.Z'
+  exit 2
+end
+
+contents = File.read(VERSION_FILE)
+current = contents[/VERSION = "(\d+\.\d+\.\d+)"/, 1]
+abort "Could not find VERSION in #{VERSION_FILE}" unless current
+
+new_version =
+  case arg
+  when 'patch', 'minor', 'major'
+    major, minor, patch = current.split('.').map(&:to_i)
+    case arg
+    when 'patch' then "#{major}.#{minor}.#{patch + 1}"
+    when 'minor' then "#{major}.#{minor + 1}.0"
+    when 'major' then "#{major + 1}.0.0"
+    end
+  when /\A\d+\.\d+\.\d+\z/
+    arg
+  else
+    abort "Invalid argument: #{arg.inspect} (expected patch, minor, major, or X.Y.Z)"
+  end
+
+File.write(VERSION_FILE, contents.sub("\"#{current}\"", "\"#{new_version}\""))
+puts "Version: #{current} -> #{new_version}"
+
+Dir.chdir(File.expand_path('..', __dir__)) do
+  system('bundle', 'lock', exception: true)
+end
+puts 'Gemfile.lock refreshed.'
+
+puts
+puts 'Next steps:'
+puts '  bin/release-check'
+puts "  git commit -am \"bump version to #{new_version}\" && git tag v#{new_version}"

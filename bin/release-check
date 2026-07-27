@@ -51,20 +51,24 @@ bin/verify-gem "$GEM_FILE"
 
 step "Installing into an empty GEM_HOME"
 TMP_GEM_HOME="$(mktemp -d)"
-run_installed() {
-  env -u BUNDLE_GEMFILE -u BUNDLE_PATH -u RUBYOPT \
-    GEM_HOME="$TMP_GEM_HOME" GEM_PATH="$TMP_GEM_HOME" "$@"
-}
-run_installed gem install --no-document "./$GEM_FILE"
+# env execs its command, so backgrounding this yields the real server PID
+# (backgrounding a shell function would only kill a subshell on cleanup and
+# orphan the server).
+INSTALLED_ENV=(env -u BUNDLE_GEMFILE -u BUNDLE_PATH -u RUBYOPT
+  GEM_HOME="$TMP_GEM_HOME" GEM_PATH="$TMP_GEM_HOME")
+"${INSTALLED_ENV[@]}" gem install --no-document "./$GEM_FILE"
 
 step "CLI smoke test"
 CLI="$TMP_GEM_HOME/bin/invasion-studio"
-run_installed "$CLI" --version | grep -qF "Invasion Studio v${VERSION}" \
+"${INSTALLED_ENV[@]}" "$CLI" --version | grep -qF "Invasion Studio v${VERSION}" \
   || fail "CLI --version did not report v${VERSION}"
 
 step "WebUI smoke test (installed gem, empty project)"
+if curl -s --max-time 2 -o /dev/null "http://localhost:${PORT}/"; then
+  fail "port ${PORT} is already in use (stale server?). Stop it with: fuser -k ${PORT}/tcp  — or set RELEASE_CHECK_PORT"
+fi
 TMP_PROJECT="$(mktemp -d)"
-run_installed "$CLI" webui -p "$PORT" "$TMP_PROJECT" &
+"${INSTALLED_ENV[@]}" "$CLI" webui -p "$PORT" "$TMP_PROJECT" &
 SERVER_PID=$!
 for _ in $(seq 1 30); do
   curl -sf "http://localhost:${PORT}/" >/dev/null 2>&1 && break

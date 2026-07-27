@@ -24,7 +24,9 @@ database, exports, and trash.
 
 ## Release process
 
-1. Bump `lib/invasion_studio/version.rb` and update the changelog/plan docs.
+1. Bump the version with `bin/bump-version patch|minor|major` (or an explicit
+   `X.Y.Z`). It updates `lib/invasion_studio/version.rb` and refreshes
+   `Gemfile.lock`. Update the changelog/plan docs alongside.
 2. Run `bin/release-check` from a clean checkout. It performs, in order:
    - clean-tree check and a guard that no generated assets are committed
    - `bin/build-assets` (npm ci + Tailwind + esbuild)
