@@ -10,16 +10,27 @@ module InvasionStudio
             files = params['files']
             files = [files] unless files.is_a?(Array)
 
-            results = files.filter_map do |file|
+            imported = []
+            errors = []
+            files.each do |file|
               next unless file.is_a?(Hash) && file[:tempfile]
 
-              importer.import_upload(tempfile: file[:tempfile], filename: file[:filename])
+              begin
+                imported << importer.import_upload(tempfile: file[:tempfile], filename: file[:filename])
+              rescue InvasionStudio::Error => e
+                errors << { filename: file[:filename], error: e.message }
+              end
             end
 
-            json_response(success: true, imported: results.length, clips: results.map { |clip| clip['id'] })
-          rescue InvasionStudio::Error => e
-            status 422
-            json_response(error: e.message)
+            status 422 if imported.empty? && errors.any?
+            payload = {
+              success: errors.empty?,
+              imported: imported.length,
+              clips: imported.map { |clip| clip['id'] },
+              errors: errors
+            }
+            payload[:error] = "#{errors.length} file(s) failed" if errors.any?
+            json_response(payload)
           end
         end
       end

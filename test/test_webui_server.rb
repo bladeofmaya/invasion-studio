@@ -761,6 +761,45 @@ class TestWebuiServer < Minitest::Test
     restore_video_new
   end
 
+  def test_post_api_upload_rejects_invalid_file_with_per_file_error
+    file_path = File.join(@folder, 'notes.txt')
+    File.write(file_path, 'not a video')
+
+    post '/api/upload', { 'files' => Rack::Test::UploadedFile.new(file_path, 'text/plain') }
+
+    assert_equal 422, last_response.status
+    data = JSON.parse(last_response.body)
+    assert_equal false, data['success']
+    assert_equal 0, data['imported']
+    assert_equal 1, data['errors'].length
+    assert_equal 'notes.txt', data['errors'].first['filename']
+    assert_match(/Unsupported file type/, data['errors'].first['error'])
+    refute File.exist?(File.join(@folder, 'clips', 'notes.txt'))
+  end
+
+  def test_post_api_upload_reports_partial_success
+    mock_video_metadata
+    good = File.join(@folder, 'good.mp4')
+    bad = File.join(@folder, 'bad.txt')
+    File.write(good, 'video bytes')
+    File.write(bad, 'not a video')
+
+    post '/api/upload', { 'files' => [
+      Rack::Test::UploadedFile.new(good, 'video/mp4'),
+      Rack::Test::UploadedFile.new(bad, 'text/plain')
+    ] }
+
+    assert last_response.ok?
+    data = JSON.parse(last_response.body)
+    assert_equal false, data['success']
+    assert_equal 1, data['imported']
+    assert_equal 1, data['errors'].length
+    assert_equal 'bad.txt', data['errors'].first['filename']
+    assert File.exist?(File.join(@folder, 'clips', 'good.mp4'))
+  ensure
+    restore_video_new
+  end
+
   def test_api_clip_handles_slash_in_clip_id
     mock_video_metadata
     file_path = File.join(@folder, 'upload.mp4')

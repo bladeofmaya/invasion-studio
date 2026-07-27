@@ -65,6 +65,67 @@ class TestClipImporter < Minitest::Test
     tempfile&.unlink
   end
 
+  def test_rejects_file_that_is_not_a_readable_video
+    project = create_project
+    tempfile = Tempfile.new(['upload', '.mp4'])
+    File.write(tempfile.path, 'not actually video data')
+    importer = InvasionStudio::ClipImporter.new(project, metadata_probe: ->(_path) { nil })
+
+    error = assert_raises(InvasionStudio::Error) do
+      importer.import_upload(tempfile: tempfile, filename: 'fake.mp4')
+    end
+    assert_match(/not a readable video/i, error.message)
+    refute File.exist?(File.join(@tmp_dir, 'clips', 'fake.mp4'))
+  ensure
+    tempfile&.close
+    tempfile&.unlink
+  end
+
+  def test_rejects_file_when_probe_raises
+    project = create_project
+    tempfile = Tempfile.new(['upload', '.mp4'])
+    File.write(tempfile.path, 'garbage')
+    importer = InvasionStudio::ClipImporter.new(project, metadata_probe: ->(_path) { raise 'ffprobe exploded' })
+
+    assert_raises(InvasionStudio::Error) do
+      importer.import_upload(tempfile: tempfile, filename: 'garbage.mp4')
+    end
+    refute File.exist?(File.join(@tmp_dir, 'clips', 'garbage.mp4'))
+  ensure
+    tempfile&.close
+    tempfile&.unlink
+  end
+
+  def test_rejects_empty_file
+    project = create_project
+    tempfile = Tempfile.new(['upload', '.mp4'])
+    importer = importer_for(project)
+
+    error = assert_raises(InvasionStudio::Error) do
+      importer.import_upload(tempfile: tempfile, filename: 'empty.mp4')
+    end
+    assert_match(/empty/i, error.message)
+  ensure
+    tempfile&.close
+    tempfile&.unlink
+  end
+
+  def test_rejects_file_exceeding_max_upload_size
+    project = create_project
+    tempfile = Tempfile.new(['upload', '.mp4'])
+    File.write(tempfile.path, 'a' * 100)
+    importer = InvasionStudio::ClipImporter.new(project, metadata_probe: ->(_path) { {} }, max_upload_bytes: 10)
+
+    error = assert_raises(InvasionStudio::Error) do
+      importer.import_upload(tempfile: tempfile, filename: 'big.mp4')
+    end
+    assert_match(/too large/i, error.message)
+    refute File.exist?(File.join(@tmp_dir, 'clips', 'big.mp4'))
+  ensure
+    tempfile&.close
+    tempfile&.unlink
+  end
+
   def test_generates_unique_key_for_duplicate_filename
     project = create_project
     existing = File.join(@tmp_dir, 'clips')

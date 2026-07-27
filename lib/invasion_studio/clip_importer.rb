@@ -3,27 +3,38 @@
 module InvasionStudio
   class ClipImporter
     SUPPORTED_EXTENSIONS = %w[.mp4 .mkv .mov .avi .webm .flv .m4v .mpeg .mpg].freeze
+    MAX_UPLOAD_BYTES = 4 * 1024 * 1024 * 1024
 
     def initialize(project, storage: nil, repository: nil,
                    metadata_probe: ->(path) { Video.new(path).metadata },
-                   thumbnail_job: InvasionStudio::Workers::ThumbnailJob)
+                   thumbnail_job: InvasionStudio::Workers::ThumbnailJob,
+                   max_upload_bytes: MAX_UPLOAD_BYTES)
       @project = project
       @storage = storage || project.storage
       @repository = repository || project.clip_repository
       @metadata_probe = metadata_probe
       @thumbnail_job = thumbnail_job
+      @max_upload_bytes = max_upload_bytes
     end
 
     def import_upload(tempfile:, filename:)
       ext = File.extname(filename).downcase
       raise InvasionStudio::Error, "Unsupported file type: #{ext}" unless SUPPORTED_EXTENSIONS.include?(ext)
 
+      filesize = File.size(tempfile.path)
+      raise InvasionStudio::Error, "File is empty" if filesize.zero?
+      if filesize > @max_upload_bytes
+        raise InvasionStudio::Error, "File is too large (maximum is #{human_size(@max_upload_bytes)})"
+      end
+
+      # Probe before storing so garbage never enters the library.
+      metadata = probe_metadata(tempfile.path)
+      raise InvasionStudio::Error, "Not a readable video file" if metadata.nil?
+
       key = unique_key(filename)
       stored_key = @storage.store(tempfile.path, key)
       raise InvasionStudio::Error, "Failed to store uploaded file" unless stored_key
 
-      path = @storage.resolve(stored_key)
-      metadata = probe_metadata(path)
       clip_id = stored_key.sub(/\.[^.]*\z/, '')
 
       clip = @repository.create(
@@ -37,7 +48,7 @@ module InvasionStudio
         'fps' => metadata[:fps],
         'video_codec' => metadata[:video_codec],
         'audio_codec' => metadata[:audio_codec],
-        'filesize' => File.size(path)
+        'filesize' => filesize
       )
 
       enqueue_thumbnail(clip['id'])
@@ -66,10 +77,20 @@ module InvasionStudio
       end
     end
 
+    # nil means the file is not a video ffprobe can read; callers reject it.
     def probe_metadata(path)
       @metadata_probe.call(path)
     rescue StandardError
-      {}
+      nil
+    end
+
+    def human_size(bytes)
+      if bytes >= 1024**3
+        gb = bytes.to_f / 1024**3
+        format(gb == gb.round ? '%d GB' : '%.1f GB', gb)
+      else
+        "#{(bytes.to_f / 1024**2).ceil} MB"
+      end
     end
   end
 end
