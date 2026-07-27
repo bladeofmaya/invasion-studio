@@ -43,4 +43,10 @@ class TestThumbnailJob < Minitest::Test
   def test_job_class_includes_sucker_punch
     assert_includes InvasionStudio::Workers::ThumbnailJob.included_modules, SuckerPunch::Job
   end
+
+  def test_metadata_job_is_available
+    job = InvasionStudio::Workers::MetadataJob
+    assert_respond_to job, :perform_async
+    assert_includes job.included_modules, SuckerPunch::Job
+  end
 end

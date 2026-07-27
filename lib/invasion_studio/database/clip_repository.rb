@@ -74,6 +74,9 @@ module InvasionStudio
         updates[:result] = normalize_result(attributes['result']) if attributes.key?('result')
         updates[:storage_path] = attributes['path'] if attributes.key?('path')
         updates[:thumbnail_path] = attributes['thumbnail_path'] if attributes.key?('thumbnail_path')
+        %w[duration filesize width height fps video_codec audio_codec].each do |field|
+          updates[field.to_sym] = attributes[field] if attributes.key?(field)
+        end
         updates[:updated_at] = current_timestamp
 
         return false if updates.empty?

@@ -278,6 +278,12 @@ class TestWebuiServer < Minitest::Test
     assert_includes last_response.body, 'click->clip-list#emptyTrash'
   end
 
+  def test_shell_header_has_clip_count_bubble
+    get '/'
+
+    assert_includes last_response.body, 'data-clip-list-target="clipCount"'
+  end
+
   def test_shell_includes_upload_progress_overlay
     get '/'
 

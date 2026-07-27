@@ -1,46 +1,45 @@
 <div class="flex flex-col min-h-0 overflow-hidden bg-app-bg" id="clip-panel" data-controller="clip-list" data-clip-list-view-value="all" data-clip-list-filter-value="unassigned" data-clip-list-sort-value="" data-clip-list-group-value="" data-clip-list-selected-clip-id-value="">
-  <div class="px-4 py-3 border-b border-border flex justify-between items-center">
+  <div class="px-4 py-3 border-b border-border flex items-center gap-2">
     <h2 class="m-0 text-base text-text-muted" data-clip-list-target="panelTitle">All Clips</h2>
-    <div class="flex gap-2 items-center">
-      <div class="inline-flex items-center gap-2" data-controller="upload" data-clip-list-target="uploadButton">
-        <button type="button" class="inline-flex items-center gap-1.5 bg-primary text-primary-fg border-none px-3 py-1.5 rounded text-xs font-semibold cursor-pointer hover:bg-primary-hover" data-action="click->upload#trigger">
-          <i data-lucide="upload" class="size-3.5"></i>
-          <span>Upload</span>
-        </button>
-        <input type="file" multiple accept="video/*" name="files" class="hidden" data-upload-target="input" data-action="change->upload#selected">
-        <div class="fixed inset-0 z-50 bg-black/60 items-center justify-center" style="display:none" data-upload-target="overlay" id="upload-overlay">
-          <div class="bg-surface border border-border rounded-lg p-6 w-96 max-w-[90vw] shadow-lg">
-            <h3 class="m-0 mb-4 text-base font-semibold text-text-primary">Uploading clips</h3>
-            <div class="h-2 bg-surface-secondary rounded-full overflow-hidden mb-3">
-              <div class="h-full w-0 bg-primary transition-[width] duration-200" data-upload-target="progressBar"></div>
-            </div>
-            <div class="text-sm text-text-muted mb-4" data-upload-target="progressStatus">Preparing...</div>
-            <div class="flex justify-end">
-              <button type="button" class="bg-primary text-primary-fg border-none px-4 py-1.5 rounded text-sm font-semibold cursor-pointer hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed" data-upload-target="closeBtn" data-action="click->upload#closeOverlay" disabled>Close</button>
-            </div>
+    <span class="bg-surface-secondary text-text-muted border border-border rounded-full px-2.5 py-1 text-xs font-medium" style="display:none" data-clip-list-target="clipCount" id="clip-count">0</span>
+    <div class="block" data-clip-list-target="filterDropdown" id="filter-dropdown">
+      <select class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="filterSelect" data-action="change->clip-list#setFilter" id="clip-filter">
+        <option value="everything">Everything</option>
+        <option value="unassigned" selected>Unassigned</option>
+        <option value="assigned">Assigned</option>
+        <option value="deleted">Trash</option>
+      </select>
+    </div>
+    <div class="block" data-clip-list-target="sortDropdown" id="sort-dropdown">
+      <select class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="sortSelect" data-action="change->clip-list#setSort" id="clip-sort">
+        <option value="" selected>Default order</option>
+        <option value="newest">Newest</option>
+        <option value="oldest">Oldest</option>
+        <option value="rating-desc">Rating &#8595;</option>
+        <option value="rating-asc">Rating &#8593;</option>
+        <option value="title">Title</option>
+        <option value="duration-desc">Longest</option>
+        <option value="duration-asc">Shortest</option>
+      </select>
+    </div>
+    <button type="button" class="bg-danger text-danger-fg border-none px-3 py-1.5 rounded text-xs font-semibold cursor-pointer hover:bg-danger-hover" style="display:none" data-clip-list-target="emptyTrashBtn" data-action="click->clip-list#emptyTrash" id="empty-trash-btn">Empty Trash</button>
+    <div class="inline-flex items-center gap-2 ml-auto" data-controller="upload" data-clip-list-target="uploadButton">
+      <button type="button" class="inline-flex items-center gap-1.5 bg-primary text-primary-fg border-none px-3 py-1.5 rounded text-xs font-semibold cursor-pointer hover:bg-primary-hover" data-action="click->upload#trigger">
+        <i data-lucide="upload" class="size-3.5"></i>
+        <span>Upload</span>
+      </button>
+      <input type="file" multiple accept="video/*" name="files" class="hidden" data-upload-target="input" data-action="change->upload#selected">
+      <div class="fixed inset-0 z-50 bg-black/60 items-center justify-center" style="display:none" data-upload-target="overlay" id="upload-overlay">
+        <div class="bg-surface border border-border rounded-lg p-6 w-96 max-w-[90vw] shadow-lg">
+          <h3 class="m-0 mb-4 text-base font-semibold text-text-primary">Uploading clips</h3>
+          <div class="h-2 bg-surface-secondary rounded-full overflow-hidden mb-3">
+            <div class="h-full w-0 bg-primary transition-[width] duration-200" data-upload-target="progressBar"></div>
+          </div>
+          <div class="text-sm text-text-muted mb-4" data-upload-target="progressStatus">Preparing...</div>
+          <div class="flex justify-end">
+            <button type="button" class="bg-primary text-primary-fg border-none px-4 py-1.5 rounded text-sm font-semibold cursor-pointer hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed" data-upload-target="closeBtn" data-action="click->upload#closeOverlay" disabled>Close</button>
           </div>
         </div>
-      </div>
-      <div class="block" data-clip-list-target="filterDropdown" id="filter-dropdown">
-        <select class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="filterSelect" data-action="change->clip-list#setFilter" id="clip-filter">
-          <option value="everything">Everything</option>
-          <option value="unassigned" selected>Unassigned</option>
-          <option value="assigned">Assigned</option>
-          <option value="deleted">Trash</option>
-        </select>
-      </div>
-      <button type="button" class="bg-danger text-danger-fg border-none px-3 py-1.5 rounded text-xs font-semibold cursor-pointer hover:bg-danger-hover" style="display:none" data-clip-list-target="emptyTrashBtn" data-action="click->clip-list#emptyTrash" id="empty-trash-btn">Empty Trash</button>
-      <div class="block" data-clip-list-target="sortDropdown" id="sort-dropdown">
-        <select class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="sortSelect" data-action="change->clip-list#setSort" id="clip-sort">
-          <option value="" selected>Default order</option>
-          <option value="newest">Newest</option>
-          <option value="oldest">Oldest</option>
-          <option value="rating-desc">Rating &#8595;</option>
-          <option value="rating-asc">Rating &#8593;</option>
-          <option value="title">Title</option>
-          <option value="duration-desc">Longest</option>
-          <option value="duration-asc">Shortest</option>
-        </select>
       </div>
     </div>
     <div class="hidden gap-2 items-center ml-auto" data-clip-list-target="groupExport" id="group-export-controls">
