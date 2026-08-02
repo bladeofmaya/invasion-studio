@@ -147,6 +147,9 @@ invasion-studio export-kdenlive ~/Videos/ER/my-invasion-project
 #  stop the WebUI first, use --dry-run to preview)
 invasion-studio normalize ~/Videos/ER/my-invasion-project
 
+# Copy existing clips into a project as clip_00001.ext, clip_00002.ext, ...
+invasion-studio import --project ~/Videos/ER/my-invasion-project ~/Videos/Clips/*.{mp4,mkv}
+
 # Show global or command-specific help
 invasion-studio --help
 invasion-studio extract --help
@@ -162,6 +165,7 @@ Commands:
 | `concat` | Join clips into one chaptered video |
 | `export-kdenlive` | Create a combined video and Kdenlive timeline |
 | `normalize` | Rename a project's clips to the generic sequential naming |
+| `import` | Copy existing clips into a project with sequential naming |
 
 ## Useful extraction options
 

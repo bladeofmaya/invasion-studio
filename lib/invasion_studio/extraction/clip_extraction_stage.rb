@@ -25,7 +25,7 @@ module InvasionStudio
         # The folder scan is a safety floor for files the database does not
         # know (crashed runs, hand-copied files); :min_clip_number carries
         # the database's allocation in project mode.
-        start_index = [highest_clip_number(outdir), @options[:min_clip_number].to_i].max
+        start_index = [ClipSequence.highest_number(outdir), @options[:min_clip_number].to_i].max
         @reporter.extracting
         @reporter.extraction_start(prefix, start_index)
         errors = extract(segments, outdir, prefix, start_index)
@@ -38,7 +38,8 @@ module InvasionStudio
       def extract(segments, outdir, prefix, start_index)
         errors = []
         segments.each_with_index do |segment, index|
-          output = File.join(outdir, format("#{prefix}_%05d.mp4", start_index + index + 1))
+          filename = ClipSequence.filename(start_index + index + 1, '.mp4', prefix: prefix)
+          output = File.join(outdir, filename)
           clip = @clip_factory.call(segment, @options)
           if clip.file_exists?(output)
             @reporter.clip_skipped(output)
@@ -56,13 +57,6 @@ module InvasionStudio
         errors
       end
 
-      # Numbering continues from the highest numbered clip regardless of its
-      # prefix, so mixed-prefix folders never produce a colliding or
-      # out-of-sequence filename.
-      def highest_clip_number(outdir)
-        pattern = /\A.+_(\d{5})\.mp4\z/
-        Dir.each_child(outdir).filter_map { |entry| entry.match(pattern)&.[](1)&.to_i }.max || 0
-      end
     end
   end
 end

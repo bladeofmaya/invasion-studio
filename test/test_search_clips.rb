@@ -94,6 +94,14 @@ class TestSearchClips < Minitest::Test
     assert_equal [], result_ids(tag: 'unknown')
   end
 
+  def test_untagged_filter
+    create_clip('tagged.mp4')
+    create_clip('untagged.mp4')
+    @tags.add_to_clip('tagged', 'parry')
+
+    assert_equal %w[untagged], result_ids(tag: '__none__')
+  end
+
   def test_min_rating_filter
     create_clip('low.mp4', 'rating' => 1)
     create_clip('high.mp4', 'rating' => 4)
@@ -101,11 +109,25 @@ class TestSearchClips < Minitest::Test
     assert_equal %w[high], result_ids(min_rating: 3)
   end
 
+  def test_unrated_filter
+    create_clip('rated.mp4', 'rating' => 3)
+    create_clip('unrated.mp4', 'rating' => 0)
+
+    assert_equal %w[unrated], result_ids(min_rating: '__none__')
+  end
+
   def test_result_filter
     create_clip('won.mp4', 'result' => 'win')
     create_clip('lost.mp4', 'result' => 'loss')
 
     assert_equal %w[won], result_ids(result: 'win')
+  end
+
+  def test_no_result_filter
+    create_clip('won.mp4', 'result' => 'win')
+    create_clip('pending.mp4')
+
+    assert_equal %w[pending], result_ids(result: '__none__')
   end
 
   def test_filters_combine
