@@ -430,6 +430,24 @@ class TestWebuiServer < Minitest::Test
     assert_includes last_response.body, 'data-category="tags"'
     assert_includes last_response.body, 'data-category="storage"'
     assert_includes last_response.body, 'data-settings-target="storagePanel"'
+    assert_includes last_response.body, 'data-category="stats"'
+    assert_includes last_response.body, 'data-settings-target="statsPanel"'
+  end
+
+  def test_get_api_game_stats
+    project.update_result('clip1', 'win')
+    project.update_result('clip2', 'loss')
+    project.clip_repository.update('clip1', 'duration' => 90.5)
+    project.clip_repository.update('clip2', 'duration' => 30.0)
+
+    get '/api/game/stats'
+
+    assert last_response.ok?
+    stats = JSON.parse(last_response.body)
+    assert_equal 2, stats['invasions']
+    assert_in_delta 120.5, stats['duration_seconds']
+    assert_equal({ 'won' => 1, 'lost' => 1, 'dc' => 0, 'no_result' => 0 }, stats['results'])
+    assert_in_delta 50.0, stats['win_rate']
   end
 
   # ========== Storage Routes ==========
