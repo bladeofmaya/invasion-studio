@@ -84,6 +84,15 @@ class TestCLI < Minitest::Test
     assert_equal InvasionStudio::Commands::Webui, cli.send(:command_class_for, 'webui')
   end
 
+  def test_detects_import_command
+    cli = InvasionStudio::CLI.new(['import', '--project', '/tmp/project', 'clip.mp4'])
+    cli.send(:parse_global_options!)
+    cli.send(:detect_command!)
+
+    assert_equal 'import', cli.options[:command]
+    assert_equal InvasionStudio::Commands::Import, cli.send(:command_class_for, 'import')
+  end
+
   def test_detects_export_kdenlive_command
     cli = InvasionStudio::CLI.new(['export-kdenlive', '/tmp/clips'])
     cli.send(:parse_global_options!)

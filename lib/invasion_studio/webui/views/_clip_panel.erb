@@ -51,9 +51,11 @@
     <input type="search" class="bg-input-bg text-text-primary border border-input-border px-3 py-1 rounded-full text-xs flex-1 min-w-32 focus:outline-none focus:border-input-focus-ring" id="clip-search" placeholder="Search title, note or filename..." autocomplete="off" data-clip-list-target="searchInput" data-action="input->clip-list#setSearch">
     <select class="bg-input-bg text-text-primary border border-input-border px-2.5 py-1 rounded-full text-xs cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="tagFilter" data-action="change->clip-list#setTagFilter" id="clip-tag-filter">
       <option value="">All tags</option>
+      <option value="__none__">Untagged</option>
     </select>
     <select class="bg-input-bg text-text-primary border border-input-border px-2.5 py-1 rounded-full text-xs cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="ratingFilter" data-action="change->clip-list#setRatingFilter" id="clip-rating-filter">
       <option value="">Any rating</option>
+      <option value="__none__">Unrated</option>
       <option value="1">&#9733; 1+</option>
       <option value="2">&#9733; 2+</option>
       <option value="3">&#9733; 3+</option>
@@ -62,6 +64,7 @@
     </select>
     <select class="bg-input-bg text-text-primary border border-input-border px-2.5 py-1 rounded-full text-xs cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="resultFilter" data-action="change->clip-list#setResultFilter" id="clip-result-filter">
       <option value="">Any result</option>
+      <option value="__none__">No result</option>
       <option value="win">Win</option>
       <option value="loss">Loss</option>
       <option value="dc">DC</option>

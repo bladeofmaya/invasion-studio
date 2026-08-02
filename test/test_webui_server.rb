@@ -2,6 +2,7 @@ require 'test_helper'
 require 'rack/test'
 require 'fileutils'
 require 'json'
+require 'open3'
 require 'uri'
 
 class TestWebuiServer < Minitest::Test
@@ -299,6 +300,23 @@ class TestWebuiServer < Minitest::Test
     assert_includes last_response.body, 'click->upload#closeOverlay'
   end
 
+  def test_uploader_splits_large_selections_into_size_bounded_requests
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/upload_controller.js', __dir__
+    ))
+
+    assert_includes controller, 'partitionUploadBatches'
+    assert_includes controller, 'uploadBatches(files)'
+    assert_includes controller, 'for (const batch of batches)'
+
+    batches = upload_batch_sizes([3, 3, 3, 1].map { |gib| gib * 1024**3 })
+    assert_equal [[3, 3], [3, 1]], batches.map { |batch| batch.map { |bytes| bytes / 1024**3 } }
+    assert_equal 25, upload_progress_percent(
+      uploaded_bytes: 0, loaded: 2 * 1024**3, total: 0,
+      batch_bytes: 8 * 1024**3, total_bytes: 8 * 1024**3
+    )
+  end
+
   def test_shell_includes_search_controls
     get '/'
 
@@ -308,6 +326,22 @@ class TestWebuiServer < Minitest::Test
     assert_includes last_response.body, 'data-clip-list-target="ratingFilter"'
     assert_includes last_response.body, 'data-clip-list-target="resultFilter"'
     assert_includes last_response.body, 'input->clip-list#setSearch'
+    assert_includes last_response.body, '<option value="__none__">Untagged</option>'
+    assert_includes last_response.body, '<option value="__none__">Unrated</option>'
+    assert_includes last_response.body, '<option value="__none__">No result</option>'
+  end
+
+  def test_api_clips_filters_for_missing_tag_rating_and_result
+    project.add_tag('clip2', 'parry')
+
+    get '/api/clips?tag=__none__'
+    assert_equal %w[clip1], JSON.parse(last_response.body).map { |clip| clip['id'] }
+
+    get '/api/clips?rating=__none__'
+    assert_equal %w[clip1], JSON.parse(last_response.body).map { |clip| clip['id'] }
+
+    get '/api/clips?result=__none__'
+    assert_equal %w[clip1], JSON.parse(last_response.body).map { |clip| clip['id'] }
   end
 
   def test_shell_includes_tag_editor
@@ -947,6 +981,40 @@ class TestWebuiServer < Minitest::Test
   end
 
   private
+
+  def upload_batch_sizes(sizes)
+    helper = File.expand_path(
+      '../lib/invasion_studio/webui/frontend/upload_batches.mjs', __dir__
+    )
+    script = <<~'JAVASCRIPT'
+      import { pathToFileURL } from 'node:url'
+      const { partitionUploadBatches } = await import(pathToFileURL(process.argv[1]))
+      const files = JSON.parse(process.argv[2]).map(size => ({ size }))
+      console.log(JSON.stringify(partitionUploadBatches(files).map(batch => batch.map(file => file.size))))
+    JAVASCRIPT
+    stdout, stderr, status = Open3.capture3(
+      'node', '--input-type=module', '--eval', script, helper, JSON.generate(sizes)
+    )
+    assert status.success?, stderr
+    JSON.parse(stdout)
+  end
+
+  def upload_progress_percent(values)
+    helper = File.expand_path(
+      '../lib/invasion_studio/webui/frontend/upload_batches.mjs', __dir__
+    )
+    script = <<~'JAVASCRIPT'
+      import { pathToFileURL } from 'node:url'
+      const { uploadProgressPercent } = await import(pathToFileURL(process.argv[1]))
+      console.log(uploadProgressPercent(JSON.parse(process.argv[2])))
+    JAVASCRIPT
+    arguments = values.transform_keys { |key| key.to_s.gsub(/_([a-z])/) { Regexp.last_match(1).upcase } }
+    stdout, stderr, status = Open3.capture3(
+      'node', '--input-type=module', '--eval', script, helper, JSON.generate(arguments)
+    )
+    assert status.success?, stderr
+    stdout.to_i
+  end
 
   def mock_video_metadata
     @original_video_new = InvasionStudio::Video.method(:new)
