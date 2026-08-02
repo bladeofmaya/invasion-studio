@@ -107,6 +107,25 @@ class TestGroupRepository < Minitest::Test
     refute @repository.reorder('Video', 0, 5)
   end
 
+  def test_moves_clip_between_groups
+    create_clip('a.mp4')
+    @repository.create('Source')
+    @repository.create('Destination')
+    @repository.add_clip('Source', 'a')
+
+    assert @repository.move_clip('Source', 'Destination', 'a')
+    assert_empty @repository.find('Source')['clip_ids']
+    assert_equal %w[a], @repository.find('Destination')['clip_ids']
+  end
+
+  def test_move_rejects_missing_membership_or_destination
+    create_clip('a.mp4')
+    @repository.create('Source')
+
+    refute @repository.move_clip('Source', 'Missing', 'a')
+    refute @repository.move_clip('Source', 'Source', 'a')
+  end
+
   def test_clips_excludes_deleted
     create_clip('a.mp4')
     create_clip('b.mp4')

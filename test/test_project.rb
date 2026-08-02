@@ -146,6 +146,17 @@ class TestProject < Minitest::Test
     refute project.reorder_group('Video 1', 0, 5)
   end
 
+  def test_move_clip_between_groups
+    create_clip_file('a.mp4')
+    project = InvasionStudio::Project.new(@tmp_dir)
+    project.create_group('Destination')
+    project.add_clip_to_group('Video 1', 'a')
+
+    assert project.move_clip_between_groups('Video 1', 'Destination', 'a')
+    assert_empty project.groups.find { |group| group['name'] == 'Video 1' }['clip_ids']
+    assert_equal %w[a], project.groups.find { |group| group['name'] == 'Destination' }['clip_ids']
+  end
+
   def test_update_note
     create_clip_file('invasion_00001.mp4')
     project = InvasionStudio::Project.new(@tmp_dir)

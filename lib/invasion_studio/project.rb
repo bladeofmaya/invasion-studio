@@ -8,7 +8,7 @@ module InvasionStudio
 
     module MutationLock
       MUTATIONS = %i[
-        create_group rename_group delete_group add_clip_to_group remove_clip_from_group
+        create_group rename_group delete_group add_clip_to_group remove_clip_from_group move_clip_between_groups
         reorder_group update_note update_rating update_result update_title update_cuts
         finalize_cuts delete_clip restore_clip empty_trash save!
       ].freeze
@@ -117,6 +117,10 @@ module InvasionStudio
 
     def remove_clip_from_group(group_name, clip_id)
       @group_repository.remove_clip(group_name, clip_id)
+    end
+
+    def move_clip_between_groups(source_name, destination_name, clip_id)
+      @group_repository.move_clip(source_name, destination_name, clip_id)
     end
 
     def reorder_group(group_name, old_index, new_index)

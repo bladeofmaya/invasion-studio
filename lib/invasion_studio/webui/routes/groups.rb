@@ -55,6 +55,14 @@ module InvasionStudio
             success = project.remove_clip_from_group(params['name'], json_body['clip_id'])
             mutation_response(success, failure: 'Failed to remove clip from group')
           end
+
+          app.post '/api/group/:name/move' do
+            body = json_body
+            success = project.move_clip_between_groups(
+              params['name'], body['destination'].to_s, body['clip_id']
+            )
+            mutation_response(success, failure: 'Failed to move clip to compilation')
+          end
         end
       end
     end

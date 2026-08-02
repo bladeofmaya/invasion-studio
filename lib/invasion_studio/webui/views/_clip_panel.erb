@@ -73,7 +73,7 @@
   </div>
   <div class="flex-1 overflow-y-auto px-4 py-3 min-h-0" data-clip-list-target="container" id="clip-list"></div>
   <div class="flex-1 overflow-y-auto p-4 grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 content-start hidden" data-controller="group-manager" data-group-manager-target="grid" data-navigation-target="groupGrid" id="group-grid">
-    <div class="border-2 border-dashed border-border bg-transparent flex items-center justify-center min-h-24 cursor-pointer hover:border-accent hover:translate-y-0" id="new-group-card" data-group-manager-target="newGroupCard" data-action="click->group-manager#showNewGroupForm">
+    <div class="border-2 border-dashed border-border rounded-lg bg-transparent flex items-center justify-center min-h-24 cursor-pointer hover:border-accent hover:translate-y-0" id="new-group-card" data-group-manager-target="newGroupCard" data-action="click->group-manager#showNewGroupForm">
       <div class="text-base font-medium text-text-secondary">+ New Compilation</div>
     </div>
     <form class="bg-surface border border-accent rounded-lg p-5 min-h-24" data-group-manager-target="newGroupForm" data-action="submit->group-manager#createGroup" id="new-group-inline-form" hidden>

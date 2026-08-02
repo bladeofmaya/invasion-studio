@@ -50,6 +50,26 @@ class TestWebuiServer < Minitest::Test
     assert last_response.body.include?('data-controller="router navigation"')
   end
 
+  def test_top_navigation_tabs_include_icons
+    get '/'
+
+    assert_includes last_response.body, 'data-lucide="file-video-camera"'
+    assert_includes last_response.body, 'data-lucide="list-video"'
+  end
+
+  def test_compilation_navigation_uses_rounded_cards_and_an_icon_heading
+    get '/'
+
+    assert_match(/class="[^"]*rounded-lg[^"]*" id="new-group-card"/, last_response.body)
+
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/clip_list_controller.js', __dir__
+    ))
+    assert_includes controller, 'data-lucide="list-video"'
+    assert_includes controller, 'text-accent text-xs'
+    refute_includes controller, "this.groupValue + ' ('"
+  end
+
   def test_saved_cut_changes_update_the_finalize_button
     get '/'
 
@@ -288,6 +308,19 @@ class TestWebuiServer < Minitest::Test
     get '/'
 
     assert_includes last_response.body, 'data-clip-list-target="clipCount"'
+  end
+
+  def test_compilation_sorter_has_move_to_edge_buttons_and_drag_handle
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/clip_list_controller.js', __dir__
+    ))
+
+    assert_includes controller, 'data-reorder="top"'
+    assert_includes controller, 'data-reorder="bottom"'
+    assert_includes controller, 'Move to top'
+    assert_includes controller, 'Move to bottom'
+    assert_includes controller, 'drag-handle'
+    assert_includes controller, 'moveClipToEdge'
   end
 
   def test_shell_includes_upload_progress_overlay
@@ -790,6 +823,30 @@ class TestWebuiServer < Minitest::Test
     assert last_response.ok?
     data = JSON.parse(last_response.body)
     assert_equal true, data['success']
+  end
+
+  def test_post_api_group_move_moves_clip_to_another_group
+    project.create_group('Destination')
+
+    post '/api/group/Group1/move', JSON.generate({ clip_id: 'clip1', destination: 'Destination' }),
+         'CONTENT_TYPE' => 'application/json'
+
+    assert last_response.ok?
+    assert_empty project.group_clips('Group1')
+    assert_equal %w[clip1], project.group_clips('Destination').map { |clip| clip['id'] }
+  end
+
+  def test_compilation_view_offers_move_selector_before_remove
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/clip_list_controller.js', __dir__
+    ))
+
+    move_position = controller.index('data-clip-action="move"')
+    remove_position = controller.index('data-clip-action="remove"')
+    refute_nil move_position
+    refute_nil remove_position
+    assert_operator move_position, :<, remove_position
+    assert_includes controller, 'moveToGroup'
   end
 
   def test_group_membership_rejects_unknown_group_or_clip
