@@ -48,7 +48,36 @@ module InvasionStudio
 
       def create(attributes)
         timestamp = current_timestamp
-        row = {
+        row = build_record(attributes, timestamp)
+        record = @database.transaction(mode: :immediate) do
+          existing = clip_dataset.where(storage_path: row[:storage_path]).first
+          next existing if existing
+
+          clip_dataset.insert(row)
+          clip_dataset.where(id: row[:id]).first
+        end
+        clip_attributes(record)
+      end
+
+      def upsert_by_path(attributes)
+        timestamp = current_timestamp
+        row = build_record(attributes, timestamp)
+        record = @database.transaction(mode: :immediate) do
+          existing = clip_dataset.where(storage_path: row[:storage_path]).first
+          if existing
+            updates = row.reject { |key, _value| %i[id created_at title note rating result].include?(key) }
+            clip_dataset.where(id: existing[:id]).update(updates)
+            clip_dataset.where(id: existing[:id]).first
+          else
+            clip_dataset.insert(row)
+            clip_dataset.where(id: row[:id]).first
+          end
+        end
+        clip_attributes(record)
+      end
+
+      def build_record(attributes, timestamp)
+        {
           id: attributes.fetch('id'),
           title: normalize_title(attributes['title']),
           note: attributes.fetch('note', '').to_s,
@@ -71,10 +100,6 @@ module InvasionStudio
           created_at: timestamp,
           updated_at: timestamp
         }
-
-        clip_dataset.insert(row)
-        row['cuts'] = []
-        clip_attributes(row)
       end
 
       def update(id, attributes)
