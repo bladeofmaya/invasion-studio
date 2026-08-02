@@ -9,5 +9,10 @@
 /tmp/
 /node_modules/
 /lib/invasion_studio/webui/public/assets/
+/desktop/spike/build/
+/desktop/spike/src-tauri/binaries/
+/desktop/spike/src-tauri/gen/schemas/
+/desktop/spike/src-tauri/target/
+/pkg/spike/
 test/samples/invasion-sample-full.mp4
 TODO.md
