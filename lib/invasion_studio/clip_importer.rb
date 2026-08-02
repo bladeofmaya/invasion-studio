@@ -37,7 +37,7 @@ module InvasionStudio
 
       clip_id = stored_key.sub(/\.[^.]*\z/, '')
 
-      clip = @repository.create(
+      clip = @repository.upsert_by_path(
         'id' => clip_id,
         'filename' => filename,
         'path' => stored_key,

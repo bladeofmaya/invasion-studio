@@ -47,4 +47,43 @@ class TestDatabase < Minitest::Test
   ensure
     db2&.disconnect
   end
+
+  def test_storage_paths_are_unique
+    db = InvasionStudio::Database.migrate_to_current!(@tmp_dir)
+    attributes = {
+      title: nil, note: '', rating: 0, result: nil, source_kind: 'external',
+      original_filename: 'clip.mp4', storage_path: 'clips/clip.mp4',
+      created_at: Time.now.utc.iso8601, updated_at: Time.now.utc.iso8601
+    }
+    db[:clips].insert(attributes.merge(id: 'first'))
+
+    assert_raises(Sequel::UniqueConstraintViolation) do
+      db[:clips].insert(attributes.merge(id: 'second'))
+    end
+  ensure
+    db&.disconnect
+  end
+
+  def test_migration_merges_existing_duplicate_storage_paths
+    db_path = File.join(@tmp_dir, 'project.db')
+    db = InvasionStudio::Database.connect(db_path)
+    Sequel::IntegerMigrator.run(db, InvasionStudio::Database::MIGRATIONS_PATH, target: 4)
+    timestamp = Time.now.utc.iso8601
+    attributes = {
+      title: nil, note: '', rating: 0, result: nil,
+      original_filename: 'clip.mp4', storage_path: 'clips/clip.mp4',
+      created_at: timestamp, updated_at: timestamp
+    }
+    db[:clips].insert(attributes.merge(id: 'clip', source_kind: 'external'))
+    db[:clips].insert(attributes.merge(id: 'clips/clip', source_kind: 'uploaded'))
+
+    InvasionStudio::Database.migrate(db)
+
+    rows = db[:clips].where(storage_path: 'clips/clip.mp4').all
+    assert_equal 1, rows.length
+    assert_equal 'clips/clip', rows.first[:id]
+    assert_equal 'uploaded', rows.first[:source_kind]
+  ensure
+    db&.disconnect
+  end
 end
