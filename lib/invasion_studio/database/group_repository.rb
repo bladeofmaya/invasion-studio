@@ -91,6 +91,35 @@ module InvasionStudio
         true
       end
 
+      def move_clip(source_name, destination_name, clip_id)
+        source = find(source_name)
+        destination = find(destination_name)
+        return false unless source && destination
+        return false if source['id'] == destination['id']
+
+        source_membership = group_clips_dataset.where(
+          compilation_id: source['id'], clip_id: clip_id
+        )
+        return false if source_membership.count.zero?
+
+        @database.transaction do
+          destination_membership = group_clips_dataset.where(
+            compilation_id: destination['id'], clip_id: clip_id
+          )
+          if destination_membership.count.zero?
+            max_position = group_clips_dataset.where(compilation_id: destination['id']).max(:position) || 0
+            group_clips_dataset.insert(
+              compilation_id: destination['id'], clip_id: clip_id,
+              position: max_position + 1, created_at: current_timestamp
+            )
+          end
+          source_membership.delete
+          compact_group_positions(source['id'])
+          groups_dataset.where(id: [source['id'], destination['id']]).update(updated_at: current_timestamp)
+        end
+        true
+      end
+
       def reorder(group_name, old_index, new_index)
         group = find(group_name)
         return false unless group
