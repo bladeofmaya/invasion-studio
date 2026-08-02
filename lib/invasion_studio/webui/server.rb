@@ -110,6 +110,10 @@ module InvasionStudio
           StorageStatistics.new(project, cache_dirs: settings.cache_dirs)
         end
 
+        def game_statistics
+          GameStatistics.new(project)
+        end
+
         def project_exporter
           InvasionStudio::ProjectExporter.new(project, quiet: settings.quiet)
         end
@@ -145,6 +149,7 @@ module InvasionStudio
       register Routes::Uploads
       register Routes::Exports
       register Routes::Storage
+      register Routes::GameStats
       register Routes::Pages
     end
   end
