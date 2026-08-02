@@ -59,7 +59,7 @@ module InvasionStudio
         # Run ffmpeg concat with copy codec (no re-encoding) + chapter metadata
         # -map 0 preserves all streams (video + all audio tracks)
         cmd = [
-          'ffmpeg', '-y',
+          Executables.ffmpeg, '-y',
           '-f', 'concat', '-safe', '0',
           '-i', concat_list_path,
           '-i', metadata_path,

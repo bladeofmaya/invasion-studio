@@ -33,7 +33,8 @@ module InvasionStudio
         halt 403, json_response(error: 'Cross-origin request rejected') unless origin == expected
       end
 
-      def self.run!(folder_path, port: 4567, quiet: false)
+      def self.run!(folder_path, port: 4567, quiet: false, parent_pid: nil, lifecycle: nil)
+        lifecycle ||= Lifecycle.new
         preview_cache = File.join(folder_path, '.preview_cache')
         FileUtils.rm_rf(preview_cache) if File.directory?(preview_cache)
 
@@ -41,18 +42,27 @@ module InvasionStudio
         project = InvasionStudio::Project.new(folder_path)
         set :project, project
         set :quiet, quiet
+        set :server_settings, { Silent: quiet }
         set :file_opener, FileOpener.new
         set :preview_remuxer, PreviewRemuxer.new(folder_path)
 
         project.enqueue_missing_thumbnails
         project.enqueue_missing_metadata
 
-        puts "Starting WebUI on http://localhost:#{port}"
-        puts "Folder: #{folder_path}"
-        puts "Press Ctrl+C to stop"
-        puts
+        unless quiet
+          puts "Starting WebUI on #{port.zero? ? 'an ephemeral port' : "http://localhost:#{port}"}"
+          puts "Folder: #{folder_path}"
+          puts "Press Ctrl+C to stop"
+          puts
+        end
 
-        super(port: port, bind: '127.0.0.1')
+        super(port: port, bind: '127.0.0.1') do |server|
+          server.events.on_booted do
+            lifecycle.handle_signals { quit! }
+            lifecycle.ready(server)
+          end
+          lifecycle.watch_parent(parent_pid) { quit! }
+        end
       end
 
       helpers do
@@ -135,6 +145,17 @@ module InvasionStudio
 
           '/thumbnail/' + URI.encode_www_form_component(clip['id'])
         end
+      end
+
+      get '/api/health' do
+        json_response(
+          status: 'ok',
+          version: InvasionStudio::VERSION,
+          project: {
+            path: settings.folder_path,
+            clip_count: project.clips.length
+          }
+        )
       end
 
       # Tags must register before Clips: the greedy clip routes

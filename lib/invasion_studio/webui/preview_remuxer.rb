@@ -17,7 +17,7 @@ module InvasionStudio
 
         audio_index = track_number - 1
         success = @process_runner.run(
-          'ffmpeg', '-y', '-i', original_path,
+          Executables.ffmpeg, '-y', '-i', original_path,
           '-map', '0:v:0', '-map', "0:a:#{audio_index}",
           '-c', 'copy', preview_path
         )

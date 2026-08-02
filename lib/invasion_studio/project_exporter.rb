@@ -40,7 +40,7 @@ module InvasionStudio
       File.write(concat_list_path, clip_paths.map { |c| "file '#{c}'" }.join("\n"))
 
       cmd = [
-        'ffmpeg', '-y',
+        Executables.ffmpeg, '-y',
         '-f', 'concat', '-safe', '0',
         '-i', concat_list_path,
         '-map', '0',

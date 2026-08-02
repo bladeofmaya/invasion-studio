@@ -10,7 +10,7 @@ module InvasionStudio
 
       def call(video_path)
         result = @process_runner.capture(
-          'ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_streams', '-show_format', video_path
+          Executables.ffprobe, '-v', 'quiet', '-print_format', 'json', '-show_streams', '-show_format', video_path
         )
         raise Error, "ffprobe failed for #{video_path}: #{result.stderr}" unless result.success?
 

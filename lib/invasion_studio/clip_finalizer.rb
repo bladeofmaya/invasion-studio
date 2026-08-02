@@ -73,7 +73,7 @@ module InvasionStudio
 
     def cut_segment(source_path, segment, output_path)
       @process_runner.run(
-        'ffmpeg', '-y',
+        Executables.ffmpeg, '-y',
         '-ss', segment[:start].to_s,
         '-i', source_path,
         '-t', (segment[:end] - segment[:start]).to_s,
@@ -102,7 +102,7 @@ module InvasionStudio
       concat_list = File.join(File.dirname(output_path), 'concat_list.txt')
       File.write(concat_list, segment_files.map { |path| "file '#{path}'" }.join("\n"))
       @process_runner.run(
-        'ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', concat_list,
+        Executables.ffmpeg, '-y', '-f', 'concat', '-safe', '0', '-i', concat_list,
         '-map', '0', '-c', 'copy', output_path
       )
     end

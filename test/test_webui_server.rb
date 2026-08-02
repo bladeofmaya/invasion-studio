@@ -39,6 +39,20 @@ class TestWebuiServer < Minitest::Test
 
   # ========== Page Routes ==========
 
+  def test_health_reports_version_and_project_state
+    get '/api/health'
+
+    assert last_response.ok?
+    assert_equal({
+      'status' => 'ok',
+      'version' => InvasionStudio::VERSION,
+      'project' => {
+        'path' => @folder,
+        'clip_count' => 2
+      }
+    }, JSON.parse(last_response.body))
+  end
+
   def test_get_root_returns_html
     get '/'
     assert last_response.ok?

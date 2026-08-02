@@ -34,7 +34,7 @@ module InvasionStudio
       FileUtils.mkdir_p(File.dirname(thumbnail_path))
 
       success = @process_runner.run(
-        'ffmpeg', '-y', '-ss', format_time(timestamp),
+        Executables.ffmpeg, '-y', '-ss', format_time(timestamp),
         '-i', source_path,
         '-vframes', '1',
         '-q:v', '2',

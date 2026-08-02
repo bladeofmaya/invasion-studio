@@ -28,7 +28,7 @@ module InvasionStudio
           filter = "fps=#{fps},hwdownload,format=nv12,crop=#{crop[:width]}:#{crop[:height]}:#{crop[:x]}:#{crop[:y]}"
         end
 
-        ['ffmpeg', '-threads', (options[:ffmpeg_threads] || 4).to_s, *acceleration,
+        [Executables.ffmpeg, '-threads', (options[:ffmpeg_threads] || 4).to_s, *acceleration,
          '-i', video_path, '-vf', filter, '-qscale:v', '5',
          File.join(frames_dir, 'frame_%06d.jpg')]
       end

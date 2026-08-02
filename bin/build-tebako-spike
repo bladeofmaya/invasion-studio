@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+OUTPUT_DIR="${TEBAKO_OUTPUT_DIR:-$PROJECT_DIR/pkg/spike}"
+TEBAKO_RUBY_VERSION="${TEBAKO_RUBY_VERSION:-3.4.2}"
+TEBAKO_IMAGE="${TEBAKO_IMAGE:-ghcr.io/tamatebako/tebako-ubuntu-20.04@sha256:cf3a8ee1e6305053739485889f4cdf80d601e553ee00a73675556dfdc596dbb7}"
+TEMP_OUTPUT_DIR="$(mktemp -d)"
+STAGE_DIR="$TEMP_OUTPUT_DIR/source"
+
+cleanup() { rm -rf "$TEMP_OUTPUT_DIR"; }
+trap cleanup EXIT
+
+fail() { echo "FAIL: $*" >&2; exit 1; }
+command -v docker >/dev/null 2>&1 || fail "docker is required"
+
+mkdir -p "$OUTPUT_DIR"
+"$PROJECT_DIR/bin/build-assets"
+mkdir -p "$STAGE_DIR"
+tar \
+  --exclude=.git \
+  --exclude=.bundle \
+  --exclude=node_modules \
+  --exclude=pkg \
+  --exclude=tmp \
+  --exclude='*.gem' \
+  --exclude=desktop/spike/build \
+  --exclude=desktop/spike/src-tauri/binaries \
+  -cf - -C "$PROJECT_DIR" . | tar -xf - -C "$STAGE_DIR"
+
+docker run --rm \
+  --volume "$STAGE_DIR:/mnt/source:ro" \
+  --volume "$TEMP_OUTPUT_DIR:/mnt/output" \
+  "$TEBAKO_IMAGE" \
+  tebako press \
+  --root=/mnt/source \
+  --entry-point=invasion-studio \
+  --Ruby="$TEBAKO_RUBY_VERSION" \
+  --mode=fat \
+  --patchelf \
+  --output=/mnt/output/invasion-studio
+
+/usr/bin/install -m 755 "$TEMP_OUTPUT_DIR/invasion-studio" "$OUTPUT_DIR/invasion-studio"
+"$OUTPUT_DIR/invasion-studio" --version
+echo "Tebako spike artifact: $OUTPUT_DIR/invasion-studio"

@@ -14,6 +14,7 @@ end
 
 require_relative 'invasion_studio/version'
 require_relative 'invasion_studio/paths'
+require_relative 'invasion_studio/executables'
 require_relative 'invasion_studio/media_files'
 require_relative 'invasion_studio/process_runner'
 require_relative 'invasion_studio/storage/adapter'
@@ -87,6 +88,7 @@ require_relative 'invasion_studio/webui/file_opener'
 require_relative 'invasion_studio/webui/preview_remuxer'
 require_relative 'invasion_studio/webui/group_statistics'
 require_relative 'invasion_studio/webui/storage_statistics'
+require_relative 'invasion_studio/webui/lifecycle'
 require_relative 'invasion_studio/webui/routes/clips'
 require_relative 'invasion_studio/webui/routes/tags'
 require_relative 'invasion_studio/webui/routes/groups'
@@ -109,7 +111,7 @@ module InvasionStudio
   end
 
   def self.check_tesseract_installed
-    ProcessRunner.new.capture('tesseract', '--version').success?
+    ProcessRunner.new.capture(Executables.tesseract, '--version').success?
   rescue Error
     false
   end
@@ -122,7 +124,7 @@ module InvasionStudio
   end
 
   def self.check_ffmpeg_installed
-    ProcessRunner.new.capture('ffmpeg', '-version').success?
+    ProcessRunner.new.capture(Executables.ffmpeg, '-version').success?
   rescue Error
     false
   end

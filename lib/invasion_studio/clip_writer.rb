@@ -26,7 +26,7 @@ module InvasionStudio
 
       def write(segment, output_file, log_file)
         command = [
-          'ffmpeg', '-i', segment.start_video,
+          Executables.ffmpeg, '-i', segment.start_video,
           '-ss', segment.start_time,
           '-to', segment.end_time,
           '-map', '0', '-c', 'copy', '-y', output_file
@@ -61,7 +61,7 @@ module InvasionStudio
 
       def cut_start(segment, output, log)
         @process_runner.run(
-          'ffmpeg', '-i', segment.start_video, '-ss', segment.start_time,
+          Executables.ffmpeg, '-i', segment.start_video, '-ss', segment.start_time,
           '-c', 'copy', '-map', '0', '-y', output,
           log_path: log
         )
@@ -69,7 +69,7 @@ module InvasionStudio
 
       def cut_end(segment, output, log)
         @process_runner.run(
-          'ffmpeg', '-i', segment.end_video, '-to', segment.end_time,
+          Executables.ffmpeg, '-i', segment.end_video, '-to', segment.end_time,
           '-c', 'copy', '-map', '0', '-y', output,
           log_path: log
         )
@@ -77,7 +77,7 @@ module InvasionStudio
 
       def concat(concat_list, output, log)
         @process_runner.run(
-          'ffmpeg', '-f', 'concat', '-safe', '0', '-i', concat_list,
+          Executables.ffmpeg, '-f', 'concat', '-safe', '0', '-i', concat_list,
           '-c', 'copy', '-map', '0', '-y', output,
           log_path: log
         )

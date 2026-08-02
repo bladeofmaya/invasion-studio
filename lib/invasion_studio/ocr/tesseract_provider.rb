@@ -43,7 +43,7 @@ module InvasionStudio
 
       def command(input)
         [
-          'tesseract', input, 'stdout', '--psm', @psm.to_s,
+          Executables.tesseract, input, 'stdout', '--psm', @psm.to_s,
           '-c', 'tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ '
         ]
       end

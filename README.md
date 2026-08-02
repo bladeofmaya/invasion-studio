@@ -92,6 +92,21 @@ To use another port:
 invasion-studio webui --port 8080 ~/Videos/ER/my-invasion-project
 ```
 
+Desktop launchers can request an OS-selected port and monitor their sidecar:
+
+```bash
+invasion-studio --quiet webui --port 0 --parent-pid "$launcher_pid" ~/Videos/ER/my-invasion-project
+```
+
+Once listening, the command writes a JSON line such as
+`{"event":"ready","port":49152}` to standard output. `GET /api/health`
+returns the application version and current project state. SIGTERM shuts the
+server down cleanly, and `--parent-pid` stops it if its launcher disappears.
+
+Packaged applications may set `INVASION_STUDIO_FFMPEG`,
+`INVASION_STUDIO_FFPROBE`, and `INVASION_STUDIO_TESSERACT` to absolute tool
+paths. When unset, the usual `PATH` lookup is used.
+
 ## Project folder layout
 
 A project is a plain folder. Everything Invasion Studio knows about it lives

@@ -1,0 +1,171 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'fileutils'
+require 'json'
+require 'net/http'
+require 'open3'
+require 'optparse'
+require 'socket'
+require 'tempfile'
+require 'tmpdir'
+require 'uri'
+require_relative '../desktop/spike/support/smoke_test'
+
+Response = Data.define(:code, :body)
+
+class SpikeHttpClient
+  def initialize(base_uri)
+    @base_uri = base_uri
+  end
+
+  def get(path)
+    request = Net::HTTP::Get.new(path)
+    request['Range'] = 'bytes=0-1023' if path.start_with?('/clip/')
+    perform(request)
+  end
+
+  def upload(path, file_path)
+    request = Net::HTTP::Post.new(path)
+    File.open(file_path, 'rb') do |file|
+      request.set_form([['files', file, { filename: File.basename(file_path), content_type: 'video/mp4' }]],
+                       'multipart/form-data')
+      return perform(request)
+    end
+  end
+
+  private
+
+  def perform(request)
+    response = Net::HTTP.start(@base_uri.host, @base_uri.port, open_timeout: 2, read_timeout: 30) do |http|
+      http.request(request)
+    end
+    Response.new(response.code, response.body.to_s)
+  end
+end
+
+class PackagedServer
+  attr_reader :port
+
+  def initialize(executable:, project:, log_path:, environment: {})
+    @executable = executable
+    @project = project
+    @log_path = log_path
+    @environment = environment
+  end
+
+  def start
+    @log = File.open(@log_path, 'a')
+    output, child_output = IO.pipe
+    @ready = Queue.new
+    @pid = Process.spawn(@environment, @executable, '--quiet', 'webui', '--port', '0', @project,
+                         out: child_output, err: @log)
+    child_output.close
+    @output_reader = Thread.new do
+      output.each_line do |line|
+        @log.write(line)
+        @log.flush
+        event = JSON.parse(line) rescue nil
+        @ready << event.fetch('port') if event&.fetch('event', nil) == 'ready'
+      end
+    ensure
+      output.close
+    end
+    @port = wait_until_ready
+  end
+
+  def stop
+    return unless @pid
+
+    Process.kill('TERM', @pid)
+    Timeout.timeout(10) { Process.wait(@pid) }
+  rescue Errno::ESRCH, Errno::ECHILD
+    nil
+  rescue Timeout::Error
+    Process.kill('KILL', @pid)
+    Process.wait(@pid)
+  ensure
+    @pid = nil
+    @output_reader&.join(1)
+    @output_reader = nil
+    @log&.close
+  end
+
+  private
+
+  def wait_until_ready
+    require 'timeout'
+    Timeout.timeout(30) { @ready.pop }
+  end
+end
+
+options = {
+  executable: File.expand_path('../pkg/spike/invasion-studio', __dir__),
+  clip: File.expand_path('../test/samples/invasion-sample-720p.mp4', __dir__),
+  evidence: File.expand_path('../pkg/spike/tebako-smoke.json', __dir__)
+}
+OptionParser.new do |parser|
+  parser.on('--executable PATH') { |path| options[:executable] = File.expand_path(path) }
+  parser.on('--clip PATH') { |path| options[:clip] = File.expand_path(path) }
+  parser.on('--evidence PATH') { |path| options[:evidence] = File.expand_path(path) }
+end.parse!
+
+abort "Missing executable: #{options[:executable]}" unless File.executable?(options[:executable])
+abort "Missing clip: #{options[:clip]}" unless File.file?(options[:clip])
+
+project = Dir.mktmpdir('invasion-studio-tebako-')
+tool_dir = File.join(project, 'tools')
+xdg_root = File.join(project, 'xdg')
+FileUtils.mkdir_p(tool_dir)
+File.symlink('/usr/bin/ffprobe', File.join(tool_dir, 'ffprobe'))
+File.write(File.join(tool_dir, 'ffmpeg'), "#!/bin/sh\nexit 1\n")
+FileUtils.chmod(0o755, File.join(tool_dir, 'ffmpeg'))
+log_path = File.join(project, 'server.log')
+server = PackagedServer.new(
+  executable: options[:executable],
+  project: project,
+  log_path: log_path,
+  environment: {
+    'INVASION_STUDIO_FFMPEG' => File.join(tool_dir, 'ffmpeg'),
+    'INVASION_STUDIO_FFPROBE' => File.join(tool_dir, 'ffprobe'),
+    'XDG_CONFIG_HOME' => File.join(xdg_root, 'config'),
+    'XDG_CACHE_HOME' => File.join(xdg_root, 'cache'),
+    'XDG_DATA_HOME' => File.join(xdg_root, 'data'),
+    'XDG_STATE_HOME' => File.join(xdg_root, 'state')
+  }
+)
+
+begin
+  server.start
+  http = SpikeHttpClient.new(URI("http://127.0.0.1:#{server.port}"))
+  evidence = InvasionStudio::Spike::SmokeTest.new(http: http).run(options[:clip])
+  clip = evidence.fetch(:clip)
+  stored_path = File.join(project, clip.fetch('path'))
+  raise "uploaded file was not stored at #{stored_path}" unless File.file?(stored_path)
+  raise "project.db was not created" unless File.file?(File.join(project, 'project.db'))
+
+  server.stop
+  server.start
+  http = SpikeHttpClient.new(URI("http://127.0.0.1:#{server.port}"))
+  persisted = http.get("/api/clip/#{URI.encode_www_form_component(clip.fetch('id'))}")
+  raise "clip did not survive restart" unless persisted.code.to_i == 200
+
+  ldd_stdout, ldd_stderr, ldd_status = Open3.capture3('ldd', options[:executable])
+  evidence.merge!(
+    executable: options[:executable],
+    clip_fixture: options[:clip],
+    stored_path: stored_path,
+    restart_persistence: true,
+    xdg_root: xdg_root,
+    ldd: ldd_status.success? ? ldd_stdout : ldd_stderr
+  )
+  FileUtils.mkdir_p(File.dirname(options[:evidence]))
+  File.write(options[:evidence], JSON.pretty_generate(evidence))
+  puts JSON.pretty_generate(evidence)
+rescue StandardError => e
+  warn File.read(log_path) if File.file?(log_path)
+  raise e
+ensure
+  server.stop
+  FileUtils.rm_rf(project)
+end

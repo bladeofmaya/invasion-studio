@@ -20,6 +20,7 @@ module InvasionStudio
           opts.banner = "Usage: invasion-studio webui [OPTIONS] FOLDER"
 
           opts.on("-p", "--port PORT", Integer, "Server port (default: 4567)") { |v| @options[:port] = v }
+          opts.on("--parent-pid PID", Integer, "Exit when the parent process exits") { |v| @options[:parent_pid] = v }
           opts.on("-h", "--help", "Show this help") { puts opts; exit 0 }
         end
       end
@@ -39,13 +40,21 @@ module InvasionStudio
         end
 
         port = @options[:port] || 4567
-        raise Error, 'port must be between 1 and 65535' unless (1..65_535).cover?(port)
+        raise Error, 'port must be between 0 and 65535' unless (0..65_535).cover?(port)
+
+        parent_pid = @options[:parent_pid]
+        raise Error, 'parent PID must be greater than 1' if parent_pid && parent_pid <= 1
       end
 
       def execute
         port = @options[:port] || 4567
         require_relative '../webui/server'
-        InvasionStudio::Webui::Server.run!(@folder, port: port, quiet: @options[:quiet])
+        InvasionStudio::Webui::Server.run!(
+          @folder,
+          port: port,
+          quiet: @options[:quiet],
+          parent_pid: @options[:parent_pid]
+        )
       end
     end
   end
