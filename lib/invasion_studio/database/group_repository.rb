@@ -151,6 +151,23 @@ module InvasionStudio
                 .reject { |clip| clip['deleted'] }
       end
 
+      def statistics
+        compilations = groups_dataset.order(:position, :id).select(:id, :name).all
+        memberships = active_memberships
+        cuts_by_clip = cuts_for(memberships.map { |row| row[:clip_id] }.uniq)
+        durations = effective_durations(memberships, cuts_by_clip)
+        memberships_by_compilation = memberships.group_by { |row| row[:compilation_id] }
+
+        compilations.map do |compilation|
+          clips = memberships_by_compilation.fetch(compilation[:id], [])
+          {
+            'name' => compilation[:name],
+            'clip_count' => clips.length,
+            'total_duration' => clips.sum { |clip| durations.fetch(clip[:clip_id], 0.0) }.round(2)
+          }
+        end
+      end
+
       def clip_paths(group_name)
         clips(group_name).filter_map { |clip| @clip_repository.resolve(clip['path']) }
       end
@@ -177,6 +194,42 @@ module InvasionStudio
 
       def group_clips_dataset
         @database[:compilation_clips]
+      end
+
+      def cuts_dataset
+        @database[:cuts]
+      end
+
+      def active_memberships
+        group_clips_dataset
+          .join(:clips, id: :clip_id)
+          .where(Sequel[:clips][:deleted_at] => nil)
+          .select(
+            Sequel[:compilation_clips][:compilation_id].as(:compilation_id),
+            Sequel[:clips][:id].as(:clip_id),
+            Sequel[:clips][:duration].as(:duration)
+          )
+          .all
+      end
+
+      def cuts_for(clip_ids)
+        return {} if clip_ids.empty?
+
+        cuts_dataset.where(clip_id: clip_ids).order(:clip_id, :position, :start).all
+                    .group_by { |cut| cut[:clip_id] }
+      end
+
+      def effective_durations(memberships, cuts_by_clip)
+        memberships.each_with_object({}) do |membership, durations|
+          clip_id = membership[:clip_id]
+          next if durations.key?(clip_id)
+
+          cuts = cuts_by_clip.fetch(clip_id, []).map do |cut|
+            { 'start' => cut[:start], 'end' => cut[:end] }
+          end
+          durations[clip_id] = (CutPlan.build(cuts) || CutPlan.empty)
+                               .effective_duration(membership[:duration])
+        end
       end
 
       def group_attributes(group)
