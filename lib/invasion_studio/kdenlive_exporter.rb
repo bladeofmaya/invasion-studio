@@ -33,8 +33,8 @@ module InvasionStudio
       raise Error, "Could not extract metadata for #{path}"
     end
 
-    def build_project(video_path, metadata)
-      @document_builder.build(video_path, metadata)
+    def build_project(video_path, metadata, chapters: [])
+      @document_builder.build(video_path, metadata, chapters: chapters)
     end
 
     private

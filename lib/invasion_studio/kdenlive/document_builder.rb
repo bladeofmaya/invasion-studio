@@ -11,8 +11,8 @@ module InvasionStudio
         @clock = clock
       end
 
-      def build(video_path, metadata)
-        context = build_context(video_path, metadata)
+      def build(video_path, metadata, chapters: [])
+        context = build_context(video_path, metadata, chapters)
         body = COMPONENTS.map { |component| component.new(context).to_xml }.join
 
         <<~XML
@@ -25,13 +25,14 @@ module InvasionStudio
 
       private
 
-      def build_context(video_path, metadata)
+      def build_context(video_path, metadata, chapters)
         arguments = {
           folder_path: @folder_path,
           video_path: video_path,
           metadata: metadata,
           width: @width,
-          height: @height
+          height: @height,
+          chapters: chapters
         }
         arguments[:uuid_factory] = @uuid_factory if @uuid_factory
         arguments[:clock] = @clock if @clock

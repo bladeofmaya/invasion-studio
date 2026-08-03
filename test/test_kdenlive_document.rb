@@ -80,6 +80,25 @@ class TestKdenliveDocument < Minitest::Test
     assert_equal '300', property(sequence, 'kdenlive:maxduration')
   end
 
+  def test_timeline_guides_mark_chapter_starts_with_titles
+    chapters = [
+      { title: 'Opening & setup', start_time: 0.0, end_time: 4.0 },
+      { title: 'Final invasion', start_time: 4.0, end_time: 10.0 }
+    ]
+    exporter = InvasionStudio::KdenliveExporter.new(@folder, quiet: true)
+    xml = exporter.build_project(File.join(@folder, 'combined.mp4'), METADATA, chapters: chapters)
+    document = REXML::Document.new(xml)
+    sequence = REXML::XPath.match(document, '/mlt/tractor').find do |tractor|
+      property(tractor, 'kdenlive:uuid')
+    end
+
+    guides = JSON.parse(property(sequence, 'kdenlive:sequenceproperties.guides'))
+    assert_equal [
+      { 'comment' => 'Opening & setup', 'pos' => 0, 'type' => 0 },
+      { 'comment' => 'Final invasion', 'pos' => 120, 'type' => 0 }
+    ], guides
+  end
+
   private
 
   def property(node, name)
