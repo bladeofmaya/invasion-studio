@@ -8,9 +8,9 @@ module InvasionStudio
     class BuildContext
       attr_reader :folder_path, :video_path, :metadata, :width, :height, :fps,
                   :duration_frames, :duration_timecode, :sequence_uuid, :document_uuid,
-                  :control_uuid, :session_id, :document_id, :audio_stream_count
+                  :control_uuid, :session_id, :document_id, :audio_stream_count, :chapters
 
-      def initialize(folder_path:, video_path:, metadata:, width:, height:,
+      def initialize(folder_path:, video_path:, metadata:, width:, height:, chapters: [],
                      uuid_factory: -> { "{#{SecureRandom.uuid}}" }, clock: -> { Time.now })
         @folder_path = File.expand_path(folder_path)
         @video_path = video_path
@@ -19,6 +19,7 @@ module InvasionStudio
         @height = height
         @fps = metadata[:fps] || 30
         @audio_stream_count = metadata.fetch(:audio_stream_count, 4)
+        @chapters = chapters
         @duration_frames = (metadata[:duration] * @fps).round
         @duration_timecode = timecode(@duration_frames)
         @sequence_uuid = uuid_factory.call
