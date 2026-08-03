@@ -26,7 +26,7 @@ module InvasionStudio
 
     def initialize(folder_path, database: nil, storage: nil, process_runner: nil,
                    clip_repository: nil, group_repository: nil, tag_repository: nil,
-                   clip_trash: nil, clip_finalizer: nil)
+                   clip_trash: nil, clip_finalizer: nil, clip_metadata_updater: nil)
       @folder_path = File.expand_path(folder_path)
       @mutation_lock = Monitor.new
       @database = database || InvasionStudio::Database.migrate_to_current!(@folder_path)
@@ -42,6 +42,7 @@ module InvasionStudio
       @clip_finalizer = clip_finalizer || ClipFinalizer.new(
         @folder_path, @storage, process_runner: process_runner || ProcessRunner.new
       )
+      @clip_metadata_updater = clip_metadata_updater || ClipMetadataUpdater.new(self)
 
       InvasionStudio::Database::LegacyProjectImporter.new(
         @database, @folder_path
@@ -170,8 +171,15 @@ module InvasionStudio
       return false unless clip
 
       success = @clip_finalizer.finalize(clip, media_operation: finalizer)
-      update_cuts(clip_id, []) if success
-      success
+      return false unless success
+
+      refreshed = @clip_metadata_updater.update(clip_id)
+      unless refreshed
+        @clip_repository.update(clip_id, 'duration' => nil)
+        InvasionStudio::Workers::MetadataJob.perform_async(clip_id, @folder_path)
+      end
+      update_cuts(clip_id, [])
+      true
     end
 
     def delete_clip(clip_id)

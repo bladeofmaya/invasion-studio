@@ -34,6 +34,25 @@ class TestProjectExporter < Minitest::Test
     ], exporter.send(:build_chapters, clips)
   end
 
+  def test_chapters_prefer_current_file_duration_over_stale_database_duration
+    project = InvasionStudio::Project.new(@tmp_dir)
+    exporter = InvasionStudio::ProjectExporter.new(
+      project,
+      quiet: true,
+      metadata_probe: ->(_path) { { duration: 8.0 } }
+    )
+    clips = [{
+      'title' => 'Finalized clip',
+      'filename' => 'one.mp4',
+      'resolved_path' => File.join(@tmp_dir, 'one.mp4'),
+      'duration' => 10.0
+    }]
+
+    chapter = exporter.send(:build_chapters, clips).first
+
+    assert_equal 8.0, chapter[:end_time]
+  end
+
   def test_ffmetadata_contains_titled_mp4_chapters
     project = InvasionStudio::Project.new(@tmp_dir)
     exporter = InvasionStudio::ProjectExporter.new(project, quiet: true)
@@ -61,7 +80,10 @@ class TestProjectExporter < Minitest::Test
       project,
       quiet: true,
       process_runner: runner,
-      metadata_probe: ->(_path) { { duration: 5.0, width: 1920, height: 1080, fps: 30 } }
+      metadata_probe: lambda { |path|
+        durations = { 'one.mp4' => 2.0, 'two.mp4' => 3.0, 'best.mp4' => 5.0 }
+        { duration: durations.fetch(File.basename(path)), width: 1920, height: 1080, fps: 30 }
+      }
     )
 
     _video_path, project_path = exporter.export_group('Best')
