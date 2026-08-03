@@ -64,12 +64,19 @@ module InvasionStudio
     end
 
     def clip_duration(clip)
-      duration = clip['duration'].to_f
-      return duration if duration.positive?
+      if clip['resolved_path']
+        metadata = @metadata_probe.call(clip['resolved_path'])
+        current_duration = metadata && metadata[:duration].to_f
+        return current_duration if current_duration&.positive?
+      end
 
-      metadata = @metadata_probe.call(clip['resolved_path'])
-      duration = metadata && metadata[:duration].to_f
-      return duration if duration&.positive?
+      stored_duration = clip['duration'].to_f
+      return stored_duration if stored_duration.positive?
+
+      raise Error, "Could not determine duration for #{clip['filename']}"
+    rescue StandardError
+      stored_duration = clip['duration'].to_f
+      return stored_duration if stored_duration.positive?
 
       raise Error, "Could not determine duration for #{clip['filename']}"
     end

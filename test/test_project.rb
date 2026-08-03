@@ -367,11 +367,13 @@ class TestProject < Minitest::Test
     project = InvasionStudio::Project.new(@tmp_dir)
     project.update_cuts('test', [{ 'start' => 2.0, 'end' => 4.0 }])
 
-    mock_video = Struct.new(:path).new('test.mp4')
-    def mock_video.metadata; { duration: 10.0, width: 1920, height: 1080, fps: 30 }; end
-
     orig_new = InvasionStudio::Video.method(:new)
-    InvasionStudio::Video.define_singleton_method(:new) { |path| mock_video }
+    InvasionStudio::Video.define_singleton_method(:new) do |path|
+      metadata = File.read(path) == 'finalized' ?
+        { duration: 8.0, width: 1920, height: 1080, fps: 30 } :
+        { duration: 10.0, width: 1920, height: 1080, fps: 30 }
+      Struct.new(:metadata).new(metadata)
+    end
 
     finalizer = ->(_source, _segments, output) {
       File.write(output, 'finalized')
@@ -380,10 +382,31 @@ class TestProject < Minitest::Test
 
     assert project.finalize_cuts('test', finalizer: finalizer)
     assert_equal [], project.find_clip('test')['cuts']
+    assert_equal 8.0, project.find_clip('test')['duration']
     assert File.exist?(File.join(@tmp_dir, '.backup', 'test.mp4'))
     assert_equal 'finalized', File.read(File.join(@tmp_dir, 'test.mp4'))
   ensure
     InvasionStudio::Video.define_singleton_method(:new, orig_new) if orig_new
+  end
+
+  def test_finalize_cuts_clears_stale_duration_when_metadata_refresh_fails
+    create_clip_file('test.mp4')
+    failed_updater = Object.new
+    failed_updater.define_singleton_method(:update) { |_clip_id| false }
+    project = InvasionStudio::Project.new(@tmp_dir, clip_metadata_updater: failed_updater)
+    project.clip_repository.update('test', 'duration' => 10.0)
+    project.update_cuts('test', [{ 'start' => 2.0, 'end' => 4.0 }])
+
+    mock_video = Struct.new(:metadata).new({ duration: 10.0 })
+    original_new = InvasionStudio::Video.method(:new)
+    InvasionStudio::Video.define_singleton_method(:new) { |_path| mock_video }
+    finalizer = ->(_source, _segments, output) { File.write(output, 'finalized') }
+
+    assert project.finalize_cuts('test', finalizer: finalizer)
+    assert_nil project.find_clip('test')['duration']
+    assert_equal [], project.find_clip('test')['cuts']
+  ensure
+    InvasionStudio::Video.define_singleton_method(:new, original_new) if original_new
   end
 
   def test_finalize_cuts_returns_false_when_finalizer_fails
