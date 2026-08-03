@@ -757,19 +757,24 @@ class TestWebuiServer < Minitest::Test
     assert_equal 1, data[0]['clip_count']
   end
 
+  def test_compilation_overview_is_loaded_lazily_without_redundant_group_request
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/group_manager_controller.js', __dir__
+    ))
+
+    assert_includes controller, "if (this.getNavState().view === 'groups')"
+    refute_includes controller, "fetchJson('/api/groups')"
+  end
+
   def test_get_api_groups_stats_subtracts_saved_cuts
     project = InvasionStudio::Webui::Server.settings.project
+    project.clip_repository.update('clip1', 'duration' => 10.0)
     project.update_cuts('clip1', [{ 'start' => 2.0, 'end' => 5.0 }])
-    fake_video = Struct.new(:metadata).new({ duration: 10.0 })
-    original_new = InvasionStudio::Video.method(:new)
-    InvasionStudio::Video.define_singleton_method(:new) { |_path| fake_video }
 
     get '/api/groups/stats'
 
     stat = JSON.parse(last_response.body).find { |item| item['name'] == 'Group1' }
     assert_in_delta 7.0, stat['total_duration']
-  ensure
-    InvasionStudio::Video.define_singleton_method(:new, original_new) if original_new
   end
 
   def test_post_api_groups_creates_group

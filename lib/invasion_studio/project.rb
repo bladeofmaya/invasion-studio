@@ -161,6 +161,10 @@ module InvasionStudio
       (CutPlan.build(clip['cuts']) || CutPlan.empty).effective_duration(media_duration)
     end
 
+    def compilation_statistics
+      @group_repository.statistics
+    end
+
     def finalize_cuts(clip_id, finalizer: nil)
       clip = find_clip(clip_id)
       return false unless clip

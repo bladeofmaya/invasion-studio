@@ -16,15 +16,63 @@ class TestGroupRepository < Minitest::Test
     FileUtils.rm_rf(@tmp_dir)
   end
 
-  def create_clip(name)
+  def create_clip(name, attributes = {})
     path = File.join(@tmp_dir, name)
     File.write(path, 'dummy')
-    @clip_repository.create(
+    @clip_repository.create({
       'id' => File.basename(name, '.*'),
       'filename' => name,
       'path' => name,
       'source_kind' => 'external'
-    )
+    }.merge(attributes))
+  end
+
+  def test_statistics_use_stored_durations_and_saved_cuts
+    create_clip('a.mp4', 'duration' => 10.0)
+    create_clip('b.mp4', 'duration' => 20.0)
+    @clip_repository.update_cuts('b', [{ 'start' => 2.0, 'end' => 7.0 }])
+    @repository.create('Best')
+    @repository.create('Empty')
+    @repository.add_clip('Best', 'a')
+    @repository.add_clip('Best', 'b')
+
+    assert_equal [
+      { 'name' => 'Best', 'clip_count' => 2, 'total_duration' => 25.0 },
+      { 'name' => 'Empty', 'clip_count' => 0, 'total_duration' => 0.0 }
+    ], @repository.statistics
+  end
+
+  def test_statistics_exclude_deleted_clips_and_tolerate_missing_durations
+    create_clip('active.mp4')
+    create_clip('deleted.mp4', 'duration' => 30.0)
+    @repository.create('Best')
+    @repository.add_clip('Best', 'active')
+    @repository.add_clip('Best', 'deleted')
+    @clip_repository.mark_deleted('deleted')
+
+    assert_equal 1, @repository.statistics.first['clip_count']
+    assert_equal 0.0, @repository.statistics.first['total_duration']
+  end
+
+  def test_statistics_use_a_fixed_number_of_queries
+    create_clip('a.mp4', 'duration' => 10.0)
+    @repository.create('First')
+    @repository.create('Second')
+    @repository.add_clip('First', 'a')
+    @repository.add_clip('Second', 'a')
+
+    selects = []
+    logger = Object.new
+    logger.define_singleton_method(:info) do |message|
+      selects << message if message.include?('SELECT')
+    end
+    @db.loggers << logger
+
+    @repository.statistics
+
+    assert_equal 3, selects.length
+  ensure
+    @db.loggers.delete(logger) if logger
   end
 
   def test_create_and_list_groups
