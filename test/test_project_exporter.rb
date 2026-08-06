@@ -1,6 +1,8 @@
 require 'test_helper'
 require 'tmpdir'
 require 'fileutils'
+require 'rexml/document'
+require 'rexml/xpath'
 
 class TestProjectExporter < Minitest::Test
   def setup
@@ -95,5 +97,42 @@ class TestProjectExporter < Minitest::Test
     assert_includes xml, '&quot;comment&quot;:&quot;Opening&quot;'
     assert_includes xml, '&quot;comment&quot;:&quot;Finish&quot;'
     assert_includes xml, '&quot;pos&quot;:60'
+  end
+
+  def test_export_uses_project_audio_settings_for_mp4_and_kdenlive
+    clips = [{ 'filename' => 'one.mp4', 'duration' => 2.0 }]
+    project = Struct.new(:folder_path, :clips, :video_settings) do
+      def group_clips(_name) = clips
+      def resolve_clip_path(clip) = File.join(folder_path, clip['filename'])
+    end.new(
+      @tmp_dir,
+      clips,
+      { 'audio_track_count' => 2, 'default_audio_track' => 2 }
+    )
+    runner = TestSupport::FakeProcessRunner.new
+    exporter = InvasionStudio::ProjectExporter.new(
+      project,
+      quiet: true,
+      process_runner: runner,
+      metadata_probe: lambda { |path|
+        { duration: File.basename(path) == 'one.mp4' ? 2.0 : 2.0, width: 1920, height: 1080, fps: 30,
+          audio_stream_count: 4 }
+      }
+    )
+
+    _video_path, project_path = exporter.export_group('Best')
+
+    command = runner.commands.first.fetch(:command)
+    assert_includes command.each_cons(2).to_a, ['-map', '0:v:0?']
+    assert_includes command.each_cons(2).to_a, ['-map', '0:a:0?']
+    assert_includes command.each_cons(2).to_a, ['-map', '0:a:1?']
+    refute_includes command.each_cons(2).to_a, ['-map', '0:a:2?']
+    assert_includes command.each_cons(2).to_a, ['-disposition:a:1', 'default']
+
+    document = REXML::Document.new(File.read(project_path))
+    audio_chains = REXML::XPath.match(
+      document, '/mlt/chain/property[@name="audio_index" and text() != "-1"]'
+    )
+    assert_equal 2, audio_chains.length
   end
 end

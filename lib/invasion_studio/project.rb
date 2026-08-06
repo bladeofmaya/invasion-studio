@@ -10,7 +10,7 @@ module InvasionStudio
       MUTATIONS = %i[
         create_group rename_group delete_group add_clip_to_group remove_clip_from_group move_clip_between_groups
         reorder_group update_note update_rating update_result update_title update_cuts
-        finalize_cuts delete_clip restore_clip empty_trash save!
+        finalize_cuts delete_clip restore_clip empty_trash save! update_video_settings
       ].freeze
 
       MUTATIONS.each do |method_name|
@@ -38,6 +38,7 @@ module InvasionStudio
       @tag_repository = tag_repository || InvasionStudio::Database::TagRepository.new(
         @database, clip_repository: @clip_repository
       )
+      @project_settings = InvasionStudio::Database::ProjectSettings.new(@database)
       @clip_trash = clip_trash || ClipTrash.new(@folder_path, @storage)
       @clip_finalizer = clip_finalizer || ClipFinalizer.new(
         @folder_path, @storage, process_runner: process_runner || ProcessRunner.new
@@ -98,6 +99,17 @@ module InvasionStudio
 
     def groups
       @group_repository.all
+    end
+
+    def video_settings
+      @project_settings.video
+    end
+
+    def update_video_settings(audio_track_count:, default_audio_track:)
+      @project_settings.update_video(
+        audio_track_count: audio_track_count,
+        default_audio_track: default_audio_track
+      )
     end
 
     def create_group(name)

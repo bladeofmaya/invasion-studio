@@ -20,7 +20,9 @@ module InvasionStudio
       chapters = build_chapters(clips)
 
       splice_clips(clips.map { |clip| clip.fetch('resolved_path') }, spliced_path, chapters)
-      metadata = gather_metadata_for(spliced_path)
+      metadata = gather_metadata_for(spliced_path).merge(
+        audio_stream_count: video_settings.fetch('audio_track_count')
+      )
       xml = KdenliveExporter.new(output_dir, @options)
                             .build_project(spliced_path, metadata, chapters: chapters)
       File.write(kdenlive_path, xml)
@@ -93,7 +95,8 @@ module InvasionStudio
         '-f', 'concat', '-safe', '0',
         '-i', concat_list_path,
         '-i', chapter_metadata_path,
-        '-map', '0',
+        '-map', '0:v:0?',
+        *audio_mapping_arguments,
         '-map_metadata', '1',
         '-map_chapters', '1',
         '-c', 'copy',
@@ -109,6 +112,23 @@ module InvasionStudio
     ensure
       File.delete(concat_list_path) if File.exist?(concat_list_path)
       File.delete(chapter_metadata_path) if chapter_metadata_path && File.exist?(chapter_metadata_path)
+    end
+
+    def audio_mapping_arguments
+      settings = video_settings
+      count = settings.fetch('audio_track_count')
+      default_index = settings.fetch('default_audio_track') - 1
+
+      count.times.flat_map do |index|
+        disposition = index == default_index ? 'default' : '0'
+        ['-map', "0:a:#{index}?", "-disposition:a:#{index}", disposition]
+      end
+    end
+
+    def video_settings
+      return @project.video_settings if @project.respond_to?(:video_settings)
+
+      Database::ProjectSettings::DEFAULT_VIDEO_SETTINGS
     end
 
     def build_chapter_metadata(chapters)
