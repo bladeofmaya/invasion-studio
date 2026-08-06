@@ -166,6 +166,14 @@ class TestWebuiServer < Minitest::Test
     refute_empty last_response.body
   end
 
+  def test_bundled_javascript_prompts_before_overwriting_an_export
+    get '/assets/app.js'
+
+    assert last_response.ok?
+    assert_includes last_response.body, 'overwrite_required'
+    assert_includes last_response.body, 'Overwrite it?'
+  end
+
   # ========== SPA Deep-Link Routes ==========
 
   def test_get_clips_deep_link_returns_shell
@@ -925,9 +933,9 @@ class TestWebuiServer < Minitest::Test
 
   def test_post_api_export_success_contract
     fake_exporter = Object.new
-    fake_exporter.define_singleton_method(:export_group) do |group, basename|
-      raise 'unexpected arguments' unless group == 'Group1' && basename == 'episode'
-      ['/project/exports/episode.mp4', '/project/exports/episode.kdenlive']
+    fake_exporter.define_singleton_method(:export_group) do |group, basename, overwrite:|
+      raise 'unexpected arguments' unless group == 'Group1' && basename == 'episode' && overwrite == false
+      ['/project/exports/episode/episode.mp4', '/project/exports/episode/episode.kdenlive']
     end
     original_new = InvasionStudio::ProjectExporter.method(:new)
     InvasionStudio::ProjectExporter.define_singleton_method(:new) { |*_args, **_options| fake_exporter }
@@ -937,9 +945,46 @@ class TestWebuiServer < Minitest::Test
     assert last_response.ok?
     assert_equal({
       'success' => true,
-      'spliced' => '/project/exports/episode.mp4',
-      'kdenlive' => '/project/exports/episode.kdenlive'
+      'spliced' => '/project/exports/episode/episode.mp4',
+      'kdenlive' => '/project/exports/episode/episode.kdenlive'
     }, JSON.parse(last_response.body))
+  ensure
+    InvasionStudio::ProjectExporter.define_singleton_method(:new, original_new) if original_new
+  end
+
+  def test_post_api_export_returns_conflict_before_overwriting
+    fake_exporter = Object.new
+    fake_exporter.define_singleton_method(:export_group) do |*_args, overwrite:|
+      raise 'overwrite flag was not passed' if overwrite
+      raise InvasionStudio::ProjectExporter::ExportExists, 'Export already exists'
+    end
+    original_new = InvasionStudio::ProjectExporter.method(:new)
+    InvasionStudio::ProjectExporter.define_singleton_method(:new) { |*_args, **_options| fake_exporter }
+
+    post '/api/export', JSON.generate({ group: 'Group1', output_basename: 'episode' }),
+         'CONTENT_TYPE' => 'application/json'
+
+    assert_equal 409, last_response.status
+    assert_equal({ 'error' => 'Export already exists', 'overwrite_required' => true }, JSON.parse(last_response.body))
+  ensure
+    InvasionStudio::ProjectExporter.define_singleton_method(:new, original_new) if original_new
+  end
+
+  def test_post_api_export_passes_confirmed_overwrite
+    received_overwrite = nil
+    fake_exporter = Object.new
+    fake_exporter.define_singleton_method(:export_group) do |_group, _basename, overwrite:|
+      received_overwrite = overwrite
+      ['/project/exports/episode/episode.mp4', '/project/exports/episode/episode.kdenlive']
+    end
+    original_new = InvasionStudio::ProjectExporter.method(:new)
+    InvasionStudio::ProjectExporter.define_singleton_method(:new) { |*_args, **_options| fake_exporter }
+
+    post '/api/export', JSON.generate({ group: 'Group1', output_basename: 'episode', overwrite: true }),
+         'CONTENT_TYPE' => 'application/json'
+
+    assert last_response.ok?
+    assert_equal true, received_overwrite
   ensure
     InvasionStudio::ProjectExporter.define_singleton_method(:new, original_new) if original_new
   end

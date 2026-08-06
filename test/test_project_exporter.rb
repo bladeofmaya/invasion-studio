@@ -22,6 +22,51 @@ class TestProjectExporter < Minitest::Test
     end
   end
 
+  def test_export_writes_files_into_a_named_subfolder
+    clips = [{ 'filename' => 'one.mp4', 'duration' => 2.0 }]
+    project = Struct.new(:folder_path, :clips) do
+      def group_clips(_name) = clips
+      def resolve_clip_path(clip) = File.join(folder_path, clip['filename'])
+    end.new(@tmp_dir, clips)
+    exporter = InvasionStudio::ProjectExporter.new(
+      project,
+      quiet: true,
+      process_runner: TestSupport::FakeProcessRunner.new,
+      metadata_probe: ->(_path) { { duration: 2.0, width: 1920, height: 1080, fps: 30 } }
+    )
+
+    video_path, project_path = exporter.export_group('Best Runs', 'Episode 1')
+
+    assert_equal File.join(@tmp_dir, 'exports', 'episode_1', 'episode_1.mp4'), video_path
+    assert_equal File.join(@tmp_dir, 'exports', 'episode_1', 'episode_1.kdenlive'), project_path
+  end
+
+  def test_export_refuses_to_overwrite_existing_output_unless_allowed
+    clips = [{ 'filename' => 'one.mp4', 'duration' => 2.0 }]
+    project = Struct.new(:folder_path, :clips) do
+      def group_clips(_name) = clips
+      def resolve_clip_path(clip) = File.join(folder_path, clip['filename'])
+    end.new(@tmp_dir, clips)
+    output_dir = File.join(@tmp_dir, 'exports', 'episode')
+    FileUtils.mkdir_p(output_dir)
+    File.write(File.join(output_dir, 'episode.mp4'), 'existing')
+    runner = TestSupport::FakeProcessRunner.new
+    exporter = InvasionStudio::ProjectExporter.new(
+      project,
+      quiet: true,
+      process_runner: runner,
+      metadata_probe: ->(_path) { { duration: 2.0, width: 1920, height: 1080, fps: 30 } }
+    )
+
+    assert_raises(InvasionStudio::ProjectExporter::ExportExists) do
+      exporter.export_group('Best', 'episode')
+    end
+    assert_empty runner.commands
+
+    exporter.export_group('Best', 'episode', overwrite: true)
+    refute_empty runner.commands
+  end
+
   def test_builds_chapters_from_clip_titles_with_filename_fallback
     project = InvasionStudio::Project.new(@tmp_dir)
     exporter = InvasionStudio::ProjectExporter.new(project, quiet: true)
