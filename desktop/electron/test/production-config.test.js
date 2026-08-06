@@ -24,6 +24,14 @@ test("production Linux icon is present", () => {
   assert.equal(existsSync(path.join(electronDirectory, "assets", "icon.png")), true)
 })
 
+test("sandboxed launcher resources are packaged", () => {
+  for (const resource of ["launcher.html", "launcher.js", "preload.cjs"]) {
+    assert.equal(existsSync(path.join(electronDirectory, "src", resource)), true)
+  }
+  const launcher = readFileSync(path.join(electronDirectory, "src", "launcher.html"), "utf8")
+  assert.match(launcher, /Content-Security-Policy/)
+})
+
 test("Forge packages the production executable and Flatpak identity", () => {
   assert.equal(forgeConfig.packagerConfig.executableName, "invasion-studio")
 

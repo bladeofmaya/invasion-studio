@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+    <title>Invasion Studio</title>
+    <link rel="stylesheet" href="launcher.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="../assets/icon.png" alt="" width="64" height="64">
+        <div>
+          <h1>Invasion Studio</h1>
+          <p>Open a project to review and organize your clips.</p>
+        </div>
+      </header>
+
+      <section aria-labelledby="recent-heading">
+        <h2 id="recent-heading">Recent projects</h2>
+        <div id="recent-projects" class="recent-projects" aria-live="polite"></div>
+      </section>
+
+      <div class="actions">
+        <button id="open-project" type="button" class="primary">Open project…</button>
+        <button id="create-project" type="button">New project…</button>
+      </div>
+      <p id="status" class="status" role="status"></p>
+    </main>
+    <script src="launcher.js"></script>
+  </body>
+</html>

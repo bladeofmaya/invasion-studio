@@ -9,8 +9,8 @@ TEBAKO_ARTIFACT="$PROJECT_DIR/pkg/sidecar/linux-x64/invasion-studio"
 PACKAGED_SIDECAR="$PACKAGE_DIR/resources/invasion-studio"
 TARGET_PROJECT="${1:-}"
 
-[ -n "$TARGET_PROJECT" ] && [ -d "$TARGET_PROJECT" ] || {
-  echo "Usage: bin/run-desktop PROJECT_DIRECTORY" >&2
+[ -z "$TARGET_PROJECT" ] || [ -d "$TARGET_PROJECT" ] || {
+  echo "Usage: bin/run-desktop [PROJECT_DIRECTORY]" >&2
   exit 1
 }
 
@@ -57,5 +57,5 @@ NEWER_ELECTRON_SOURCE="$(find \
   exit 1
 }
 
-export INVASION_STUDIO_PROJECT="$TARGET_PROJECT"
+[ -z "$TARGET_PROJECT" ] || export INVASION_STUDIO_PROJECT="$TARGET_PROJECT"
 exec "$APPLICATION"

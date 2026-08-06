@@ -293,7 +293,8 @@ installer:
 # Rebuild the sidecar, run Electron tests, and create an unpacked app.
 bin/build-desktop
 
-# Launch that packaged app.
+# Launch the project picker, or pass a folder to bypass it during development.
+bin/run-desktop
 bin/run-desktop /path/to/project
 
 # Run the Flatpak maker instead of producing only the unpacked app.

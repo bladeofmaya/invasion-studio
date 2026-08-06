@@ -101,7 +101,7 @@ export class Sidecar {
         clearTimeout(timeout)
         lines.removeListener("line", onLine)
         this.child.removeListener("error", onError)
-        this.child.removeListener("exit", onExit)
+        this.child.removeListener("close", onClose)
         lines.close()
       }
       const onLine = line => {
@@ -117,14 +117,16 @@ export class Sidecar {
         cleanup()
         reject(new Error(`failed to launch sidecar: ${error.message}`))
       }
-      const onExit = (code, signal) => {
+      // `close` fires after the stdio streams have closed, so diagnostics
+      // written immediately before process exit are available in errorDetails.
+      const onClose = (code, signal) => {
         cleanup()
         reject(new Error(`sidecar exited before readiness (code=${code}, signal=${signal})${this.errorDetails()}`))
       }
 
       lines.on("line", onLine)
       this.child.once("error", onError)
-      this.child.once("exit", onExit)
+      this.child.once("close", onClose)
     })
   }
 

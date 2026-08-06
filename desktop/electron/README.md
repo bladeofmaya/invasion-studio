@@ -18,11 +18,12 @@ Platform/SDK and Electron BaseApp 25.08.
 
 ## Security boundary
 
-The renderer has Node integration disabled, context isolation and Chromium's
-sandbox enabled, no preload bridge, denied permission requests, and navigation
-restricted to the exact sidecar origin. HTTPS links may open in the system
-browser. Packaging disables RunAsNode and Node CLI environment fuses and
-requires an integrity-checked ASAR.
+Both renderers have Node integration disabled, context isolation and Chromium's
+sandbox enabled, denied permission requests, and restricted navigation. The
+launcher has a minimal preload bridge limited to listing recent projects and
+requesting validated native folder selection. The Sinatra WebUI window has no
+preload bridge. HTTPS links may open in the system browser. Packaging disables
+RunAsNode and Node CLI environment fuses and requires an integrity-checked ASAR.
 
 ## Develop and test
 
@@ -44,6 +45,11 @@ The Electron tests use a fake Node sidecar and do not process video.
 ```sh
 # Produce an unpacked Linux application.
 bin/build-desktop
+
+# Open the project launcher.
+bin/run-desktop
+
+# Or bypass the launcher during development.
 bin/run-desktop /path/to/project
 
 # Run Forge's Flatpak maker.
@@ -59,6 +65,11 @@ portable tools may be staged under `pkg/tools/linux-x64`; when present, Forge
 copies that directory into the application's `resources/tools` directory.
 FFmpeg, FFprobe, Tesseract, and `eng.traineddata` still need a pinned download,
 checksum, and licensing pipeline before the Flatpak release is self-contained.
+
+Recent projects are stored in Electron's per-user application-data directory.
+Missing folders are pruned when the launcher loads. The list contains only
+folder paths and last-opened timestamps; project content and `project.db` stay
+inside each selected project.
 
 ## Manual release checks
 
