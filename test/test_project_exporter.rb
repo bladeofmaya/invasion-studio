@@ -35,10 +35,10 @@ class TestProjectExporter < Minitest::Test
       metadata_probe: ->(_path) { { duration: 2.0, width: 1920, height: 1080, fps: 30 } }
     )
 
-    video_path, project_path = exporter.export_group('Best Runs', 'Episode 1')
+    video_path, project_path = exporter.export_group('Best Runs')
 
-    assert_equal File.join(@tmp_dir, 'exports', 'episode_1', 'episode_1.mp4'), video_path
-    assert_equal File.join(@tmp_dir, 'exports', 'episode_1', 'episode_1.kdenlive'), project_path
+    assert_equal File.join(@tmp_dir, 'exports', 'Best Runs', 'Best Runs.mp4'), video_path
+    assert_equal File.join(@tmp_dir, 'exports', 'Best Runs', 'Best Runs.kdenlive'), project_path
   end
 
   def test_export_refuses_to_overwrite_existing_output_unless_allowed
@@ -47,9 +47,9 @@ class TestProjectExporter < Minitest::Test
       def group_clips(_name) = clips
       def resolve_clip_path(clip) = File.join(folder_path, clip['filename'])
     end.new(@tmp_dir, clips)
-    output_dir = File.join(@tmp_dir, 'exports', 'episode')
+    output_dir = File.join(@tmp_dir, 'exports', 'Best')
     FileUtils.mkdir_p(output_dir)
-    File.write(File.join(output_dir, 'episode.mp4'), 'existing')
+    File.write(File.join(output_dir, 'Best.mp4'), 'existing')
     runner = TestSupport::FakeProcessRunner.new
     exporter = InvasionStudio::ProjectExporter.new(
       project,
@@ -59,12 +59,25 @@ class TestProjectExporter < Minitest::Test
     )
 
     assert_raises(InvasionStudio::ProjectExporter::ExportExists) do
-      exporter.export_group('Best', 'episode')
+      exporter.export_group('Best')
     end
     assert_empty runner.commands
 
-    exporter.export_group('Best', 'episode', overwrite: true)
+    exporter.export_group('Best', overwrite: true)
     refute_empty runner.commands
+  end
+
+  def test_reports_and_resolves_the_compilation_export_directory
+    project = InvasionStudio::Project.new(@tmp_dir)
+    exporter = InvasionStudio::ProjectExporter.new(project, quiet: true)
+    directory = File.join(@tmp_dir, 'exports', 'Video 1')
+
+    refute exporter.export_exists?('Video 1')
+    FileUtils.mkdir_p(directory)
+    refute exporter.export_exists?('Video 1')
+    File.write(File.join(directory, 'Video 1.kdenlive'), 'project')
+    assert exporter.export_exists?('Video 1')
+    assert_equal directory, exporter.export_directory('Video 1')
   end
 
   def test_builds_chapters_from_clip_titles_with_filename_fallback
@@ -128,7 +141,7 @@ class TestProjectExporter < Minitest::Test
       quiet: true,
       process_runner: runner,
       metadata_probe: lambda { |path|
-        durations = { 'one.mp4' => 2.0, 'two.mp4' => 3.0, 'best.mp4' => 5.0 }
+        durations = { 'one.mp4' => 2.0, 'two.mp4' => 3.0, 'Best.mp4' => 5.0 }
         { duration: durations.fetch(File.basename(path)), width: 1920, height: 1080, fps: 30 }
       }
     )

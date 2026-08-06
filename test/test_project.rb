@@ -77,6 +77,14 @@ class TestProject < Minitest::Test
     refute project.create_group('Video 1')
   end
 
+  def test_create_group_rejects_unsafe_folder_names_and_case_insensitive_duplicates
+    project = InvasionStudio::Project.new(@tmp_dir)
+
+    refute project.create_group('bad/name')
+    assert project.create_group('Best Runs')
+    refute project.create_group('best runs')
+  end
+
   def test_delete_group
     project = InvasionStudio::Project.new(@tmp_dir)
     project.create_group('Video 2')

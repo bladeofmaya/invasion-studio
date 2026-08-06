@@ -24,8 +24,8 @@ module InvasionStudio
       end
 
       def create(name)
-        return false if name.to_s.strip.empty?
-        return false if groups_dataset.where(name: name).count.positive?
+        return false unless CompilationName.valid?(name)
+        return false if name_taken?(name)
 
         timestamp = current_timestamp
         max_position = groups_dataset.max(:position) || 0
@@ -42,8 +42,8 @@ module InvasionStudio
         old_name = old_name.to_s
         new_name = new_name.to_s
         return false if old_name == new_name
-        return false if new_name.strip.empty?
-        return false if groups_dataset.where(name: new_name).count.positive?
+        return false unless CompilationName.valid?(new_name)
+        return false if name_taken?(new_name, except: old_name)
 
         groups_dataset.where(name: old_name).update(
           name: new_name,
@@ -187,6 +187,13 @@ module InvasionStudio
       end
 
       private
+
+      def name_taken?(name, except: nil)
+        identity = CompilationName.identity(name)
+        names.any? do |existing_name|
+          existing_name != except && CompilationName.identity(existing_name) == identity
+        end
+      end
 
       def groups_dataset
         @database[:compilations]

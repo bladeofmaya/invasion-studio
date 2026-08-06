@@ -9,14 +9,12 @@ module InvasionStudio
       @metadata_probe = options[:metadata_probe] || ->(path) { Video.new(path).metadata }
     end
 
-    def export_group(group_name, output_basename = nil, overwrite: false)
+    def export_group(group_name, overwrite: false)
       clips = exportable_clips(group_name)
       raise Error, "No clips in group '#{group_name}'" if clips.empty?
 
-      output_basename = sanitize_basename(output_basename || group_name)
-      output_dir = File.join(@project.folder_path, 'exports', output_basename)
-      spliced_path = File.join(output_dir, "#{output_basename}.mp4")
-      kdenlive_path = File.join(output_dir, "#{output_basename}.kdenlive")
+      output_dir = export_directory(group_name)
+      spliced_path, kdenlive_path = export_paths(group_name)
       ensure_outputs_available!([spliced_path, kdenlive_path]) unless overwrite
       FileUtils.mkdir_p(output_dir)
       chapters = build_chapters(clips)
@@ -32,19 +30,26 @@ module InvasionStudio
       [spliced_path, kdenlive_path]
     end
 
+    def export_directory(group_name)
+      CompilationName.validate!(group_name)
+      File.join(@project.folder_path, 'exports', group_name)
+    end
+
+    def export_exists?(group_name)
+      export_paths(group_name).any? { |path| File.exist?(path) }
+    end
+
+    def export_paths(group_name)
+      directory = export_directory(group_name)
+      [File.join(directory, "#{group_name}.mp4"), File.join(directory, "#{group_name}.kdenlive")]
+    end
+
     private
 
     def ensure_outputs_available!(paths)
       return unless paths.any? { |path| File.exist?(path) }
 
       raise ExportExists, 'Export already exists'
-    end
-
-    def sanitize_basename(value)
-      basename = value.to_s.downcase.gsub(/[^a-z0-9_-]+/, '_').gsub(/\A_+|_+\z/, '')
-      raise Error, 'Export filename cannot be empty' if basename.empty?
-
-      basename
     end
 
     def exportable_clips(group_name)

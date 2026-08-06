@@ -14,6 +14,10 @@ module InvasionStudio
               status 400
               return json_response(error: 'Group name cannot be empty')
             end
+            unless CompilationName.valid?(name)
+              status 422
+              return json_response(error: 'Use a portable compilation name without / \\ : * ? " < > | or trailing dots')
+            end
             if project.create_group(name)
               json_response(success: true, name: name)
             else
@@ -29,6 +33,10 @@ module InvasionStudio
             if old_name.empty? || new_name.empty?
               status 400
               return json_response(error: 'Group names cannot be empty')
+            end
+            unless CompilationName.valid?(new_name)
+              status 422
+              return json_response(error: 'Use a portable compilation name without / \\ : * ? " < > | or trailing dots')
             end
             if project.rename_group(old_name, new_name)
               json_response(success: true, new_name: new_name)
