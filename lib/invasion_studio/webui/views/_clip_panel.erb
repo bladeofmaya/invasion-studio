@@ -43,8 +43,11 @@
       </div>
     </div>
     <div class="hidden gap-2 items-center ml-auto" data-clip-list-target="groupExport" id="group-export-controls">
-      <input type="text" class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm w-40" id="export-filename" placeholder="combined (optional)">
-      <button class="bg-primary text-primary-fg border-none px-4 py-1.5 rounded text-sm font-semibold cursor-pointer hover:bg-primary-hover" data-action="click->clip-list#exportGroup">Export</button>
+      <button type="button" class="inline-flex items-center gap-1.5 bg-surface-secondary text-text-secondary border border-border px-3 py-1 rounded-full text-xs cursor-pointer hover:bg-surface-hover hover:text-text-primary" data-clip-list-target="revealExportButton" data-action="click->clip-list#revealExport" title="Open the export directory" hidden>
+        <i data-lucide="folder-open" class="size-3.5"></i>
+        <span>Reveal Export Folder</span>
+      </button>
+      <button class="bg-primary text-primary-fg border-none px-4 py-1.5 rounded text-sm font-semibold cursor-pointer hover:bg-primary-hover" data-clip-list-target="exportButton" data-action="click->clip-list#exportGroup">Export</button>
     </div>
   </div>
   <div class="px-4 py-2 border-b border-border flex flex-wrap gap-2 items-center" data-clip-list-target="searchControls" id="search-controls">
@@ -78,7 +81,7 @@
     </div>
     <form class="bg-surface border border-accent rounded-lg p-5 min-h-24" data-group-manager-target="newGroupForm" data-action="submit->group-manager#createGroup" id="new-group-inline-form" hidden>
       <label class="block text-sm font-medium text-text-primary mb-2" for="new-group-name">New compilation</label>
-      <input type="text" class="block w-full bg-input-bg text-text-primary border border-input-border px-3 py-2 rounded text-sm mb-3 focus:outline-none focus:border-input-focus-ring" id="new-group-name" data-group-manager-target="newGroupInput" placeholder="Compilation name" autocomplete="off">
+      <input type="text" maxlength="100" class="block w-full bg-input-bg text-text-primary border border-input-border px-3 py-2 rounded text-sm mb-3 focus:outline-none focus:border-input-focus-ring" id="new-group-name" data-group-manager-target="newGroupInput" placeholder="Compilation name" autocomplete="off">
       <div class="flex gap-2 items-center justify-start">
         <button type="submit" class="bg-primary text-primary-fg border-none px-4 py-2 rounded text-sm font-medium cursor-pointer hover:bg-primary-hover whitespace-nowrap">Create compilation</button>
         <button type="button" class="bg-transparent border border-text-muted text-text-muted px-4 py-2 rounded text-sm cursor-pointer hover:border-text-primary hover:text-text-primary" data-action="click->group-manager#cancelNewGroupForm">Cancel</button>

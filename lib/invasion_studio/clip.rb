@@ -18,9 +18,11 @@ module InvasionStudio
     end
 
     def write(output_file)
-      log_file = File.join(File.dirname(output_file), ".#{File.basename(output_file, '.*')}_ffmpeg.log")
-      success = @writer.write(@segment, output_file, log_file)
-      raise Error, "ffmpeg failed while generating #{output_file}; see #{log_file}" unless success && File.exist?(output_file)
+      success = Dir.mktmpdir('invasion-studio-ffmpeg') do |directory|
+        log_file = File.join(directory, 'ffmpeg.log')
+        @writer.write(@segment, output_file, log_file)
+      end
+      raise Error, "ffmpeg failed while generating #{output_file}" unless success && File.exist?(output_file)
 
       @generated_file = output_file
     end

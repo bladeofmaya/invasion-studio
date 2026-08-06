@@ -100,6 +100,15 @@ class TestWebuiServer < Minitest::Test
     assert_includes last_response.body, 'click->group-manager#cancelNewGroupForm'
   end
 
+  def test_compilation_toolbar_uses_name_for_export_and_conditionally_reveals_folder
+    get '/'
+
+    refute_includes last_response.body, 'id="export-filename"'
+    assert_includes last_response.body, 'clip-list#revealExport'
+    assert_includes last_response.body, 'Reveal Export Folder'
+    assert_includes last_response.body, 'data-clip-list-target="revealExportButton"'
+  end
+
   def test_shell_includes_theme_switcher_result_select_and_reveal_action
     get '/'
 
@@ -172,6 +181,26 @@ class TestWebuiServer < Minitest::Test
     assert last_response.ok?
     assert_includes last_response.body, 'overwrite_required'
     assert_includes last_response.body, 'Overwrite it?'
+  end
+
+  def test_bundled_javascript_can_reveal_an_existing_export
+    get '/assets/app.js'
+
+    assert last_response.ok?
+    assert_includes last_response.body, '/api/export/status'
+    assert_includes last_response.body, '/api/export/reveal'
+  end
+
+  def test_notifications_use_themed_icons_at_the_top_right
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/application_controller.js', __dir__
+    ))
+
+    assert_includes controller, 'top-16 right-4'
+    assert_includes controller, 'circle-check'
+    assert_includes controller, 'circle-alert'
+    assert_includes controller, 'bg-surface'
+    refute_includes controller, 'bottom-4 right-4'
   end
 
   # ========== SPA Deep-Link Routes ==========
@@ -933,20 +962,20 @@ class TestWebuiServer < Minitest::Test
 
   def test_post_api_export_success_contract
     fake_exporter = Object.new
-    fake_exporter.define_singleton_method(:export_group) do |group, basename, overwrite:|
-      raise 'unexpected arguments' unless group == 'Group1' && basename == 'episode' && overwrite == false
-      ['/project/exports/episode/episode.mp4', '/project/exports/episode/episode.kdenlive']
+    fake_exporter.define_singleton_method(:export_group) do |group, overwrite:|
+      raise 'unexpected arguments' unless group == 'Group1' && overwrite == false
+      ['/project/exports/Group1/Group1.mp4', '/project/exports/Group1/Group1.kdenlive']
     end
     original_new = InvasionStudio::ProjectExporter.method(:new)
     InvasionStudio::ProjectExporter.define_singleton_method(:new) { |*_args, **_options| fake_exporter }
 
-    post '/api/export', JSON.generate({ group: 'Group1', output_basename: 'episode' }), 'CONTENT_TYPE' => 'application/json'
+    post '/api/export', JSON.generate({ group: 'Group1' }), 'CONTENT_TYPE' => 'application/json'
 
     assert last_response.ok?
     assert_equal({
       'success' => true,
-      'spliced' => '/project/exports/episode/episode.mp4',
-      'kdenlive' => '/project/exports/episode/episode.kdenlive'
+      'spliced' => '/project/exports/Group1/Group1.mp4',
+      'kdenlive' => '/project/exports/Group1/Group1.kdenlive'
     }, JSON.parse(last_response.body))
   ensure
     InvasionStudio::ProjectExporter.define_singleton_method(:new, original_new) if original_new
@@ -961,7 +990,7 @@ class TestWebuiServer < Minitest::Test
     original_new = InvasionStudio::ProjectExporter.method(:new)
     InvasionStudio::ProjectExporter.define_singleton_method(:new) { |*_args, **_options| fake_exporter }
 
-    post '/api/export', JSON.generate({ group: 'Group1', output_basename: 'episode' }),
+    post '/api/export', JSON.generate({ group: 'Group1' }),
          'CONTENT_TYPE' => 'application/json'
 
     assert_equal 409, last_response.status
@@ -973,20 +1002,56 @@ class TestWebuiServer < Minitest::Test
   def test_post_api_export_passes_confirmed_overwrite
     received_overwrite = nil
     fake_exporter = Object.new
-    fake_exporter.define_singleton_method(:export_group) do |_group, _basename, overwrite:|
+    fake_exporter.define_singleton_method(:export_group) do |_group, overwrite:|
       received_overwrite = overwrite
-      ['/project/exports/episode/episode.mp4', '/project/exports/episode/episode.kdenlive']
+      ['/project/exports/Group1/Group1.mp4', '/project/exports/Group1/Group1.kdenlive']
     end
     original_new = InvasionStudio::ProjectExporter.method(:new)
     InvasionStudio::ProjectExporter.define_singleton_method(:new) { |*_args, **_options| fake_exporter }
 
-    post '/api/export', JSON.generate({ group: 'Group1', output_basename: 'episode', overwrite: true }),
+    post '/api/export', JSON.generate({ group: 'Group1', overwrite: true }),
          'CONTENT_TYPE' => 'application/json'
 
     assert last_response.ok?
     assert_equal true, received_overwrite
   ensure
     InvasionStudio::ProjectExporter.define_singleton_method(:new, original_new) if original_new
+  end
+
+
+  def test_get_api_export_status_reports_existing_export
+    fake_exporter = Object.new
+    fake_exporter.define_singleton_method(:export_exists?) { |group| group == 'Group1' }
+    original_new = InvasionStudio::ProjectExporter.method(:new)
+    InvasionStudio::ProjectExporter.define_singleton_method(:new) { |*_args, **_options| fake_exporter }
+
+    get '/api/export/status', group: 'Group1'
+
+    assert last_response.ok?
+    assert_equal({ 'exists' => true }, JSON.parse(last_response.body))
+  ensure
+    InvasionStudio::ProjectExporter.define_singleton_method(:new, original_new) if original_new
+  end
+
+  def test_post_api_export_reveal_opens_existing_directory
+    directory = File.join(@folder, 'exports', 'Group1')
+    FileUtils.mkdir_p(directory)
+    File.write(File.join(directory, 'Group1.kdenlive'), 'project')
+    opened_paths = []
+    opener = Object.new
+    opener.define_singleton_method(:open) { |path| opened_paths << path; true }
+    InvasionStudio::Webui::Server.set :file_opener, opener
+
+    post '/api/export/reveal', JSON.generate({ group: 'Group1' }), 'CONTENT_TYPE' => 'application/json'
+
+    assert last_response.ok?
+    assert_equal [directory], opened_paths
+  end
+
+  def test_post_api_export_reveal_returns_not_found_without_export
+    post '/api/export/reveal', JSON.generate({ group: 'Group1' }), 'CONTENT_TYPE' => 'application/json'
+
+    assert_equal 404, last_response.status
   end
 
   def test_post_api_export_failure_contract
