@@ -3,9 +3,10 @@ set -euo pipefail
 IFS=$'\n\t'
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APPLICATION="$PROJECT_DIR/desktop/electron/out/invasion-studio-linux-x64/invasion-studio"
+PACKAGE_DIR="$PROJECT_DIR/desktop/electron/out/InvasionStudio-linux-x64"
+APPLICATION="$PACKAGE_DIR/invasion-studio"
 TEBAKO_ARTIFACT="$PROJECT_DIR/pkg/sidecar/linux-x64/invasion-studio"
-PACKAGED_SIDECAR="$PROJECT_DIR/desktop/electron/out/invasion-studio-linux-x64/resources/invasion-studio"
+PACKAGED_SIDECAR="$PACKAGE_DIR/resources/invasion-studio"
 TARGET_PROJECT="${1:-}"
 
 [ -n "$TARGET_PROJECT" ] && [ -d "$TARGET_PROJECT" ] || {

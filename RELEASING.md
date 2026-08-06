@@ -26,8 +26,10 @@ database, exports, and trash.
 ## Release process
 
 1. Bump the version with `bin/bump-version patch|minor|major` (or an explicit
-   `X.Y.Z`). It updates `lib/invasion_studio/version.rb` and refreshes
-   `Gemfile.lock`. Update the changelog/plan docs alongside.
+   `[v]X.Y.Z[-PRERELEASE]`, such as `v0.8.0-dev`). The optional input `v` is
+   removed from stored metadata and added back for tags/display. It updates
+   the Ruby and Electron versions and refreshes `Gemfile.lock`. Update the
+   changelog/plan docs alongside.
 2. Run `bin/release-check` from a clean checkout. It performs, in order:
    - clean-tree check and a guard that no generated assets are committed
    - `bin/build-assets` (npm ci + Tailwind + esbuild)

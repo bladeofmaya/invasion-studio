@@ -22,5 +22,5 @@ if [ "$MODE" = "--make" ]; then
   echo "Desktop distributables: $ELECTRON_DIR/out/make"
 else
   npm run package
-  echo "Desktop package: $ELECTRON_DIR/out/invasion-studio-linux-x64"
+  echo "Desktop package: $ELECTRON_DIR/out/InvasionStudio-linux-x64"
 fi

@@ -7,4 +7,4 @@ cd "$PROJECT_DIR"
 
 bin/build-assets
 bundle exec gem build invasion-studio.gemspec
-bin/verify-gem "invasion-studio-$(bundle exec ruby -Ilib -rinvasion_studio/version -e 'print InvasionStudio::VERSION').gem"
+bin/verify-gem "invasion-studio-$(bundle exec ruby -Ilib -rinvasion_studio/version -rrubygems -e 'print Gem::Version.new(InvasionStudio::VERSION)').gem"

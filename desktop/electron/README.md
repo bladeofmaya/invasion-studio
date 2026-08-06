@@ -52,10 +52,9 @@ bin/build-desktop --make
 
 Both desktop builds recreate the sidecar to prevent application/database
 migrations from becoming newer than the packaged backend. The unpacked app is
-written to `desktop/electron/out/invasion-studio-linux-x64`; Forge writes
-installers under `desktop/electron/out/make`.
-
-The sidecar is written to `pkg/sidecar/linux-x64/invasion-studio`. Optional
+written to `desktop/electron/out/InvasionStudio-linux-x64`; Forge writes
+installers under `desktop/electron/out/make`. The sidecar is written to
+`pkg/sidecar/linux-x64/invasion-studio`. Optional
 portable tools may be staged under `pkg/tools/linux-x64`; when present, Forge
 copies that directory into the application's `resources/tools` directory.
 FFmpeg, FFprobe, Tesseract, and `eng.traineddata` still need a pinned download,

@@ -15,7 +15,7 @@ const rubyVersion = readFileSync(path.join(repositoryRoot, "lib", "invasion_stud
 
 test("Electron package uses production identity and the application version", () => {
   assert.equal(packageJson.name, "invasion-studio")
-  assert.equal(packageJson.productName, "Invasion Studio")
+  assert.equal(packageJson.productName, "InvasionStudio")
   assert.equal(packageJson.version, rubyVersion)
   assert.equal(packageJson.description, "Desktop application for reviewing and editing Elden Ring invasion clips")
 })
@@ -30,6 +30,7 @@ test("Forge packages the production executable and Flatpak identity", () => {
   const flatpak = forgeConfig.makers.find(maker => maker.name === "@electron-forge/maker-flatpak")
   assert.equal(flatpak.config.options.id, "com.bladeofmaya.InvasionStudio")
   assert.equal(flatpak.config.options.name, "invasion-studio")
+  assert.equal(flatpak.config.options.productName, "InvasionStudio")
   assert.equal(flatpak.config.options.finishArgs.includes("--filesystem=host"), true)
 })
 

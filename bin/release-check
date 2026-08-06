@@ -42,7 +42,8 @@ bundle exec rake test
 
 step "Building gem"
 VERSION="$(bundle exec ruby -Ilib -rinvasion_studio/version -e 'print InvasionStudio::VERSION')"
-GEM_FILE="invasion-studio-${VERSION}.gem"
+GEM_VERSION="$(bundle exec ruby -Ilib -rinvasion_studio/version -rrubygems -e 'print Gem::Version.new(InvasionStudio::VERSION)')"
+GEM_FILE="invasion-studio-${GEM_VERSION}.gem"
 rm -f "$GEM_FILE"
 bundle exec gem build invasion-studio.gemspec
 

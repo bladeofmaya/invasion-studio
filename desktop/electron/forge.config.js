@@ -32,7 +32,7 @@ export default {
         options: {
           id: "com.bladeofmaya.InvasionStudio",
           name: "invasion-studio",
-          productName: "Invasion Studio",
+          productName: "InvasionStudio",
           genericName: "Video clip library",
           description: "Review and edit Elden Ring invasion clips",
           base: "org.electronjs.Electron2.BaseApp",

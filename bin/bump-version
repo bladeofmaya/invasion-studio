@@ -9,33 +9,36 @@ require 'json'
 #   bin/bump-version minor      0.6.0 -> 0.7.0
 #   bin/bump-version major      0.6.0 -> 1.0.0
 #   bin/bump-version 1.2.3      set an explicit version
+#   bin/bump-version v1.2.3-dev set an explicit prerelease version
 
 VERSION_FILE = File.expand_path('../lib/invasion_studio/version.rb', __dir__)
 ELECTRON_PACKAGE_FILE = File.expand_path('../desktop/electron/package.json', __dir__)
 ELECTRON_LOCK_FILE = File.expand_path('../desktop/electron/package-lock.json', __dir__)
+GEM_LOCK_FILE = File.expand_path('../Gemfile.lock', __dir__)
 
 arg = ARGV.fetch(0) do
-  warn 'Usage: bin/bump-version patch|minor|major|X.Y.Z'
+  warn 'Usage: bin/bump-version patch|minor|major|[v]X.Y.Z[-PRERELEASE]'
   exit 2
 end
 
 contents = File.read(VERSION_FILE)
-current = contents[/VERSION = "(\d+\.\d+\.\d+)"/, 1]
+version_pattern = /\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?/
+current = contents[/VERSION = "(#{version_pattern})"/, 1]
 abort "Could not find VERSION in #{VERSION_FILE}" unless current
 
 new_version =
   case arg
   when 'patch', 'minor', 'major'
-    major, minor, patch = current.split('.').map(&:to_i)
+    major, minor, patch = current.split('-', 2).first.split('.').map(&:to_i)
     case arg
     when 'patch' then "#{major}.#{minor}.#{patch + 1}"
     when 'minor' then "#{major}.#{minor + 1}.0"
     when 'major' then "#{major + 1}.0.0"
     end
-  when /\A\d+\.\d+\.\d+\z/
-    arg
+  when /\Av?#{version_pattern}\z/
+    arg.delete_prefix('v')
   else
-    abort "Invalid argument: #{arg.inspect} (expected patch, minor, major, or X.Y.Z)"
+    abort "Invalid argument: #{arg.inspect} (expected patch, minor, major, or [v]X.Y.Z[-PRERELEASE])"
   end
 
 File.write(VERSION_FILE, contents.sub("\"#{current}\"", "\"#{new_version}\""))
@@ -50,7 +53,11 @@ end
 puts "Version: #{current} -> #{new_version}"
 
 Dir.chdir(File.expand_path('..', __dir__)) do
-  system('bundle', 'lock', exception: true)
+  lock_contents = File.read(GEM_LOCK_FILE)
+  bundler_version = lock_contents[/BUNDLED WITH\s+(\S+)/, 1]
+  abort "Could not find BUNDLED WITH in #{GEM_LOCK_FILE}" unless bundler_version
+
+  system('bundle', "_#{bundler_version}_", 'lock', exception: true)
 end
 puts 'Gemfile.lock refreshed.'
 puts 'Electron package metadata refreshed.'
