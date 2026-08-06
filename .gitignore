@@ -13,6 +13,7 @@
 /desktop/spike/src-tauri/binaries/
 /desktop/spike/src-tauri/gen/schemas/
 /desktop/spike/src-tauri/target/
+/desktop/electron-spike/out/
 /pkg/spike/
 test/samples/invasion-sample-full.mp4
 TODO.md
