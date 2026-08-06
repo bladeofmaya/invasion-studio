@@ -18,14 +18,15 @@ module InvasionStudio
       ffmpeg_threads: 4
     }.freeze
 
-    VALID_COMMANDS = %w[extract scan export-kdenlive concat webui normalize].freeze
+    VALID_COMMANDS = %w[extract scan export-kdenlive concat webui normalize import].freeze
     COMMANDS = {
       'extract' => Commands::Extract,
       'scan' => Commands::Extract,
       'export-kdenlive' => Commands::ExportKdenlive,
       'concat' => Commands::Concat,
       'webui' => Commands::Webui,
-      'normalize' => Commands::Normalize
+      'normalize' => Commands::Normalize,
+      'import' => Commands::Import
     }.freeze
 
     attr_reader :options
@@ -98,6 +99,7 @@ module InvasionStudio
       puts "  concat               Concatenate clips into a single video (no re-encoding)"
       puts "  webui                Launch a web UI to manage clips and export"
       puts "  normalize            Rename a project's clips to clip_00001.mp4, clip_00002.mp4, ..."
+      puts "  import               Copy clips into a project with sequential names"
       puts ""
       puts "Options:"
       puts "  Output:"

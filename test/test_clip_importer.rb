@@ -165,4 +165,35 @@ class TestClipImporter < Minitest::Test
     tempfile&.close
     tempfile&.unlink
   end
+
+  def test_promotes_row_created_by_folder_scan_during_upload
+    project = create_project
+    tempfile = Tempfile.new(['upload', '.mp4'])
+    File.write(tempfile.path, 'video data')
+    scanning_storage = Class.new(InvasionStudio::Storage::LocalDiskStorage) do
+      attr_accessor :after_store
+
+      def store(source_path, key)
+        result = super
+        callback, self.after_store = after_store, nil
+        callback&.call
+        result
+      end
+    end.new(@tmp_dir)
+    scanning_storage.after_store = -> { project.sync_clips! }
+    importer = InvasionStudio::ClipImporter.new(
+      project, storage: scanning_storage, metadata_probe: ->(_path) { { duration: 12.5 } }
+    )
+
+    clip = importer.import_upload(tempfile: tempfile, filename: 'race.mp4')
+    rows = @db[:clips].where(storage_path: 'clips/race.mp4').all
+
+    assert_equal 1, rows.length
+    assert_equal clip['id'], rows.first[:id]
+    assert_equal 'uploaded', rows.first[:source_kind]
+    assert_in_delta 12.5, rows.first[:duration]
+  ensure
+    tempfile&.close
+    tempfile&.unlink
+  end
 end

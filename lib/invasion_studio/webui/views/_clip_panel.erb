@@ -43,17 +43,22 @@
       </div>
     </div>
     <div class="hidden gap-2 items-center ml-auto" data-clip-list-target="groupExport" id="group-export-controls">
-      <input type="text" class="bg-input-bg text-text-primary border border-input-border px-3 py-1.5 rounded text-sm w-40" id="export-filename" placeholder="combined (optional)">
-      <button class="bg-primary text-primary-fg border-none px-4 py-1.5 rounded text-sm font-semibold cursor-pointer hover:bg-primary-hover" data-action="click->clip-list#exportGroup">Export</button>
+      <button type="button" class="inline-flex items-center gap-1.5 bg-surface-secondary text-text-secondary border border-border px-3 py-1 rounded-full text-xs cursor-pointer hover:bg-surface-hover hover:text-text-primary" data-clip-list-target="revealExportButton" data-action="click->clip-list#revealExport" title="Open the export directory" hidden>
+        <i data-lucide="folder-open" class="size-3.5"></i>
+        <span>Reveal Export Folder</span>
+      </button>
+      <button class="bg-primary text-primary-fg border-none px-4 py-1.5 rounded text-sm font-semibold cursor-pointer hover:bg-primary-hover" data-clip-list-target="exportButton" data-action="click->clip-list#exportGroup">Export</button>
     </div>
   </div>
   <div class="px-4 py-2 border-b border-border flex flex-wrap gap-2 items-center" data-clip-list-target="searchControls" id="search-controls">
     <input type="search" class="bg-input-bg text-text-primary border border-input-border px-3 py-1 rounded-full text-xs flex-1 min-w-32 focus:outline-none focus:border-input-focus-ring" id="clip-search" placeholder="Search title, note or filename..." autocomplete="off" data-clip-list-target="searchInput" data-action="input->clip-list#setSearch">
     <select class="bg-input-bg text-text-primary border border-input-border px-2.5 py-1 rounded-full text-xs cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="tagFilter" data-action="change->clip-list#setTagFilter" id="clip-tag-filter">
       <option value="">All tags</option>
+      <option value="__none__">Untagged</option>
     </select>
     <select class="bg-input-bg text-text-primary border border-input-border px-2.5 py-1 rounded-full text-xs cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="ratingFilter" data-action="change->clip-list#setRatingFilter" id="clip-rating-filter">
       <option value="">Any rating</option>
+      <option value="__none__">Unrated</option>
       <option value="1">&#9733; 1+</option>
       <option value="2">&#9733; 2+</option>
       <option value="3">&#9733; 3+</option>
@@ -62,6 +67,7 @@
     </select>
     <select class="bg-input-bg text-text-primary border border-input-border px-2.5 py-1 rounded-full text-xs cursor-pointer focus:outline-none focus:border-input-focus-ring" data-clip-list-target="resultFilter" data-action="change->clip-list#setResultFilter" id="clip-result-filter">
       <option value="">Any result</option>
+      <option value="__none__">No result</option>
       <option value="win">Win</option>
       <option value="loss">Loss</option>
       <option value="dc">DC</option>
@@ -70,12 +76,12 @@
   </div>
   <div class="flex-1 overflow-y-auto px-4 py-3 min-h-0" data-clip-list-target="container" id="clip-list"></div>
   <div class="flex-1 overflow-y-auto p-4 grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 content-start hidden" data-controller="group-manager" data-group-manager-target="grid" data-navigation-target="groupGrid" id="group-grid">
-    <div class="border-2 border-dashed border-border bg-transparent flex items-center justify-center min-h-24 cursor-pointer hover:border-accent hover:translate-y-0" id="new-group-card" data-group-manager-target="newGroupCard" data-action="click->group-manager#showNewGroupForm">
+    <div class="border-2 border-dashed border-border rounded-lg bg-transparent flex items-center justify-center min-h-24 cursor-pointer hover:border-accent hover:translate-y-0" id="new-group-card" data-group-manager-target="newGroupCard" data-action="click->group-manager#showNewGroupForm">
       <div class="text-base font-medium text-text-secondary">+ New Compilation</div>
     </div>
     <form class="bg-surface border border-accent rounded-lg p-5 min-h-24" data-group-manager-target="newGroupForm" data-action="submit->group-manager#createGroup" id="new-group-inline-form" hidden>
       <label class="block text-sm font-medium text-text-primary mb-2" for="new-group-name">New compilation</label>
-      <input type="text" class="block w-full bg-input-bg text-text-primary border border-input-border px-3 py-2 rounded text-sm mb-3 focus:outline-none focus:border-input-focus-ring" id="new-group-name" data-group-manager-target="newGroupInput" placeholder="Compilation name" autocomplete="off">
+      <input type="text" maxlength="100" class="block w-full bg-input-bg text-text-primary border border-input-border px-3 py-2 rounded text-sm mb-3 focus:outline-none focus:border-input-focus-ring" id="new-group-name" data-group-manager-target="newGroupInput" placeholder="Compilation name" autocomplete="off">
       <div class="flex gap-2 items-center justify-start">
         <button type="submit" class="bg-primary text-primary-fg border-none px-4 py-2 rounded text-sm font-medium cursor-pointer hover:bg-primary-hover whitespace-nowrap">Create compilation</button>
         <button type="button" class="bg-transparent border border-text-muted text-text-muted px-4 py-2 rounded text-sm cursor-pointer hover:border-text-primary hover:text-text-primary" data-action="click->group-manager#cancelNewGroupForm">Cancel</button>

@@ -14,6 +14,10 @@ module InvasionStudio
               status 400
               return json_response(error: 'Group name cannot be empty')
             end
+            unless CompilationName.valid?(name)
+              status 422
+              return json_response(error: 'Use a portable compilation name without / \\ : * ? " < > | or trailing dots')
+            end
             if project.create_group(name)
               json_response(success: true, name: name)
             else
@@ -29,6 +33,10 @@ module InvasionStudio
             if old_name.empty? || new_name.empty?
               status 400
               return json_response(error: 'Group names cannot be empty')
+            end
+            unless CompilationName.valid?(new_name)
+              status 422
+              return json_response(error: 'Use a portable compilation name without / \\ : * ? " < > | or trailing dots')
             end
             if project.rename_group(old_name, new_name)
               json_response(success: true, new_name: new_name)
@@ -54,6 +62,14 @@ module InvasionStudio
           app.post '/api/group/:name/remove' do
             success = project.remove_clip_from_group(params['name'], json_body['clip_id'])
             mutation_response(success, failure: 'Failed to remove clip from group')
+          end
+
+          app.post '/api/group/:name/move' do
+            body = json_body
+            success = project.move_clip_between_groups(
+              params['name'], body['destination'].to_s, body['clip_id']
+            )
+            mutation_response(success, failure: 'Failed to move clip to compilation')
           end
         end
       end

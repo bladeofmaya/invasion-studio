@@ -2,6 +2,7 @@ require 'test_helper'
 require 'rack/test'
 require 'fileutils'
 require 'json'
+require 'open3'
 require 'uri'
 
 class TestWebuiServer < Minitest::Test
@@ -63,6 +64,26 @@ class TestWebuiServer < Minitest::Test
     assert last_response.body.include?('data-controller="router navigation"')
   end
 
+  def test_top_navigation_tabs_include_icons
+    get '/'
+
+    assert_includes last_response.body, 'data-lucide="file-video-camera"'
+    assert_includes last_response.body, 'data-lucide="list-video"'
+  end
+
+  def test_compilation_navigation_uses_rounded_cards_and_an_icon_heading
+    get '/'
+
+    assert_match(/class="[^"]*rounded-lg[^"]*" id="new-group-card"/, last_response.body)
+
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/clip_list_controller.js', __dir__
+    ))
+    assert_includes controller, 'data-lucide="list-video"'
+    assert_includes controller, 'text-accent text-xs'
+    refute_includes controller, "this.groupValue + ' ('"
+  end
+
   def test_saved_cut_changes_update_the_finalize_button
     get '/'
 
@@ -91,6 +112,15 @@ class TestWebuiServer < Minitest::Test
     assert_includes last_response.body, 'submit->group-manager#createGroup'
     assert_match(/<button[^>]+type="submit"[^>]*>Create compilation<\/button>/, last_response.body)
     assert_includes last_response.body, 'click->group-manager#cancelNewGroupForm'
+  end
+
+  def test_compilation_toolbar_uses_name_for_export_and_conditionally_reveals_folder
+    get '/'
+
+    refute_includes last_response.body, 'id="export-filename"'
+    assert_includes last_response.body, 'clip-list#revealExport'
+    assert_includes last_response.body, 'Reveal Export Folder'
+    assert_includes last_response.body, 'data-clip-list-target="revealExportButton"'
   end
 
   def test_shell_includes_theme_switcher_result_select_and_reveal_action
@@ -157,6 +187,34 @@ class TestWebuiServer < Minitest::Test
     assert last_response.ok?
     assert_includes last_response.content_type, 'javascript'
     refute_empty last_response.body
+  end
+
+  def test_bundled_javascript_prompts_before_overwriting_an_export
+    get '/assets/app.js'
+
+    assert last_response.ok?
+    assert_includes last_response.body, 'overwrite_required'
+    assert_includes last_response.body, 'Overwrite it?'
+  end
+
+  def test_bundled_javascript_can_reveal_an_existing_export
+    get '/assets/app.js'
+
+    assert last_response.ok?
+    assert_includes last_response.body, '/api/export/status'
+    assert_includes last_response.body, '/api/export/reveal'
+  end
+
+  def test_notifications_use_themed_icons_at_the_top_right
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/application_controller.js', __dir__
+    ))
+
+    assert_includes controller, 'top-16 right-4'
+    assert_includes controller, 'circle-check'
+    assert_includes controller, 'circle-alert'
+    assert_includes controller, 'bg-surface'
+    refute_includes controller, 'bottom-4 right-4'
   end
 
   # ========== SPA Deep-Link Routes ==========
@@ -303,6 +361,19 @@ class TestWebuiServer < Minitest::Test
     assert_includes last_response.body, 'data-clip-list-target="clipCount"'
   end
 
+  def test_compilation_sorter_has_move_to_edge_buttons_and_drag_handle
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/clip_list_controller.js', __dir__
+    ))
+
+    assert_includes controller, 'data-reorder="top"'
+    assert_includes controller, 'data-reorder="bottom"'
+    assert_includes controller, 'Move to top'
+    assert_includes controller, 'Move to bottom'
+    assert_includes controller, 'drag-handle'
+    assert_includes controller, 'moveClipToEdge'
+  end
+
   def test_shell_includes_upload_progress_overlay
     get '/'
 
@@ -311,6 +382,23 @@ class TestWebuiServer < Minitest::Test
     assert_includes last_response.body, 'data-upload-target="progressStatus"'
     assert_includes last_response.body, 'data-upload-target="closeBtn"'
     assert_includes last_response.body, 'click->upload#closeOverlay'
+  end
+
+  def test_uploader_splits_large_selections_into_size_bounded_requests
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/upload_controller.js', __dir__
+    ))
+
+    assert_includes controller, 'partitionUploadBatches'
+    assert_includes controller, 'uploadBatches(files)'
+    assert_includes controller, 'for (const batch of batches)'
+
+    batches = upload_batch_sizes([3, 3, 3, 1].map { |gib| gib * 1024**3 })
+    assert_equal [[3, 3], [3, 1]], batches.map { |batch| batch.map { |bytes| bytes / 1024**3 } }
+    assert_equal 25, upload_progress_percent(
+      uploaded_bytes: 0, loaded: 2 * 1024**3, total: 0,
+      batch_bytes: 8 * 1024**3, total_bytes: 8 * 1024**3
+    )
   end
 
   def test_shell_includes_search_controls
@@ -322,6 +410,22 @@ class TestWebuiServer < Minitest::Test
     assert_includes last_response.body, 'data-clip-list-target="ratingFilter"'
     assert_includes last_response.body, 'data-clip-list-target="resultFilter"'
     assert_includes last_response.body, 'input->clip-list#setSearch'
+    assert_includes last_response.body, '<option value="__none__">Untagged</option>'
+    assert_includes last_response.body, '<option value="__none__">Unrated</option>'
+    assert_includes last_response.body, '<option value="__none__">No result</option>'
+  end
+
+  def test_api_clips_filters_for_missing_tag_rating_and_result
+    project.add_tag('clip2', 'parry')
+
+    get '/api/clips?tag=__none__'
+    assert_equal %w[clip1], JSON.parse(last_response.body).map { |clip| clip['id'] }
+
+    get '/api/clips?rating=__none__'
+    assert_equal %w[clip1], JSON.parse(last_response.body).map { |clip| clip['id'] }
+
+    get '/api/clips?result=__none__'
+    assert_equal %w[clip1], JSON.parse(last_response.body).map { |clip| clip['id'] }
   end
 
   def test_shell_includes_tag_editor
@@ -410,6 +514,77 @@ class TestWebuiServer < Minitest::Test
     assert_includes last_response.body, 'data-category="tags"'
     assert_includes last_response.body, 'data-category="storage"'
     assert_includes last_response.body, 'data-settings-target="storagePanel"'
+    assert_includes last_response.body, 'data-category="stats"'
+    assert_includes last_response.body, 'data-settings-target="statsPanel"'
+    assert_includes last_response.body, 'data-category="video"'
+    assert_includes last_response.body, 'data-settings-target="audioTrackCount"'
+    assert_includes last_response.body, 'data-settings-target="defaultAudioTrack"'
+  end
+
+  def test_get_api_video_settings
+    get '/api/settings/video'
+
+    assert last_response.ok?
+    assert_equal({ 'audio_track_count' => 4, 'default_audio_track' => 4 }, JSON.parse(last_response.body))
+  end
+
+  def test_put_api_video_settings_persists_valid_values
+    put '/api/settings/video', JSON.generate({ audio_track_count: 3, default_audio_track: 2 }),
+        'CONTENT_TYPE' => 'application/json'
+
+    assert last_response.ok?
+    assert_equal({ 'audio_track_count' => 3, 'default_audio_track' => 2 }, JSON.parse(last_response.body))
+    assert_equal 2, project.video_settings['default_audio_track']
+  end
+
+  def test_put_api_video_settings_rejects_default_above_track_count
+    put '/api/settings/video', JSON.generate({ audio_track_count: 2, default_audio_track: 3 }),
+        'CONTENT_TYPE' => 'application/json'
+
+    assert_equal 422, last_response.status
+    assert_equal 'Invalid video settings', JSON.parse(last_response.body)['error']
+  end
+
+  def test_video_player_loads_project_audio_settings
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/video_player_controller.js', __dir__
+    ))
+
+    assert_includes controller, "fetchJson('/api/settings/video')"
+    assert_includes controller, "'video-settings:changed'"
+  end
+
+  def test_bundled_javascript_contains_video_settings_feature
+    get '/assets/app.js'
+
+    assert last_response.ok?
+    assert_includes last_response.body, '/api/settings/video'
+    assert_includes last_response.body, 'video-settings:changed'
+  end
+
+  def test_video_icon_is_registered_for_bundling
+    icons = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/frontend/icons.js', __dir__
+    ))
+
+    assert_match(/\bVideo\b/, icons)
+    assert_includes icons, 'Video,'
+  end
+
+  def test_get_api_game_stats
+    project.update_result('clip1', 'win')
+    project.update_result('clip2', 'loss')
+    project.clip_repository.update('clip1', 'duration' => 90.5)
+    project.clip_repository.update('clip2', 'duration' => 30.0)
+
+    get '/api/game/stats'
+
+    assert last_response.ok?
+    stats = JSON.parse(last_response.body)
+    assert_equal 2, stats['invasions']
+    assert_in_delta 120.5, stats['duration_seconds']
+    assert_equal({ 'won' => 1, 'lost' => 1, 'dc' => 0, 'no_result' => 0 }, stats['results'])
+    assert_in_delta 50.0, stats['win_rate']
   end
 
   # ========== Storage Routes ==========
@@ -686,19 +861,24 @@ class TestWebuiServer < Minitest::Test
     assert_equal 1, data[0]['clip_count']
   end
 
+  def test_compilation_overview_is_loaded_lazily_without_redundant_group_request
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/group_manager_controller.js', __dir__
+    ))
+
+    assert_includes controller, "if (this.getNavState().view === 'groups')"
+    refute_includes controller, "fetchJson('/api/groups')"
+  end
+
   def test_get_api_groups_stats_subtracts_saved_cuts
     project = InvasionStudio::Webui::Server.settings.project
+    project.clip_repository.update('clip1', 'duration' => 10.0)
     project.update_cuts('clip1', [{ 'start' => 2.0, 'end' => 5.0 }])
-    fake_video = Struct.new(:metadata).new({ duration: 10.0 })
-    original_new = InvasionStudio::Video.method(:new)
-    InvasionStudio::Video.define_singleton_method(:new) { |_path| fake_video }
 
     get '/api/groups/stats'
 
     stat = JSON.parse(last_response.body).find { |item| item['name'] == 'Group1' }
     assert_in_delta 7.0, stat['total_duration']
-  ensure
-    InvasionStudio::Video.define_singleton_method(:new, original_new) if original_new
   end
 
   def test_post_api_groups_creates_group
@@ -754,6 +934,30 @@ class TestWebuiServer < Minitest::Test
     assert_equal true, data['success']
   end
 
+  def test_post_api_group_move_moves_clip_to_another_group
+    project.create_group('Destination')
+
+    post '/api/group/Group1/move', JSON.generate({ clip_id: 'clip1', destination: 'Destination' }),
+         'CONTENT_TYPE' => 'application/json'
+
+    assert last_response.ok?
+    assert_empty project.group_clips('Group1')
+    assert_equal %w[clip1], project.group_clips('Destination').map { |clip| clip['id'] }
+  end
+
+  def test_compilation_view_offers_move_selector_before_remove
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/clip_list_controller.js', __dir__
+    ))
+
+    move_position = controller.index('data-clip-action="move"')
+    remove_position = controller.index('data-clip-action="remove"')
+    refute_nil move_position
+    refute_nil remove_position
+    assert_operator move_position, :<, remove_position
+    assert_includes controller, 'moveToGroup'
+  end
+
   def test_group_membership_rejects_unknown_group_or_clip
     post '/api/group/Missing/add', JSON.generate({ clip_id: 'clip1' }), 'CONTENT_TYPE' => 'application/json'
     assert_equal 400, last_response.status
@@ -772,23 +976,96 @@ class TestWebuiServer < Minitest::Test
 
   def test_post_api_export_success_contract
     fake_exporter = Object.new
-    fake_exporter.define_singleton_method(:export_group) do |group, basename|
-      raise 'unexpected arguments' unless group == 'Group1' && basename == 'episode'
-      ['/project/exports/episode.mp4', '/project/exports/episode.kdenlive']
+    fake_exporter.define_singleton_method(:export_group) do |group, overwrite:|
+      raise 'unexpected arguments' unless group == 'Group1' && overwrite == false
+      ['/project/exports/Group1/Group1.mp4', '/project/exports/Group1/Group1.kdenlive']
     end
     original_new = InvasionStudio::ProjectExporter.method(:new)
     InvasionStudio::ProjectExporter.define_singleton_method(:new) { |*_args, **_options| fake_exporter }
 
-    post '/api/export', JSON.generate({ group: 'Group1', output_basename: 'episode' }), 'CONTENT_TYPE' => 'application/json'
+    post '/api/export', JSON.generate({ group: 'Group1' }), 'CONTENT_TYPE' => 'application/json'
 
     assert last_response.ok?
     assert_equal({
       'success' => true,
-      'spliced' => '/project/exports/episode.mp4',
-      'kdenlive' => '/project/exports/episode.kdenlive'
+      'spliced' => '/project/exports/Group1/Group1.mp4',
+      'kdenlive' => '/project/exports/Group1/Group1.kdenlive'
     }, JSON.parse(last_response.body))
   ensure
     InvasionStudio::ProjectExporter.define_singleton_method(:new, original_new) if original_new
+  end
+
+  def test_post_api_export_returns_conflict_before_overwriting
+    fake_exporter = Object.new
+    fake_exporter.define_singleton_method(:export_group) do |*_args, overwrite:|
+      raise 'overwrite flag was not passed' if overwrite
+      raise InvasionStudio::ProjectExporter::ExportExists, 'Export already exists'
+    end
+    original_new = InvasionStudio::ProjectExporter.method(:new)
+    InvasionStudio::ProjectExporter.define_singleton_method(:new) { |*_args, **_options| fake_exporter }
+
+    post '/api/export', JSON.generate({ group: 'Group1' }),
+         'CONTENT_TYPE' => 'application/json'
+
+    assert_equal 409, last_response.status
+    assert_equal({ 'error' => 'Export already exists', 'overwrite_required' => true }, JSON.parse(last_response.body))
+  ensure
+    InvasionStudio::ProjectExporter.define_singleton_method(:new, original_new) if original_new
+  end
+
+  def test_post_api_export_passes_confirmed_overwrite
+    received_overwrite = nil
+    fake_exporter = Object.new
+    fake_exporter.define_singleton_method(:export_group) do |_group, overwrite:|
+      received_overwrite = overwrite
+      ['/project/exports/Group1/Group1.mp4', '/project/exports/Group1/Group1.kdenlive']
+    end
+    original_new = InvasionStudio::ProjectExporter.method(:new)
+    InvasionStudio::ProjectExporter.define_singleton_method(:new) { |*_args, **_options| fake_exporter }
+
+    post '/api/export', JSON.generate({ group: 'Group1', overwrite: true }),
+         'CONTENT_TYPE' => 'application/json'
+
+    assert last_response.ok?
+    assert_equal true, received_overwrite
+  ensure
+    InvasionStudio::ProjectExporter.define_singleton_method(:new, original_new) if original_new
+  end
+
+
+  def test_get_api_export_status_reports_existing_export
+    fake_exporter = Object.new
+    fake_exporter.define_singleton_method(:export_exists?) { |group| group == 'Group1' }
+    original_new = InvasionStudio::ProjectExporter.method(:new)
+    InvasionStudio::ProjectExporter.define_singleton_method(:new) { |*_args, **_options| fake_exporter }
+
+    get '/api/export/status', group: 'Group1'
+
+    assert last_response.ok?
+    assert_equal({ 'exists' => true }, JSON.parse(last_response.body))
+  ensure
+    InvasionStudio::ProjectExporter.define_singleton_method(:new, original_new) if original_new
+  end
+
+  def test_post_api_export_reveal_opens_existing_directory
+    directory = File.join(@folder, 'exports', 'Group1')
+    FileUtils.mkdir_p(directory)
+    File.write(File.join(directory, 'Group1.kdenlive'), 'project')
+    opened_paths = []
+    opener = Object.new
+    opener.define_singleton_method(:open) { |path| opened_paths << path; true }
+    InvasionStudio::Webui::Server.set :file_opener, opener
+
+    post '/api/export/reveal', JSON.generate({ group: 'Group1' }), 'CONTENT_TYPE' => 'application/json'
+
+    assert last_response.ok?
+    assert_equal [directory], opened_paths
+  end
+
+  def test_post_api_export_reveal_returns_not_found_without_export
+    post '/api/export/reveal', JSON.generate({ group: 'Group1' }), 'CONTENT_TYPE' => 'application/json'
+
+    assert_equal 404, last_response.status
   end
 
   def test_post_api_export_failure_contract
@@ -961,6 +1238,40 @@ class TestWebuiServer < Minitest::Test
   end
 
   private
+
+  def upload_batch_sizes(sizes)
+    helper = File.expand_path(
+      '../lib/invasion_studio/webui/frontend/upload_batches.mjs', __dir__
+    )
+    script = <<~'JAVASCRIPT'
+      import { pathToFileURL } from 'node:url'
+      const { partitionUploadBatches } = await import(pathToFileURL(process.argv[1]))
+      const files = JSON.parse(process.argv[2]).map(size => ({ size }))
+      console.log(JSON.stringify(partitionUploadBatches(files).map(batch => batch.map(file => file.size))))
+    JAVASCRIPT
+    stdout, stderr, status = Open3.capture3(
+      'node', '--input-type=module', '--eval', script, helper, JSON.generate(sizes)
+    )
+    assert status.success?, stderr
+    JSON.parse(stdout)
+  end
+
+  def upload_progress_percent(values)
+    helper = File.expand_path(
+      '../lib/invasion_studio/webui/frontend/upload_batches.mjs', __dir__
+    )
+    script = <<~'JAVASCRIPT'
+      import { pathToFileURL } from 'node:url'
+      const { uploadProgressPercent } = await import(pathToFileURL(process.argv[1]))
+      console.log(uploadProgressPercent(JSON.parse(process.argv[2])))
+    JAVASCRIPT
+    arguments = values.transform_keys { |key| key.to_s.gsub(/_([a-z])/) { Regexp.last_match(1).upcase } }
+    stdout, stderr, status = Open3.capture3(
+      'node', '--input-type=module', '--eval', script, helper, JSON.generate(arguments)
+    )
+    assert status.success?, stderr
+    stdout.to_i
+  end
 
   def mock_video_metadata
     @original_video_new = InvasionStudio::Video.method(:new)

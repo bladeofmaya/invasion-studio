@@ -1,49 +1,117 @@
 module InvasionStudio
   class ProjectExporter
+    class ExportExists < Error; end
+
     def initialize(project, options = {})
       @project = project
       @options = options
       @process_runner = options[:process_runner] || ProcessRunner.new
+      @metadata_probe = options[:metadata_probe] || ->(path) { Video.new(path).metadata }
     end
 
-    def export_group(group_name, output_basename = nil)
-      clip_paths = @project.group_clip_paths(group_name)
-      raise Error, "No clips in group '#{group_name}'" if clip_paths.empty?
+    def export_group(group_name, overwrite: false)
+      clips = exportable_clips(group_name)
+      raise Error, "No clips in group '#{group_name}'" if clips.empty?
 
-      output_dir = File.join(@project.folder_path, 'exports')
+      output_dir = export_directory(group_name)
+      spliced_path, kdenlive_path = export_paths(group_name)
+      ensure_outputs_available!([spliced_path, kdenlive_path]) unless overwrite
       FileUtils.mkdir_p(output_dir)
+      chapters = build_chapters(clips)
 
-      output_basename = sanitize_basename(output_basename || group_name)
-      spliced_path = File.join(output_dir, "#{output_basename}.mp4")
-      kdenlive_path = File.join(output_dir, "#{output_basename}.kdenlive")
-
-      splice_clips(clip_paths, spliced_path)
-      metadata = gather_metadata_for(spliced_path)
-      xml = KdenliveExporter.new(output_dir, @options).build_project(spliced_path, metadata)
+      splice_clips(clips.map { |clip| clip.fetch('resolved_path') }, spliced_path, chapters)
+      metadata = gather_metadata_for(spliced_path).merge(
+        audio_stream_count: video_settings.fetch('audio_track_count')
+      )
+      xml = KdenliveExporter.new(output_dir, @options)
+                            .build_project(spliced_path, metadata, chapters: chapters)
       File.write(kdenlive_path, xml)
 
       [spliced_path, kdenlive_path]
     end
 
-    private
-
-    def sanitize_basename(value)
-      basename = value.to_s.downcase.gsub(/[^a-z0-9_-]+/, '_').gsub(/\A_+|_+\z/, '')
-      raise Error, 'Export filename cannot be empty' if basename.empty?
-
-      basename
+    def export_directory(group_name)
+      CompilationName.validate!(group_name)
+      File.join(@project.folder_path, 'exports', group_name)
     end
 
-    def splice_clips(clip_paths, output_path)
+    def export_exists?(group_name)
+      export_paths(group_name).any? { |path| File.exist?(path) }
+    end
+
+    def export_paths(group_name)
+      directory = export_directory(group_name)
+      [File.join(directory, "#{group_name}.mp4"), File.join(directory, "#{group_name}.kdenlive")]
+    end
+
+    private
+
+    def ensure_outputs_available!(paths)
+      return unless paths.any? { |path| File.exist?(path) }
+
+      raise ExportExists, 'Export already exists'
+    end
+
+    def exportable_clips(group_name)
+      @project.group_clips(group_name).filter_map do |clip|
+        path = @project.resolve_clip_path(clip)
+        clip.merge('resolved_path' => path) if path
+      end
+    end
+
+    def build_chapters(clips)
+      position = 0.0
+      clips.map do |clip|
+        duration = clip_duration(clip)
+        chapter = {
+          title: chapter_title(clip),
+          start_time: position,
+          end_time: position + duration
+        }
+        position = chapter[:end_time]
+        chapter
+      end
+    end
+
+    def chapter_title(clip)
+      title = clip['title'].to_s.strip
+      title.empty? ? clip['filename'].to_s : title
+    end
+
+    def clip_duration(clip)
+      if clip['resolved_path']
+        metadata = @metadata_probe.call(clip['resolved_path'])
+        current_duration = metadata && metadata[:duration].to_f
+        return current_duration if current_duration&.positive?
+      end
+
+      stored_duration = clip['duration'].to_f
+      return stored_duration if stored_duration.positive?
+
+      raise Error, "Could not determine duration for #{clip['filename']}"
+    rescue StandardError
+      stored_duration = clip['duration'].to_f
+      return stored_duration if stored_duration.positive?
+
+      raise Error, "Could not determine duration for #{clip['filename']}"
+    end
+
+    def splice_clips(clip_paths, output_path, chapters)
       concat_list_path = File.join(@project.folder_path, '.export_concat_list.txt')
+      chapter_metadata_path = File.join(@project.folder_path, '.export_chapters.txt')
 
       File.write(concat_list_path, clip_paths.map { |c| "file '#{c}'" }.join("\n"))
+      File.write(chapter_metadata_path, build_chapter_metadata(chapters))
 
       cmd = [
         Executables.ffmpeg, '-y',
         '-f', 'concat', '-safe', '0',
         '-i', concat_list_path,
-        '-map', '0',
+        '-i', chapter_metadata_path,
+        '-map', '0:v:0?',
+        *audio_mapping_arguments,
+        '-map_metadata', '1',
+        '-map_chapters', '1',
         '-c', 'copy',
         output_path
       ]
@@ -56,11 +124,49 @@ module InvasionStudio
       output_path
     ensure
       File.delete(concat_list_path) if File.exist?(concat_list_path)
+      File.delete(chapter_metadata_path) if chapter_metadata_path && File.exist?(chapter_metadata_path)
+    end
+
+    def audio_mapping_arguments
+      settings = video_settings
+      count = settings.fetch('audio_track_count')
+      default_index = settings.fetch('default_audio_track') - 1
+
+      count.times.flat_map do |index|
+        disposition = index == default_index ? 'default' : '0'
+        ['-map', "0:a:#{index}?", "-disposition:a:#{index}", disposition]
+      end
+    end
+
+    def video_settings
+      return @project.video_settings if @project.respond_to?(:video_settings)
+
+      Database::ProjectSettings::DEFAULT_VIDEO_SETTINGS
+    end
+
+    def build_chapter_metadata(chapters)
+      lines = [';FFMETADATA1', 'title=Invasion Studio Compilation', '']
+      chapters.each do |chapter|
+        lines.concat([
+          '[CHAPTER]',
+          'TIMEBASE=1/1000',
+          "START=#{(chapter[:start_time] * 1000).round}",
+          "END=#{(chapter[:end_time] * 1000).round}",
+          "title=#{escape_ffmetadata(chapter[:title])}",
+          ''
+        ])
+      end
+      lines.join("\n")
+    end
+
+    def escape_ffmetadata(value)
+      value.to_s.gsub(/[\r\n]+/, ' ')
+           .gsub('\\') { '\\\\' }
+           .gsub(/([=;#])/, '\\\\\1')
     end
 
     def gather_metadata_for(path)
-      video = Video.new(path)
-      meta = video.metadata
+      meta = @metadata_probe.call(path)
       raise Error, "Could not extract metadata for #{path}" unless meta && meta[:duration] && meta[:duration] > 0
       meta
     end

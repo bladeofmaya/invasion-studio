@@ -57,6 +57,10 @@ module InvasionStudio
     def apply_tag(dataset, tag)
       return dataset unless tag
 
+      if tag == '__none__'
+        return dataset.exclude(id: @database[:clip_tags].select(:clip_id))
+      end
+
       tag_ids = @database[:tags].where(name: tag.downcase).select(:id)
       dataset.where(id: @database[:clip_tags].where(tag_id: tag_ids).select(:clip_id))
     end
@@ -64,11 +68,15 @@ module InvasionStudio
     def apply_min_rating(dataset, min_rating)
       return dataset unless min_rating
 
+      return dataset.where(rating: 0) if min_rating == '__none__'
+
       dataset.where { rating >= min_rating.to_i }
     end
 
     def apply_result(dataset, result)
       return dataset unless result
+
+      return dataset.where(result: nil) if result == '__none__'
 
       dataset.where(result: result)
     end

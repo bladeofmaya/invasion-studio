@@ -30,9 +30,7 @@ module InvasionStudio
             <property name="kdenlive:sequenceproperties.tracks">4</property>
             <property name="kdenlive:sequenceproperties.groups">#{JSON.pretty_generate(groups)}
           </property>
-            <property name="kdenlive:sequenceproperties.guides">[
-          ]
-          </property>
+            <property name="kdenlive:sequenceproperties.guides">#{context.escape(JSON.generate(guides))}</property>
           #{tracks}#{transitions}#{filters}  </tractor>
         XML
       end
@@ -46,6 +44,16 @@ module InvasionStudio
           'children' => (0..context.video_track_index).map { |index| { 'data' => "#{index}:0:-1", 'leaf' => 'clip', 'type' => 'Leaf' } },
           'type' => 'AVSplit'
         }]
+      end
+
+      def guides
+        context.chapters.map do |chapter|
+          {
+            'comment' => chapter[:title].to_s,
+            'pos' => (chapter[:start_time].to_f * context.fps).round,
+            'type' => 0
+          }
+        end
       end
 
       def tracks
