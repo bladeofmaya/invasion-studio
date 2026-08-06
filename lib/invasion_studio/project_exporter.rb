@@ -1,5 +1,7 @@
 module InvasionStudio
   class ProjectExporter
+    class ExportExists < Error; end
+
     def initialize(project, options = {})
       @project = project
       @options = options
@@ -7,16 +9,16 @@ module InvasionStudio
       @metadata_probe = options[:metadata_probe] || ->(path) { Video.new(path).metadata }
     end
 
-    def export_group(group_name, output_basename = nil)
+    def export_group(group_name, output_basename = nil, overwrite: false)
       clips = exportable_clips(group_name)
       raise Error, "No clips in group '#{group_name}'" if clips.empty?
 
-      output_dir = File.join(@project.folder_path, 'exports')
-      FileUtils.mkdir_p(output_dir)
-
       output_basename = sanitize_basename(output_basename || group_name)
+      output_dir = File.join(@project.folder_path, 'exports', output_basename)
       spliced_path = File.join(output_dir, "#{output_basename}.mp4")
       kdenlive_path = File.join(output_dir, "#{output_basename}.kdenlive")
+      ensure_outputs_available!([spliced_path, kdenlive_path]) unless overwrite
+      FileUtils.mkdir_p(output_dir)
       chapters = build_chapters(clips)
 
       splice_clips(clips.map { |clip| clip.fetch('resolved_path') }, spliced_path, chapters)
@@ -31,6 +33,12 @@ module InvasionStudio
     end
 
     private
+
+    def ensure_outputs_available!(paths)
+      return unless paths.any? { |path| File.exist?(path) }
+
+      raise ExportExists, 'Export already exists'
+    end
 
     def sanitize_basename(value)
       basename = value.to_s.downcase.gsub(/[^a-z0-9_-]+/, '_').gsub(/\A_+|_+\z/, '')
