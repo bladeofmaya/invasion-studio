@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ELECTRON_DIR="$PROJECT_DIR/desktop/electron"
+MODE="${1:---package}"
+
+case "$MODE" in
+  --package|--make) ;;
+  *) echo "Usage: bin/build-desktop [--package|--make]" >&2; exit 2 ;;
+esac
+
+"$PROJECT_DIR/bin/build-sidecar"
+
+cd "$ELECTRON_DIR"
+npm ci
+npm test
+
+if [ "$MODE" = "--make" ]; then
+  npm run make
+  echo "Desktop distributables: $ELECTRON_DIR/out/make"
+else
+  npm run package
+  echo "Desktop package: $ELECTRON_DIR/out/invasion-studio-linux-x64"
+fi

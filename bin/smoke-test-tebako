@@ -10,11 +10,11 @@ require 'socket'
 require 'tempfile'
 require 'tmpdir'
 require 'uri'
-require_relative '../desktop/spike/support/smoke_test'
+require_relative '../test/support/sidecar_smoke_test'
 
 Response = Data.define(:code, :body)
 
-class SpikeHttpClient
+class SidecarHttpClient
   def initialize(base_uri)
     @base_uri = base_uri
   end
@@ -100,9 +100,9 @@ class PackagedServer
 end
 
 options = {
-  executable: File.expand_path('../pkg/spike/invasion-studio', __dir__),
+  executable: File.expand_path('../pkg/sidecar/linux-x64/invasion-studio', __dir__),
   clip: File.expand_path('../test/samples/invasion-sample-720p.mp4', __dir__),
-  evidence: File.expand_path('../pkg/spike/tebako-smoke.json', __dir__)
+  evidence: File.expand_path('../pkg/sidecar/linux-x64/tebako-smoke.json', __dir__)
 }
 OptionParser.new do |parser|
   parser.on('--executable PATH') { |path| options[:executable] = File.expand_path(path) }
@@ -137,8 +137,8 @@ server = PackagedServer.new(
 
 begin
   server.start
-  http = SpikeHttpClient.new(URI("http://127.0.0.1:#{server.port}"))
-  evidence = InvasionStudio::Spike::SmokeTest.new(http: http).run(options[:clip])
+  http = SidecarHttpClient.new(URI("http://127.0.0.1:#{server.port}"))
+  evidence = InvasionStudio::Packaging::SidecarSmokeTest.new(http: http).run(options[:clip])
   clip = evidence.fetch(:clip)
   stored_path = File.join(project, clip.fetch('path'))
   raise "uploaded file was not stored at #{stored_path}" unless File.file?(stored_path)
@@ -146,7 +146,7 @@ begin
 
   server.stop
   server.start
-  http = SpikeHttpClient.new(URI("http://127.0.0.1:#{server.port}"))
+  http = SidecarHttpClient.new(URI("http://127.0.0.1:#{server.port}"))
   persisted = http.get("/api/clip/#{URI.encode_www_form_component(clip.fetch('id'))}")
   raise "clip did not survive restart" unless persisted.code.to_i == 200
 

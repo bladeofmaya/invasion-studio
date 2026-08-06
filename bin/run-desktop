@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APPLICATION="$PROJECT_DIR/desktop/electron/out/invasion-studio-linux-x64/invasion-studio"
+TEBAKO_ARTIFACT="$PROJECT_DIR/pkg/sidecar/linux-x64/invasion-studio"
+PACKAGED_SIDECAR="$PROJECT_DIR/desktop/electron/out/invasion-studio-linux-x64/resources/invasion-studio"
+TARGET_PROJECT="${1:-}"
+
+[ -n "$TARGET_PROJECT" ] && [ -d "$TARGET_PROJECT" ] || {
+  echo "Usage: bin/run-desktop PROJECT_DIRECTORY" >&2
+  exit 1
+}
+
+[ -x "$APPLICATION" ] || {
+  echo "FAIL: run bin/build-desktop first" >&2
+  exit 1
+}
+
+[ -x "$TEBAKO_ARTIFACT" ] || {
+  echo "FAIL: Tebako sidecar is missing; run bin/build-desktop first" >&2
+  exit 1
+}
+
+NEWER_BACKEND_SOURCE="$(find \
+  "$PROJECT_DIR/lib" \
+  "$PROJECT_DIR/Gemfile" \
+  "$PROJECT_DIR/Gemfile.lock" \
+  "$PROJECT_DIR/invasion-studio.gemspec" \
+  "$PROJECT_DIR/bin/invasion-studio" \
+  -newer "$TEBAKO_ARTIFACT" -print -quit)"
+
+[ -z "$NEWER_BACKEND_SOURCE" ] || {
+  echo "FAIL: packaged Tebako sidecar is stale ($NEWER_BACKEND_SOURCE is newer)" >&2
+  echo "Run bin/build-desktop before launching." >&2
+  exit 1
+}
+
+[ -x "$PACKAGED_SIDECAR" ] && [ ! "$TEBAKO_ARTIFACT" -nt "$PACKAGED_SIDECAR" ] || {
+  echo "FAIL: Electron package does not contain the current Tebako sidecar" >&2
+  echo "Run bin/build-desktop before launching." >&2
+  exit 1
+}
+
+NEWER_ELECTRON_SOURCE="$(find \
+  "$PROJECT_DIR/desktop/electron/src" \
+  "$PROJECT_DIR/desktop/electron/forge.config.js" \
+  "$PROJECT_DIR/desktop/electron/package.json" \
+  "$PROJECT_DIR/desktop/electron/package-lock.json" \
+  -newer "$APPLICATION" -print -quit)"
+
+[ -z "$NEWER_ELECTRON_SOURCE" ] || {
+  echo "FAIL: Electron package is stale ($NEWER_ELECTRON_SOURCE is newer)" >&2
+  echo "Run bin/build-desktop before launching." >&2
+  exit 1
+}
+
+export INVASION_STUDIO_PROJECT="$TARGET_PROJECT"
+exec "$APPLICATION"

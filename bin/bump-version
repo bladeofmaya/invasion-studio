@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require 'json'
+
 # Bump the gem version and refresh Gemfile.lock.
 #
 #   bin/bump-version patch      0.6.0 -> 0.6.1
@@ -9,6 +11,8 @@
 #   bin/bump-version 1.2.3      set an explicit version
 
 VERSION_FILE = File.expand_path('../lib/invasion_studio/version.rb', __dir__)
+ELECTRON_PACKAGE_FILE = File.expand_path('../desktop/electron/package.json', __dir__)
+ELECTRON_LOCK_FILE = File.expand_path('../desktop/electron/package-lock.json', __dir__)
 
 arg = ARGV.fetch(0) do
   warn 'Usage: bin/bump-version patch|minor|major|X.Y.Z'
@@ -35,12 +39,21 @@ new_version =
   end
 
 File.write(VERSION_FILE, contents.sub("\"#{current}\"", "\"#{new_version}\""))
+
+[ELECTRON_PACKAGE_FILE, ELECTRON_LOCK_FILE].each do |path|
+  data = JSON.parse(File.read(path))
+  data['version'] = new_version
+  root_package = data.dig('packages', '')
+  root_package['version'] = new_version if root_package
+  File.write(path, "#{JSON.pretty_generate(data)}\n")
+end
 puts "Version: #{current} -> #{new_version}"
 
 Dir.chdir(File.expand_path('..', __dir__)) do
   system('bundle', 'lock', exception: true)
 end
 puts 'Gemfile.lock refreshed.'
+puts 'Electron package metadata refreshed.'
 
 puts
 puts 'Next steps:'

@@ -9,6 +9,7 @@
 | System packages | tesseract | Runtime (extraction/scan OCR only; the WebUI works without it) |
 | System packages | kdenlive | Optional (only to open exported `.kdenlive` projects) |
 | Build-only | Node.js + npm (Tailwind CLI, esbuild, pinned in package-lock.json) | Building a release from source; never at `gem install` or runtime |
+| Desktop build | Electron, Electron Forge, and Tebako | Building the Linux desktop application only |
 | Build-only | Ruby 3.3.3+, Bundler, a C toolchain | Building; the C toolchain is also needed by `gem install` for the sqlite3/puma native extensions |
 
 Generated frontend assets (`lib/invasion_studio/webui/public/assets/`) are
@@ -45,9 +46,37 @@ database, exports, and trash.
    links, editing, compilations, preview) per TODO.md.
 5. Tag and push, then `gem push invasion-studio-<version>.gem`.
 
+## Linux desktop release
+
+The desktop application is additive: it embeds the same `invasion-studio
+webui` command that remains available through the Ruby gem. The first desktop
+release targets Linux x64 and Flatpak. Windows x64 and macOS x64/ARM64 have
+reserved directories under `desktop/electron/platforms/`, but are not release
+targets yet.
+
+1. Run the gem release gate with `bin/release-check`.
+2. Build the unpacked desktop application with `bin/build-desktop`. This
+   rebuilds WebUI assets and the Linux x64 Tebako sidecar, installs the exact
+   Electron dependencies, runs non-video Electron tests, and packages the app.
+3. Launch it with `bin/run-desktop /path/to/project` and complete the manual
+   media checklist in `desktop/electron/README.md`.
+4. Build the Flatpak distributable with `bin/build-desktop --make`.
+5. Install the Flatpak in a clean environment and repeat the lifecycle,
+   project-access, persistence, playback, seeking, and audio-track checks.
+6. Attach the verified artifact and checksums to the matching GitHub release.
+
+The application version in `desktop/electron/package.json` and its lockfile
+must match `InvasionStudio::VERSION`; `bin/bump-version` updates all three.
+Electron/Forge versions remain independently pinned in the desktop lockfile.
+
+The Flatpak is not release-ready until pinned Linux x64 FFmpeg, FFprobe,
+Tesseract, and English trained-data resources are staged under
+`pkg/tools/linux-x64`, verified by checksum, and covered by the third-party
+license inventory. Signing and automated publication are later release gates.
+
 ## Not automated (deliberately)
 
-- OS packages (Homebrew, pacman) remain future work; they should wrap the
+- Gem-oriented OS packages (Homebrew, pacman) remain future work; they should wrap the
   same `bin/build-gem` entry point.
 - There is no CI service configured; `bin/release-check` is the gate. If CI
   is added later, it should run the same script.

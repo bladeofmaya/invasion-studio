@@ -1,0 +1,27 @@
+{
+  "name": "invasion-studio",
+  "productName": "Invasion Studio",
+  "version": "0.7.1",
+  "private": true,
+  "description": "Desktop application for reviewing and editing Elden Ring invasion clips",
+  "author": "Blade of Maya",
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron-forge start",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
+  },
+  "overrides": {
+    "tar": "^7.5.13",
+    "tmp": "^0.2.6"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "7.11.2",
+    "@electron-forge/maker-flatpak": "7.11.2",
+    "@electron-forge/plugin-fuses": "7.11.2",
+    "@electron/fuses": "1.8.0",
+    "electron": "43.3.0"
+  }
+}

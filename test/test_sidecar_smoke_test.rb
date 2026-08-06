@@ -2,9 +2,9 @@
 
 require 'test_helper'
 require 'json'
-require_relative '../desktop/spike/support/smoke_test'
+require_relative 'support/sidecar_smoke_test'
 
-class TestSpikeSmokeTest < Minitest::Test
+class TestSidecarSmokeTest < Minitest::Test
   Response = Data.define(:code, :body)
 
   class FakeHttp
@@ -48,7 +48,7 @@ class TestSpikeSmokeTest < Minitest::Test
       [:get, '/clip/sample.mp4'] => Response.new('206', 'bytes')
     )
 
-    evidence = InvasionStudio::Spike::SmokeTest.new(http: http).run(@clip_path)
+    evidence = InvasionStudio::Packaging::SidecarSmokeTest.new(http: http).run(@clip_path)
 
     assert_equal ['clips/sample'], evidence.fetch(:clip_ids)
     assert_equal [['/api/upload', @clip_path]], http.uploads
@@ -64,8 +64,8 @@ class TestSpikeSmokeTest < Minitest::Test
       [:upload, '/api/upload'] => Response.new('200', JSON.generate(imported: 0, clips: []))
     )
 
-    error = assert_raises(InvasionStudio::Spike::SmokeTest::Failure) do
-      InvasionStudio::Spike::SmokeTest.new(http: http).run(@clip_path)
+    error = assert_raises(InvasionStudio::Packaging::SidecarSmokeTest::Failure) do
+      InvasionStudio::Packaging::SidecarSmokeTest.new(http: http).run(@clip_path)
     end
 
     assert_match(/exactly one clip/, error.message)

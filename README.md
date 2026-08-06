@@ -223,30 +223,103 @@ macOS and Linux. A modern browser is required for the WebUI.
 
 ## Development
 
-Ruby 3.4.9 and Node.js 24 LTS are pinned in `mise.toml`. Node is needed only to
-build the packaged WebUI assets.
+Ruby 3.4.9 and Node.js 24 LTS are pinned in `mise.toml`. The Ruby application,
+browser-based WebUI, and Electron desktop shell can be developed separately.
+
+### Initial setup
 
 ```bash
-# Install dependencies and build WebUI assets
+# Install Ruby and WebUI asset dependencies.
 bundle install
+npm ci
 bin/build-assets
+```
 
-# Run unit and component tests
+### Develop the Ruby application and WebUI
+
+The standalone WebUI remains a supported workflow and does not require
+Electron:
+
+```bash
+# Start from the source checkout.
+bundle exec bin/invasion-studio webui /path/to/project
+
+# Run the non-video Ruby test suite.
 bundle exec rake test
 
-# Run the complete suite, including sample-video processing
-bin/test
-
-# Build and verify the gem
+# Build and verify the installable Ruby gem.
 bin/build-gem
+```
 
-# Full release gate: assets, tests, gem build, install into an empty
-# GEM_HOME, CLI and WebUI smoke tests (see RELEASING.md)
-bin/release-check
+After installing the gem, the same UI remains available with:
+
+```bash
+invasion-studio webui /path/to/project
 ```
 
 Generated WebUI assets under `lib/invasion_studio/webui/public/assets/` are
 ignored and should not be committed.
+
+### Develop the Electron desktop application
+
+The Electron project has its own dependency lockfile so ordinary gem
+development does not install Electron or Forge:
+
+```bash
+# One-time Electron dependency setup.
+npm ci --prefix desktop/electron
+
+# Fast Electron security and sidecar tests; these do not process video.
+npm test --prefix desktop/electron
+
+# Build the Linux x64 Tebako sidecar.
+bin/build-sidecar
+
+# Launch Electron through Forge against a project folder.
+INVASION_STUDIO_PROJECT=/path/to/project \
+  npm start --prefix desktop/electron
+```
+
+Electron only supervises the packaged `invasion-studio webui` process and
+loads its local URL. Project, database, media, and WebUI behavior remains in
+the Ruby application.
+
+### Build the Linux desktop package
+
+The first desktop release targets Linux x64, with Flatpak as the primary
+installer:
+
+```bash
+# Rebuild the sidecar, run Electron tests, and create an unpacked app.
+bin/build-desktop
+
+# Launch that packaged app.
+bin/run-desktop /path/to/project
+
+# Run the Flatpak maker instead of producing only the unpacked app.
+bin/build-desktop --make
+```
+
+Build output is ignored under `desktop/electron/out/`. The sidecar is generated
+under `pkg/sidecar/linux-x64/`. Empty platform directories reserve the planned
+Windows x64 and macOS x64/ARM64 targets, but those packaging pipelines are not
+implemented for the first release.
+
+Portable FFmpeg, FFprobe, Tesseract, and trained-data resources are the next
+Flatpak packaging gate. Until they are staged under `pkg/tools/linux-x64`, the
+desktop development build uses tools available through the host environment.
+
+### Verification and releases
+
+```bash
+# Complete suite, including sample-video processing. Run manually.
+bin/test
+
+# Gem release gate: assets, non-video tests, gem installation, CLI, and WebUI.
+bin/release-check
+```
+
+See `RELEASING.md` and `desktop/electron/README.md` for the detailed gates.
 
 ## Support
 
