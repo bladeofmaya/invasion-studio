@@ -197,7 +197,7 @@ Project Folder → project.db (SQLite) ← WebUI/Project ← Clip files on disk
   - Respects `--pad-start` and `--pad-end` options
   - Supports single-file and multi-file invasions
   - Uses ffmpeg for lossless cutting (copy codec)
-  - Writes ffmpeg logs alongside output files
+  - Captures ffmpeg logs in temporary storage and removes them after processing
 
 #### 8. KdenliveExporter (`kdenlive_exporter.rb`)
 - **Responsibility**: Two-step export: splices clips into a single video, then generates a Kdenlive 26.04 `.kdenlive` project file
