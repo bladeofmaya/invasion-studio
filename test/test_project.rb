@@ -25,6 +25,30 @@ class TestProject < Minitest::Test
     assert_equal [], project.clips
   end
 
+  def test_video_settings_default_to_four_tracks_with_track_four_selected
+    project = InvasionStudio::Project.new(@tmp_dir)
+
+    assert_equal({ 'audio_track_count' => 4, 'default_audio_track' => 4 }, project.video_settings)
+  end
+
+  def test_video_settings_are_persisted
+    project = InvasionStudio::Project.new(@tmp_dir)
+
+    assert project.update_video_settings(audio_track_count: 2, default_audio_track: 1)
+
+    reopened = InvasionStudio::Project.new(@tmp_dir)
+    assert_equal({ 'audio_track_count' => 2, 'default_audio_track' => 1 }, reopened.video_settings)
+  end
+
+  def test_video_settings_reject_invalid_track_values
+    project = InvasionStudio::Project.new(@tmp_dir)
+
+    refute project.update_video_settings(audio_track_count: 0, default_audio_track: 1)
+    refute project.update_video_settings(audio_track_count: 2, default_audio_track: 3)
+    refute project.update_video_settings(audio_track_count: 'two', default_audio_track: 1)
+    assert_equal({ 'audio_track_count' => 4, 'default_audio_track' => 4 }, project.video_settings)
+  end
+
   def test_discovers_clips_on_disk
     create_clip_file('invasion_00001.mp4')
     create_clip_file('invasion_00002.mp4')

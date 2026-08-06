@@ -150,6 +150,7 @@ module InvasionStudio
       register Routes::Exports
       register Routes::Storage
       register Routes::GameStats
+      register Routes::Settings
       register Routes::Pages
     end
   end

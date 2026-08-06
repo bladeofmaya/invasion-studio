@@ -465,6 +465,59 @@ class TestWebuiServer < Minitest::Test
     assert_includes last_response.body, 'data-settings-target="storagePanel"'
     assert_includes last_response.body, 'data-category="stats"'
     assert_includes last_response.body, 'data-settings-target="statsPanel"'
+    assert_includes last_response.body, 'data-category="video"'
+    assert_includes last_response.body, 'data-settings-target="audioTrackCount"'
+    assert_includes last_response.body, 'data-settings-target="defaultAudioTrack"'
+  end
+
+  def test_get_api_video_settings
+    get '/api/settings/video'
+
+    assert last_response.ok?
+    assert_equal({ 'audio_track_count' => 4, 'default_audio_track' => 4 }, JSON.parse(last_response.body))
+  end
+
+  def test_put_api_video_settings_persists_valid_values
+    put '/api/settings/video', JSON.generate({ audio_track_count: 3, default_audio_track: 2 }),
+        'CONTENT_TYPE' => 'application/json'
+
+    assert last_response.ok?
+    assert_equal({ 'audio_track_count' => 3, 'default_audio_track' => 2 }, JSON.parse(last_response.body))
+    assert_equal 2, project.video_settings['default_audio_track']
+  end
+
+  def test_put_api_video_settings_rejects_default_above_track_count
+    put '/api/settings/video', JSON.generate({ audio_track_count: 2, default_audio_track: 3 }),
+        'CONTENT_TYPE' => 'application/json'
+
+    assert_equal 422, last_response.status
+    assert_equal 'Invalid video settings', JSON.parse(last_response.body)['error']
+  end
+
+  def test_video_player_loads_project_audio_settings
+    controller = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/public/controllers/video_player_controller.js', __dir__
+    ))
+
+    assert_includes controller, "fetchJson('/api/settings/video')"
+    assert_includes controller, "'video-settings:changed'"
+  end
+
+  def test_bundled_javascript_contains_video_settings_feature
+    get '/assets/app.js'
+
+    assert last_response.ok?
+    assert_includes last_response.body, '/api/settings/video'
+    assert_includes last_response.body, 'video-settings:changed'
+  end
+
+  def test_video_icon_is_registered_for_bundling
+    icons = File.read(File.expand_path(
+      '../lib/invasion_studio/webui/frontend/icons.js', __dir__
+    ))
+
+    assert_match(/\bVideo\b/, icons)
+    assert_includes icons, 'Video,'
   end
 
   def test_get_api_game_stats
