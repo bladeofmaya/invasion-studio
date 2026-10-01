@@ -28,3 +28,46 @@ test('project location is escaped, selectable and opens only through desktop int
     assert.equal(error, 'Unavailable')
   } finally { globalThis.window = original }
 })
+
+test('cache clearing sends only the selected scope and warns that OCR is shared', async () => {
+  const original = globalThis.confirm
+  try {
+    let prompt, request
+    globalThis.confirm = message => { prompt = message; return true }
+    const controller = {
+      fetchJson: async (url, options) => { request = { url, body: JSON.parse(options.body) }; return { freed_bytes: 1 } },
+      showSuccess() {}, showError: assert.fail, formatBytes: () => '1 B', loadStorage() {}
+    }
+    await SettingsController.prototype.clearCache.call(controller, { currentTarget: { dataset: { scope: 'ocr' } } })
+    assert.match(prompt, /all projects/)
+    assert.deepEqual(request, { url: '/api/storage/clear-cache', body: { scope: 'ocr' } })
+    request = null
+    globalThis.confirm = () => false
+    await SettingsController.prototype.clearCache.call(controller, { currentTarget: { dataset: { scope: 'ocr' } } })
+    assert.equal(request, null)
+    await SettingsController.prototype.clearCache.call(controller, { currentTarget: { dataset: { scope: 'preview' } } })
+    assert.deepEqual(request.body, { scope: 'preview' })
+  } finally { globalThis.confirm = original }
+})
+
+test('dependency field saves one tool and blank restores detection', async () => {
+  let request
+  const input = { value: '/custom tool' }
+  const status = {}
+  const form = { dataset: { tool: 'ffmpeg' }, querySelector: selector => selector === 'input' ? input : status }
+  const controller = {
+    fetchJson: async (url, options) => { request = { url, body: JSON.parse(options.body) }; return { tools: [] } },
+    renderDependencies() { this.rendered = true }
+  }
+  const event = { preventDefault() {}, currentTarget: form }
+  await SettingsController.prototype.saveDependency.call(controller, event)
+  assert.deepEqual(request, { url: '/api/settings/dependencies', body: { ffmpeg: '/custom tool' } })
+  input.value = ''
+  await SettingsController.prototype.saveDependency.call(controller, event)
+  assert.deepEqual(request.body, { ffmpeg: '' })
+  controller.fetchJson = async () => { throw new Error('Not executable') }
+  controller.rendered = false
+  await SettingsController.prototype.saveDependency.call(controller, event)
+  assert.equal(controller.rendered, false)
+  assert.equal(status.textContent, 'Not executable')
+})

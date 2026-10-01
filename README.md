@@ -168,6 +168,21 @@ In **Settings → Storage**, the full project path is selectable and wraps to fi
 The desktop app also provides **Open project folder** using the native file
 manager; the browser displays the path without a native folder-opening action.
 
+Storage reports the current project's preview cache and the shared OCR cache
+separately, with individual paths, sizes, and Clear buttons. Clearing OCR cache
+affects all projects on this computer and requires confirmation. The storage
+total includes this shared cache.
+
+**Settings → Dependencies** shows the active and automatically detected FFmpeg,
+FFprobe, and Tesseract paths and whether each is an executable file. Enter a full
+custom path and choose **Apply**, or choose **Use detected** to reset it. These
+machine-wide preferences persist in
+`${XDG_CONFIG_HOME:-$HOME/.config}/invasion-studio/dependencies.json` and apply to
+new tool invocations in the desktop app, WebUI, and CLI. Resolution order is
+custom path, `INVASION_STUDIO_FFMPEG`/`INVASION_STUDIO_FFPROBE`/
+`INVASION_STUDIO_TESSERACT`, then system `PATH`. Availability checks do not run
+the binary or verify codec support.
+
 ## How detection works
 
 The extractor samples the game-text area and uses OCR to find these messages:

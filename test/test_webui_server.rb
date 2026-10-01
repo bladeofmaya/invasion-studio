@@ -637,10 +637,39 @@ class TestWebuiServer < Minitest::Test
 
   # ========== Storage Routes ==========
 
+  def test_dependency_settings_show_detected_and_custom_executables
+    configuration = InvasionStudio::DependencySettings.new(path: File.join(@folder, 'dependencies.json'))
+    InvasionStudio::Webui::Server.set :dependency_settings, configuration
+    get '/api/settings/dependencies'
+    assert last_response.ok?
+    assert_equal %w[ffmpeg ffprobe tesseract], JSON.parse(last_response.body)['tools'].map { |tool| tool['name'] }
+    executable = File.join(@folder, 'custom ffmpeg')
+    File.write(executable, 'not executed')
+    File.chmod(0o755, executable)
+    put '/api/settings/dependencies', JSON.generate(ffmpeg: executable), 'CONTENT_TYPE' => 'application/json'
+    assert last_response.ok?
+    assert_equal executable, JSON.parse(last_response.body)['tools'].first['active_path']
+    put '/api/settings/dependencies', JSON.generate(ffmpeg: '/missing'), 'CONTENT_TYPE' => 'application/json'
+    assert_equal 422, last_response.status
+    assert_equal executable, configuration.overrides['ffmpeg']
+    put '/api/settings/dependencies', JSON.generate(ffmpeg: ''), 'CONTENT_TYPE' => 'application/json'
+    assert last_response.ok?
+    assert_empty configuration.overrides
+  ensure
+    InvasionStudio::Webui::Server.set :dependency_settings, nil
+  end
+
+  def test_cache_clear_requires_an_explicit_valid_scope
+    post '/api/storage/clear-cache', JSON.generate(scope: 'all'), 'CONTENT_TYPE' => 'application/json'
+    assert_equal 422, last_response.status
+    post '/api/storage/clear-cache', '{}', 'CONTENT_TYPE' => 'application/json'
+    assert_equal 422, last_response.status
+  end
+
   def test_get_api_storage_stats
     cache_dir = Dir.mktmpdir
     File.write(File.join(cache_dir, 'cached.yml'), 'x' * 25)
-    InvasionStudio::Webui::Server.set :cache_dirs, [cache_dir]
+    InvasionStudio::Webui::Server.set :cache_dirs, { preview: File.join(@folder, '.preview_cache'), ocr: cache_dir }
 
     get '/api/storage/stats'
 
@@ -657,9 +686,9 @@ class TestWebuiServer < Minitest::Test
   def test_post_api_storage_clear_cache
     cache_dir = Dir.mktmpdir
     File.write(File.join(cache_dir, 'cached.yml'), 'x' * 25)
-    InvasionStudio::Webui::Server.set :cache_dirs, [cache_dir]
+    InvasionStudio::Webui::Server.set :cache_dirs, { preview: File.join(@folder, '.preview_cache'), ocr: cache_dir }
 
-    post '/api/storage/clear-cache'
+    post '/api/storage/clear-cache', JSON.generate(scope: 'ocr'), 'CONTENT_TYPE' => 'application/json'
 
     assert last_response.ok?
     data = JSON.parse(last_response.body)

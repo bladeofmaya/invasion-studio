@@ -20,6 +20,6 @@ class TestExecutables < Minitest::Test
   end
 
   def test_ignores_empty_overrides
-    assert_equal 'ffmpeg', InvasionStudio::Executables.ffmpeg('INVASION_STUDIO_FFMPEG' => '')
+    assert_equal 'ffmpeg', InvasionStudio::Executables.ffmpeg({ 'INVASION_STUDIO_FFMPEG' => '' })
   end
 end

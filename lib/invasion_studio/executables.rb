@@ -11,7 +11,9 @@ module InvasionStudio
     module_function
 
     TOOLS.each do |name, environment_variable|
-      define_method(name) do |environment = ENV|
+      define_method(name) do |environment = ENV, settings: DependencySettings.new|
+        custom = settings.overrides[name.to_s]
+        next custom if custom && !custom.empty?
         configured_path = environment[environment_variable]
         configured_path.nil? || configured_path.empty? ? name.to_s : configured_path
       end

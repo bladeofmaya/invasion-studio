@@ -10,8 +10,13 @@ module InvasionStudio
           end
 
           app.post '/api/storage/clear-cache' do
-            freed = storage_statistics.clear_cache!
-            json_response(success: true, freed_bytes: freed)
+            body = json_body
+            begin
+              freed = storage_statistics.clear_cache!(scope: body.is_a?(Hash) ? body['scope'] : nil)
+              json_response(success: true, freed_bytes: freed)
+            rescue InvasionStudio::Error => e
+              halt 422, json_response(error: e.message)
+            end
           end
         end
       end

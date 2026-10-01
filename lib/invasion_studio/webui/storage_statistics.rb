@@ -8,10 +8,10 @@ module InvasionStudio
       def initialize(project, cache_dirs: nil)
         @project = project
         @folder = project.folder_path
-        @cache_dirs = cache_dirs || [
-          File.join(@folder, '.preview_cache'),
-          InvasionStudio::Paths.cache_dir
-        ]
+        @cache_dirs = cache_dirs || {
+          preview: File.join(@folder, '.preview_cache'),
+          ocr: InvasionStudio::Paths.cache_dir
+        }
       end
 
       def call
@@ -26,16 +26,19 @@ module InvasionStudio
         }
         stats['total_bytes'] = stats.sum { |_key, value| value['bytes'] }
         stats['project_path'] = @folder
+        stats['preview_cache'] = scoped_cache_stats(:preview)
+        stats['ocr_cache'] = scoped_cache_stats(:ocr)
         stats
       end
 
-      # Removes the contents of the cache directories (preview remux cache
-      # and the global OCR cache). Returns the number of bytes freed.
-      def clear_cache!
-        freed = cache_stats['bytes']
-        @cache_dirs.each do |dir|
-          next unless File.directory?(dir)
-
+      def clear_cache!(scope:)
+        unless %w[preview ocr].include?(scope)
+          raise Error, 'Choose preview or ocr cache'
+        end
+        dir = @cache_dirs.fetch(scope.to_sym)
+        raise Error, 'Cannot clear a cache directory that is a symbolic link' if File.symlink?(dir)
+        freed = dir_stats(dir)['bytes']
+        if File.directory?(dir)
           Dir.children(dir).each { |child| FileUtils.rm_rf(File.join(dir, child)) }
         end
         freed
@@ -57,8 +60,13 @@ module InvasionStudio
         }
       end
 
+      def scoped_cache_stats(scope)
+        path = @cache_dirs.fetch(scope)
+        dir_stats(path).merge('path' => path)
+      end
+
       def cache_stats
-        @cache_dirs.map { |dir| dir_stats(dir) }
+        @cache_dirs.values.map { |dir| dir_stats(dir) }
                    .reduce({ 'count' => 0, 'bytes' => 0 }) do |total, stats|
           { 'count' => total['count'] + stats['count'], 'bytes' => total['bytes'] + stats['bytes'] }
         end

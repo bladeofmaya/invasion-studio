@@ -17,6 +17,7 @@ module InvasionStudio
       set :file_opener, nil
       set :preview_remuxer, nil
       set :extraction_task, nil
+      set :dependency_settings, nil
       # nil = default cache locations; tests inject temp dirs so clearing the
       # cache never touches the real user cache.
       set :cache_dirs, nil

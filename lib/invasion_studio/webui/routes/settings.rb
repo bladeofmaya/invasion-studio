@@ -5,6 +5,25 @@ module InvasionStudio
     module Routes
       module Settings
         def self.registered(app)
+          app.get '/api/settings/dependencies' do
+            configuration = settings.dependency_settings || DependencySettings.new
+            begin
+              json_response(tools: configuration.diagnostics, settings_path: configuration.path)
+            rescue InvasionStudio::Error => e
+              halt 422, json_response(error: e.message)
+            end
+          end
+
+          app.put '/api/settings/dependencies' do
+            configuration = settings.dependency_settings || DependencySettings.new
+            begin
+              configuration.update(json_body)
+              json_response(tools: configuration.diagnostics, settings_path: configuration.path)
+            rescue InvasionStudio::Error => e
+              halt 422, json_response(error: e.message)
+            end
+          end
+
           app.get '/api/settings/extraction' do
             json_response(ExtractionRequest.validate_options(project.extraction_settings))
           end

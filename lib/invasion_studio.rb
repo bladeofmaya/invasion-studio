@@ -15,6 +15,7 @@ end
 require_relative 'invasion_studio/version'
 require_relative 'invasion_studio/paths'
 require_relative 'invasion_studio/executables'
+require_relative 'invasion_studio/dependency_settings'
 require_relative 'invasion_studio/media_files'
 require_relative 'invasion_studio/compilation_name'
 require_relative 'invasion_studio/process_runner'
