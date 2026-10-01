@@ -6,6 +6,7 @@ module InvasionStudio
       module Pages
         def self.registered(app)
           app.get('/') { erb :index }
+          app.get('/import') { erb :index }
 
           # Registered after API/media routes so SPA deep links cannot shadow them.
           app.get %r{/(clips|groups)(/.*)?} do

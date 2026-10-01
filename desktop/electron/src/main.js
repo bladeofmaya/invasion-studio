@@ -2,9 +2,11 @@ import { existsSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { app, BrowserWindow, dialog, ipcMain, session, shell } from "electron"
+import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from "electron"
 
+import { DesktopLog } from "./desktop-log.js"
 import { selectProject, validateProjectPath } from "./project-selection.js"
+import { selectRecordings } from "./recording-selection.js"
 import { RecentProjects } from "./recent-projects.js"
 import { isAllowedAppUrl, isAllowedExternalUrl } from "./security.js"
 import { Sidecar } from "./sidecar.js"
@@ -17,7 +19,8 @@ const repositoryRoot = path.resolve(electronDirectory, "..", "..")
 let mainWindow = null
 let launcherWindow = null
 let quitting = false
-const sidecar = new Sidecar()
+const desktopLog = new DesktopLog(path.join(app.getPath("logs"), "desktop.log"))
+const sidecar = new Sidecar({ onOutput: (stream, chunk) => desktopLog.write(`backend:${stream}`, chunk) })
 
 function packagedResource(...segments) {
   return path.join(process.resourcesPath, ...segments)
@@ -58,6 +61,7 @@ function secureWindow(port) {
     show: false,
     backgroundColor: "#111111",
     webPreferences: {
+      preload: path.join(sourceDirectory, "import-preload.cjs"),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -73,6 +77,16 @@ function secureWindow(port) {
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (isAllowedExternalUrl(url)) void shell.openExternal(url)
     return { action: "deny" }
+  })
+  window.webContents.on("console-message", details => {
+    desktopLog.write("renderer", `${details.level}: ${details.message} (${details.sourceId}:${details.lineNumber})`)
+  })
+  window.webContents.on("render-process-gone", (_event, details) => desktopLog.write("renderer-exit", JSON.stringify(details)))
+  window.webContents.on("before-input-event", (event, input) => {
+    if (input.type === "keyDown" && input.key === "F12") {
+      event.preventDefault()
+      window.webContents.toggleDevTools()
+    }
   })
   window.once("ready-to-show", () => window.show())
   return window
@@ -167,6 +181,9 @@ async function startupProject(recentProjects) {
 }
 
 async function boot() {
+  Menu.setApplicationMenu(null)
+  desktopLog.write("startup", JSON.stringify({ version: app.getVersion(), electron: process.versions.electron, chrome: process.versions.chrome }))
+  console.log(`Desktop log: ${desktopLog.path}`)
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false))
   const recentProjects = new RecentProjects({
     filePath: path.join(app.getPath("userData"), "recent-projects.json")
@@ -192,6 +209,13 @@ async function boot() {
     env: sidecarEnvironment()
   })
 
+  ipcMain.handle("recordings:choose", event => selectRecordings(event, mainWindow, ready.port, dialog))
+  session.defaultSession.webRequest.onCompleted({ urls: [`${ready.origin}/clip/*`] }, details => {
+    desktopLog.write("media-request", JSON.stringify({ url: details.url, status: details.statusCode, error: details.error }))
+  })
+  session.defaultSession.webRequest.onErrorOccurred({ urls: [`${ready.origin}/clip/*`] }, details => {
+    desktopLog.write("media-request-failed", JSON.stringify({ url: details.url, error: details.error }))
+  })
   mainWindow = secureWindow(ready.port)
   await mainWindow.loadURL(`${ready.origin}/`)
   windowHandoff?.complete(mainWindow)
@@ -209,6 +233,7 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   app.whenReady().then(boot).catch(async error => {
+    desktopLog.write("startup-error", error.stack || error.message)
     await sidecar.stop()
     dialog.showErrorBox("Invasion Studio could not start", error.message)
     app.exit(1)

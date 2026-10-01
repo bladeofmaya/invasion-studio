@@ -16,6 +16,7 @@ module InvasionStudio
       set :quiet, false
       set :file_opener, nil
       set :preview_remuxer, nil
+      set :extraction_task, nil
       # nil = default cache locations; tests inject temp dirs so clearing the
       # cache never touches the real user cache.
       set :cache_dirs, nil
@@ -41,6 +42,7 @@ module InvasionStudio
         set :folder_path, folder_path
         project = InvasionStudio::Project.new(folder_path)
         set :project, project
+        set :extraction_task, ExtractionTask.new(project)
         set :quiet, quiet
         set :server_settings, { Silent: quiet }
         set :file_opener, FileOpener.new
@@ -168,6 +170,7 @@ module InvasionStudio
       register Routes::Clips
       register Routes::Groups
       register Routes::Uploads
+      register Routes::Extraction
       register Routes::Exports
       register Routes::Storage
       register Routes::GameStats

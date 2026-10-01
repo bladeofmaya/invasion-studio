@@ -80,7 +80,7 @@ From the WebUI you can:
 - preview clips and switch audio tracks;
 - add titles, notes, ratings, results, and tags;
 - search the library and filter by tag, rating, or result;
-- upload clips;
+- upload clips and extract invasions from longer recordings in the Import tab;
 - organize clips into compilations and reorder them by drag & drop;
 - mark unwanted sections for removal;
 - move clips to the trash, restore them, or empty the trash for good;
@@ -128,12 +128,32 @@ the next time the WebUI starts.
 
 ### Uploading clips
 
-The **Upload** button in the WebUI accepts one or more video files
+Open **Import → Upload clips → Choose clips** to select one or more video files
 (`.mp4`, `.mkv`, `.mov`, `.avi`, `.webm`, `.flv`, `.m4v`, `.mpeg`, `.mpg`,
 up to 4 GB each). Files are validated with ffprobe before they enter the
 library, stored under `clips/`, and get a preview thumbnail generated in the
 background. Files that fail validation are reported individually and the rest
 of the batch is imported normally.
+
+### Extracting recordings from the GUI
+
+Open **Import → Extract from recordings**. In the desktop app, use **Choose
+recordings** to select multiple local videos. In the browser WebUI, enter one
+file path per line on the computer running Invasion Studio. Paths can also be
+edited in the desktop app. Use individual paths without shell quotes or
+wildcards, in playback order; the picker initially sorts by filename/path.
+
+Under **Extraction settings**, set **FFmpeg threads** to `8` and enable
+**Hardware acceleration** to match `extract --ffmpeg-threads 8 --hwaccel`.
+The current project is always the destination. Frame rate, OCR worker count,
+padding, and cache reuse are also configurable.
+
+Extraction runs in the background, reports progress, and registers the new
+clips with their source recording. You can change tabs or reload the page and
+return to see its status. Keep the application open: this initial version
+allows one extraction at a time per running server and does not resume jobs
+after shutdown. Repeating an extraction adds new clips. Original recordings
+are read in place, and thumbnails/metadata are queued after extraction.
 
 ## How detection works
 

@@ -13,6 +13,13 @@ if (process.env.FAKE_SIDECAR_MODE === "failure") {
       return
     }
 
+    if (request.url === "/diagnostics") {
+      process.stdout.write("late stdout\n")
+      process.stderr.write("late stderr\n")
+      response.writeHead(200)
+      response.end()
+      return
+    }
     response.writeHead(404)
     response.end()
   })

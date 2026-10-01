@@ -87,3 +87,13 @@ clip:
 The previous host package was approximately 370 MB including its 60 MB
 sidecar. The Flatpak maker has not completed its final distributable stage yet;
 that is the next packaging gate.
+
+### Playback diagnostics
+
+The desktop shell writes a rotating `desktop.log` (plus `desktop.log.1`) under
+Electron's application logs directory. The exact path is printed at startup.
+It includes backend stdout/stderr, renderer console messages, and video request
+results. Press **F12** in the main window to open Developer Tools; the Console
+shows `Preview playback failed` with the browser's media error code and message.
+The player also displays loading and failure messages. Logs may include local
+project/video paths, so review them before sharing.

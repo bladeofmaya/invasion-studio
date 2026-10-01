@@ -94,3 +94,18 @@ test("Sidecar includes stdout diagnostics when the backend exits before readines
     await rm(projectPath, { recursive: true, force: true })
   }
 })
+
+test('Sidecar drains and reports output after readiness', async () => {
+  const output = []
+  const sidecar = new Sidecar({ timeoutMs: 2000, onOutput: (stream, chunk) => output.push([stream, chunk]) })
+  try {
+    const ready = await sidecar.start({ executable: process.execPath, prefixArgs: [fixture], projectPath: '/tmp' })
+    const response = await fetch(`${ready.origin}/diagnostics`)
+    assert.equal(response.status, 200)
+    await new Promise(resolve => setTimeout(resolve, 50))
+    assert.ok(output.some(([stream, text]) => stream === 'stdout' && text.includes('late stdout')))
+    assert.ok(output.some(([stream, text]) => stream === 'stderr' && text.includes('late stderr')))
+  } finally {
+    await sidecar.stop()
+  }
+})

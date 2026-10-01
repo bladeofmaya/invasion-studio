@@ -25,7 +25,7 @@ test("production Linux icon is present", () => {
 })
 
 test("sandboxed launcher resources are packaged", () => {
-  for (const resource of ["launcher.html", "launcher.js", "preload.cjs"]) {
+  for (const resource of ["launcher.html", "launcher.js", "preload.cjs", "import-preload.cjs"]) {
     assert.equal(existsSync(path.join(electronDirectory, "src", resource)), true)
   }
   const launcher = readFileSync(path.join(electronDirectory, "src", "launcher.html"), "utf8")

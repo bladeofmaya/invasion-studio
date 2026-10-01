@@ -1,0 +1,19 @@
+    <div class="flex flex-col items-start gap-3" data-controller="upload">
+      <button type="button" class="inline-flex items-center gap-1.5 bg-primary text-primary-fg border-none px-3 py-1.5 rounded text-xs font-semibold cursor-pointer hover:bg-primary-hover" data-action="click->upload#trigger">
+        <i data-lucide="upload" class="size-3.5"></i>
+        <span>Choose clips</span>
+      </button>
+      <input type="file" multiple accept="video/*" name="files" class="hidden" data-upload-target="input" data-action="change->upload#selected">
+      <div class="fixed inset-0 z-50 bg-black/60 items-center justify-center" style="display:none" data-upload-target="overlay" id="upload-overlay">
+        <div class="bg-surface border border-border rounded-lg p-6 w-96 max-w-[90vw] shadow-lg">
+          <h3 class="m-0 mb-4 text-base font-semibold text-text-primary">Uploading clips</h3>
+          <div class="h-2 bg-surface-secondary rounded-full overflow-hidden mb-3">
+            <div class="h-full w-0 bg-primary transition-[width] duration-200" data-upload-target="progressBar"></div>
+          </div>
+          <div class="text-sm text-text-muted mb-4 whitespace-pre-line" data-upload-target="progressStatus">Preparing...</div>
+          <div class="flex justify-end">
+            <button type="button" class="bg-primary text-primary-fg border-none px-4 py-1.5 rounded text-sm font-semibold cursor-pointer hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed" data-upload-target="closeBtn" data-action="click->upload#closeOverlay" disabled>Close</button>
+          </div>
+        </div>
+      </div>
+    </div>

@@ -29,10 +29,11 @@ export function buildSidecarArgs({ projectPath, parentPid }) {
 }
 
 export class Sidecar {
-  constructor({ timeoutMs = 30_000, stopTimeoutMs = 5_000, fetchImplementation = fetch } = {}) {
+  constructor({ timeoutMs = 30_000, stopTimeoutMs = 5_000, fetchImplementation = fetch, onOutput = () => {} } = {}) {
     this.timeoutMs = timeoutMs
     this.stopTimeoutMs = stopTimeoutMs
     this.fetchImplementation = fetchImplementation
+    this.onOutput = onOutput
     this.child = null
     this.exitPromise = null
     this.stdout = ""
@@ -55,9 +56,15 @@ export class Sidecar {
       stdio: ["ignore", "pipe", "pipe"]
     })
     this.exitPromise = once(this.child, "exit")
+    this.child.stdout.setEncoding("utf8")
+    this.child.stdout.on("data", chunk => {
+      this.stdout = `${this.stdout}${chunk}`.slice(-16_384)
+      this.onOutput("stdout", chunk)
+    })
     this.child.stderr.setEncoding("utf8")
     this.child.stderr.on("data", chunk => {
       this.stderr = `${this.stderr}${chunk}`.slice(-16_384)
+      this.onOutput("stderr", chunk)
     })
 
     try {
@@ -103,13 +110,12 @@ export class Sidecar {
         this.child.removeListener("error", onError)
         this.child.removeListener("close", onClose)
         lines.close()
+        // readline.close pauses the stream; continue draining runtime logs.
+        this.child.stdout.resume()
       }
       const onLine = line => {
         const ready = parseReadyLine(line)
-        if (!ready) {
-          this.stdout = `${this.stdout}${line}\n`.slice(-16_384)
-          return
-        }
+        if (!ready) return
         cleanup()
         resolve(ready)
       }
