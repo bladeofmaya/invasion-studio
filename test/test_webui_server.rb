@@ -528,6 +528,25 @@ class TestWebuiServer < Minitest::Test
     assert_equal({ 'audio_track_count' => 4, 'default_audio_track' => 4 }, JSON.parse(last_response.body))
   end
 
+  def test_compilation_details_can_be_archived_edited_and_restored
+    put '/api/groups/Group1', JSON.generate(description: 'My highlights', archived: true), 'CONTENT_TYPE' => 'application/json'
+    assert last_response.ok?
+    get '/api/groups/stats'
+    group = JSON.parse(last_response.body).find { |item| item['name'] == 'Group1' }
+    assert_equal true, group['archived']
+    assert_equal 'My highlights', group['description']
+    assert_equal 1, group['clip_count']
+    put '/api/groups/Group1', JSON.generate(archived: false), 'CONTENT_TYPE' => 'application/json'
+    assert last_response.ok?
+    assert_equal false, project.groups.find { |item| item['name'] == 'Group1' }['archived']
+    [{ archived: 'false' }, { description: 12 }, { description: 'a' * 5001 }, []].each do |body|
+      put '/api/groups/Group1', JSON.generate(body), 'CONTENT_TYPE' => 'application/json'
+      assert_equal 422, last_response.status
+    end
+    put '/api/groups/Missing', JSON.generate(description: ''), 'CONTENT_TYPE' => 'application/json'
+    assert_equal 404, last_response.status
+  end
+
   def test_extraction_settings_persist_when_project_is_reopened
     options = { ffmpeg_threads: 8, ocr_workers: 2, fps: 3, pad_start: 0,
                 pad_end: 4.5, hwaccel: true, no_cache: true }

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'uri'
+
 module InvasionStudio
   module Database
     class GroupRepository
@@ -62,6 +64,13 @@ module InvasionStudio
           compact_positions
         end
         true
+      end
+
+      def update_details(name, description: nil, archived: nil)
+        changes = { updated_at: current_timestamp }
+        changes[:description] = description unless description.nil?
+        changes[:archived] = archived unless archived.nil?
+        groups_dataset.where(name: name).update(changes).positive?
       end
 
       def add_clip(group_name, clip_id)
@@ -152,7 +161,7 @@ module InvasionStudio
       end
 
       def statistics
-        compilations = groups_dataset.order(:position, :id).select(:id, :name).all
+        compilations = groups_dataset.order(:position, :id).all
         memberships = active_memberships
         cuts_by_clip = cuts_for(memberships.map { |row| row[:clip_id] }.uniq)
         durations = effective_durations(memberships, cuts_by_clip)
@@ -160,8 +169,12 @@ module InvasionStudio
 
         compilations.map do |compilation|
           clips = memberships_by_compilation.fetch(compilation[:id], [])
+          thumbnail = clips.find { |clip| clip[:thumbnail_path] && !clip[:thumbnail_path].empty? }
           {
             'name' => compilation[:name],
+            'description' => compilation[:description],
+            'archived' => compilation[:archived],
+            'thumbnail_url' => thumbnail && "/thumbnail/#{URI.encode_www_form_component(thumbnail[:clip_id]).gsub('+', '%20')}",
             'clip_count' => clips.length,
             'total_duration' => clips.sum { |clip| durations.fetch(clip[:clip_id], 0.0) }.round(2)
           }
@@ -214,8 +227,10 @@ module InvasionStudio
           .select(
             Sequel[:compilation_clips][:compilation_id].as(:compilation_id),
             Sequel[:clips][:id].as(:clip_id),
+            Sequel[:clips][:thumbnail_path].as(:thumbnail_path),
             Sequel[:clips][:duration].as(:duration)
           )
+          .order(Sequel[:compilation_clips][:position], Sequel[:compilation_clips][:created_at])
           .all
       end
 
@@ -243,6 +258,8 @@ module InvasionStudio
         {
           'id' => group[:id],
           'name' => group[:name],
+          'description' => group[:description],
+          'archived' => group[:archived],
           'position' => group[:position],
           'clip_ids' => group_clips_dataset.where(compilation_id: group[:id])
                                           .order(:position, :created_at)

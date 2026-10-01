@@ -39,7 +39,46 @@ class TestGroupRepository < Minitest::Test
     assert_equal [
       { 'name' => 'Best', 'clip_count' => 2, 'total_duration' => 25.0 },
       { 'name' => 'Empty', 'clip_count' => 0, 'total_duration' => 0.0 }
-    ], @repository.statistics
+    ], @repository.statistics.map { |stat| stat.slice('name', 'clip_count', 'total_duration') }
+  end
+
+  def test_archive_and_description_persist_without_changing_membership
+    create_clip('a.mp4')
+    @repository.create('Best')
+    @repository.add_clip('Best', 'a')
+    assert @repository.update_details('Best', description: 'Highlights', archived: true)
+    repository = InvasionStudio::Database::GroupRepository.new(@db, clip_repository: @clip_repository)
+    assert_equal 'Highlights', repository.find('Best')['description']
+    assert_equal true, repository.find('Best')['archived']
+    assert_equal ['a'], repository.find('Best')['clip_ids']
+    assert repository.update_details('Best', archived: false)
+    assert_equal 'Highlights', repository.find('Best')['description']
+    assert_equal false, repository.find('Best')['archived']
+    refute repository.update_details('Missing', description: 'No')
+  end
+
+  def test_migration_keeps_existing_compilations_active
+    @repository.create('Existing')
+    Sequel::Migrator.run(@db, InvasionStudio::Database::MIGRATIONS_PATH, target: 6)
+    InvasionStudio::Database.migrate(@db)
+    group = @repository.find('Existing')
+    assert_equal false, group['archived']
+    assert_equal '', group['description']
+  end
+
+  def test_thumbnail_follows_first_available_thumbnail_in_clip_order
+    create_clip('a.mp4', 'thumbnail_path' => 'thumbnails/a.jpg')
+    create_clip('b.mp4', 'thumbnail_path' => 'thumbnails/b.jpg')
+    @repository.create('Best')
+    @repository.create('Empty')
+    @repository.add_clip('Best', 'a')
+    @repository.add_clip('Best', 'b')
+    assert_equal '/thumbnail/a', @repository.statistics.first['thumbnail_url']
+    @repository.reorder('Best', 1, 0)
+    assert_equal '/thumbnail/b', @repository.statistics.first['thumbnail_url']
+    @clip_repository.mark_deleted('b')
+    assert_equal '/thumbnail/a', @repository.statistics.first['thumbnail_url']
+    assert_nil @repository.statistics.last['thumbnail_url']
   end
 
   def test_statistics_exclude_deleted_clips_and_tolerate_missing_durations

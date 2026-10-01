@@ -8,6 +8,23 @@ module InvasionStudio
           app.get('/api/groups') { json_response(project.groups) }
           app.get('/api/groups/stats') { json_response(group_statistics.call) }
 
+          app.put '/api/groups/:name' do
+            body = json_body
+            unless body.is_a?(Hash) && !body.empty? && (body.keys - %w[description archived]).empty?
+              halt 422, json_response(error: 'Expected description or archived status')
+            end
+            if body.key?('description') && !(body['description'].is_a?(String) && body['description'].length <= 5000)
+              halt 422, json_response(error: 'Description must be text up to 5000 characters')
+            end
+            if body.key?('archived') && ![true, false].include?(body['archived'])
+              halt 422, json_response(error: 'Archived must be true or false')
+            end
+            unless project.update_group_details(params['name'], **body.transform_keys(&:to_sym))
+              halt 404, json_response(error: 'Compilation not found')
+            end
+            json_response(success: true)
+          end
+
           app.post '/api/groups' do
             name = json_body['name'].to_s.strip
             if name.empty?
