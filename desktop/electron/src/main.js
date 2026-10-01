@@ -62,6 +62,7 @@ function secureWindow(port) {
     backgroundColor: "#111111",
     webPreferences: {
       preload: path.join(sourceDirectory, "import-preload.cjs"),
+      enableBlinkFeatures: "AudioVideoTracks",
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,

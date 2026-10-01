@@ -9,6 +9,7 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron-forge start",
+    "probe:audio-tracks": "electron probes/audio-tracks/main.cjs",
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "package": "electron-forge package",
     "make": "electron-forge make"

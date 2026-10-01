@@ -78,9 +78,10 @@ verify the packaged application using a representative 2K, five-audio-track
 clip:
 
 - upload, metadata, H.264/AAC playback, seeking, and pause/resume;
-- every FFmpeg-remuxed audio selection and audible track result;
+- every direct audio selection and audible track result;
 - playback position and state restoration after switching;
-- first and cached switch latency and `.preview_cache` growth;
+- original playback and switching without new `.preview_cache` files;
+- remux fallback in a browser without direct audio-track support;
 - project persistence and arbitrary project-folder access under Flatpak;
 - window close, sidecar exit, cold start, readiness latency, and RSS.
 
@@ -89,6 +90,14 @@ sidecar. The Flatpak maker has not completed its final distributable stage yet;
 that is the next packaging gate.
 
 ### Playback diagnostics
+
+The desktop player enables Chromium's experimental `AudioVideoTracks` feature
+and selects audio directly in the original video, avoiding preview-cache copies.
+Players without this API, or unable to select the requested track, use the
+existing FFmpeg remux fallback. Track numbers are one-based and the configured
+default track is applied after metadata loads. Console messages identify direct
+versus remux playback. The standalone probe is documented in
+[`probes/audio-tracks/README.md`](probes/audio-tracks/README.md).
 
 The desktop shell writes a rotating `desktop.log` (plus `desktop.log.1`) under
 Electron's application logs directory. The exact path is printed at startup.

@@ -719,6 +719,18 @@ class TestWebuiServer < Minitest::Test
     assert_equal [File.join(@folder, 'clip1.mp4')], revealed_paths
   end
 
+  def test_original_clip_supports_range_requests_without_remuxing
+    remuxer = Object.new
+    remuxer.define_singleton_method(:remux) { |*| raise 'Original playback must not remux' }
+    InvasionStudio::Webui::Server.set :preview_remuxer, remuxer
+
+    get '/clip/clip1.mp4?version=changed', {}, 'HTTP_RANGE' => 'bytes=1-3'
+
+    assert_equal 206, last_response.status
+    assert_equal 'umm', last_response.body
+    assert_equal 'bytes 1-3/5', last_response.headers['content-range']
+  end
+
   def test_clip_audio_preview_uses_remuxer_service
     preview = File.join(@folder, 'preview.mp4')
     File.write(preview, 'preview bytes')

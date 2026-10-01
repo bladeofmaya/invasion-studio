@@ -21,7 +21,7 @@ export default {
     asar: true,
     executableName: "invasion-studio",
     icon: path.join(electronDirectory, "assets", "icon.png"),
-    ignore: [/^\/(out|test)(\/|$)/],
+    ignore: [/^\/(out|test|probes)(\/|$)/],
     extraResource
   },
   rebuildConfig: {},

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; media-src blob:; object-src 'none'; base-uri 'none'">
+  <title>Direct audio-track probe</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="renderer.js"></script>
+</head>
+<body>
+  <h1>Direct audio-track selection</h1>
+  <p>Select an original recording, then use the player controls and track selector. This probe reads the file directly; it does not create preview copies or modify your project.</p>
+  <label>Original recording <input id="file" type="file" accept="video/*,.mkv"></label>
+  <label>Audio track <select id="tracks" disabled><option>Select a recording first</option></select></label>
+  <p id="status" role="status">Checking audio-track support…</p>
+  <video id="video" controls preload="metadata"></video>
+  <p>Check every track by listening, switch while playing and paused, then seek forward and backward. A changed track label alone does not prove the audio changed.</p>
+  <label>Diagnostics — copy these when reporting the result<textarea id="diagnostics" readonly rows="10"></textarea></label>
+</body>
+</html>
