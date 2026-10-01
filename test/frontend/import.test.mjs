@@ -36,6 +36,7 @@ test('Import hides the library and preview, and Clips restores them', () => {
 test('Extraction submits the ordered selection and options, with project chosen by the server', async () => {
   let request
   const controller = {
+    extractionOptions: ExtractionController.prototype.extractionOptions,
     fieldsTarget: { disabled: false }, pathsTarget: { value: '/second.mp4\n /first.mp4 \n' },
     threadsTarget: { value: '8' }, workersTarget: { value: '4' }, fpsTarget: { value: '1' },
     padStartTarget: { value: '10' }, padEndTarget: { value: '7.5' },
@@ -65,4 +66,39 @@ test('Running extraction disables resubmission and reports per-file progress', (
   assert.equal(controller.progressTarget.value, 10)
   assert.equal(controller.progressTarget.max, 100)
   assert.equal(controller.statusTarget.textContent, 'Reading recording: <recording>.mp4 (10/100)')
+})
+
+test('Extraction settings save in order without recording paths and report failures', async () => {
+  const controller = {
+    settingsStatusTarget: {},
+    threadsTarget: { value: '8', checkValidity: () => true },
+    workersTarget: { value: '2', checkValidity: () => true },
+    fpsTarget: { value: '1', checkValidity: () => true },
+    padStartTarget: { value: '0', checkValidity: () => true },
+    padEndTarget: { value: '4.5', checkValidity: () => true },
+    hwaccelTarget: { checked: true }, noCacheTarget: { checked: false },
+    pathsTarget: { value: '/private/file.mp4' },
+    extractionOptions: ExtractionController.prototype.extractionOptions
+  }
+  const requests = []
+  controller.fetchJson = async (url, request) => {
+    assert.equal(url, '/api/settings/extraction')
+    assert.equal(request.method, 'PUT')
+    requests.push(JSON.parse(request.body))
+  }
+  const first = ExtractionController.prototype.saveSettings.call(controller)
+  controller.threadsTarget.value = '16'
+  const second = ExtractionController.prototype.saveSettings.call(controller)
+  await Promise.all([first, second])
+  assert.deepEqual(requests.map(r => r.ffmpeg_threads), [8, 16])
+  assert.equal(requests[0].pad_start, 0)
+  assert.equal(requests[0].no_cache, false)
+  assert.equal('paths' in requests[0], false)
+  assert.match(controller.settingsStatusTarget.textContent, /saved/i)
+  controller.fetchJson = async () => { throw new Error('Offline') }
+  await ExtractionController.prototype.saveSettings.call(controller)
+  assert.match(controller.settingsStatusTarget.textContent, /Could not save.*Offline/)
+  controller.threadsTarget.checkValidity = () => false
+  await ExtractionController.prototype.saveSettings.call(controller)
+  assert.match(controller.settingsStatusTarget.textContent, /valid/i)
 })

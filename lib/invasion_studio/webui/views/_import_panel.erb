@@ -20,17 +20,19 @@
             <textarea id="recording-paths" rows="4" required spellcheck="false" class="block w-full bg-input-bg text-text-primary border border-input-border rounded p-3 text-sm focus:outline-none focus:border-input-focus-ring" placeholder="/home/you/Videos/recording-001.mp4" data-extraction-target="paths"></textarea>
             <p class="m-0 mt-2 text-xs text-text-muted">Files must be on the computer running Invasion Studio. Arrange them in playback order so invasions can span recordings. Enter individual paths without quotes or wildcards.</p>
           </div>
-          <details>
+          <% extraction_settings = InvasionStudio::Webui::ExtractionRequest.validate_options(project.extraction_settings) %>
+          <details data-action="change->extraction#saveSettings">
             <summary class="text-sm cursor-pointer text-text-secondary">Extraction settings</summary>
             <div class="grid grid-cols-2 gap-4 mt-4">
-              <% [['threads', 'FFmpeg threads', 4, 1, 64, 1], ['workers', 'OCR workers', [Etc.nprocessors, 4].min, 1, 64, 1], ['fps', 'Frames scanned per second', 1, 1, 10, 1], ['padStart', 'Seconds before invasion', 10, 0, 3600, 0.5], ['padEnd', 'Seconds after invasion', 7.5, 0, 3600, 0.5]].each do |target, label, value, minimum, maximum, step| %>
+              <% [['threads', 'FFmpeg threads', extraction_settings[:ffmpeg_threads], 1, 64, 1], ['workers', 'OCR workers', extraction_settings[:ocr_workers], 1, 64, 1], ['fps', 'Frames scanned per second', extraction_settings[:fps], 1, 10, 1], ['padStart', 'Seconds before invasion', extraction_settings[:pad_start], 0, 3600, 0.5], ['padEnd', 'Seconds after invasion', extraction_settings[:pad_end], 0, 3600, 0.5]].each do |target, label, value, minimum, maximum, step| %>
                 <label class="block text-sm text-text-secondary"><%= label %>
                   <input type="number" required value="<%= value %>" min="<%= minimum %>" max="<%= maximum %>" step="<%= step %>" class="block w-full mt-1 bg-input-bg text-text-primary border border-input-border rounded px-3 py-2" data-extraction-target="<%= target %>">
                 </label>
               <% end %>
             </div>
-            <label class="flex gap-2 items-center mt-4 text-sm"><input type="checkbox" data-extraction-target="hwaccel">Hardware acceleration (VAAPI, supported Linux GPUs)</label>
-            <label class="flex gap-2 items-center mt-3 text-sm"><input type="checkbox" data-extraction-target="noCache">Rescan recordings instead of using cached detection</label>
+            <label class="flex gap-2 items-center mt-4 text-sm"><input type="checkbox" data-extraction-target="hwaccel" <%= 'checked' if extraction_settings[:hwaccel] %>>Hardware acceleration (VAAPI, supported Linux GPUs)</label>
+            <label class="flex gap-2 items-center mt-3 text-sm"><input type="checkbox" data-extraction-target="noCache" <%= 'checked' if extraction_settings[:no_cache] %>>Rescan recordings instead of using cached detection</label>
+            <p class="m-0 mt-3 text-xs text-text-muted" role="status" data-extraction-target="settingsStatus">Settings are saved automatically for this project.</p>
           </details>
           <button type="submit" class="bg-primary text-primary-fg border-none px-4 py-2 rounded text-sm font-semibold cursor-pointer hover:bg-primary-hover">Extract clips</button>
         </fieldset>

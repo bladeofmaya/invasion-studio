@@ -528,6 +528,35 @@ class TestWebuiServer < Minitest::Test
     assert_equal({ 'audio_track_count' => 4, 'default_audio_track' => 4 }, JSON.parse(last_response.body))
   end
 
+  def test_extraction_settings_persist_when_project_is_reopened
+    options = { ffmpeg_threads: 8, ocr_workers: 2, fps: 3, pad_start: 0,
+                pad_end: 4.5, hwaccel: true, no_cache: true }
+    put '/api/settings/extraction', JSON.generate(options), 'CONTENT_TYPE' => 'application/json'
+    assert last_response.ok?
+
+    reopened = InvasionStudio::Project.new(@folder)
+    InvasionStudio::Webui::Server.set :project, reopened
+    get '/api/settings/extraction'
+    assert_equal options.transform_keys(&:to_s), JSON.parse(last_response.body)
+    get '/import'
+    assert_includes last_response.body, 'value="8"'
+    assert_match(/data-extraction-target="hwaccel" checked/, last_response.body)
+  end
+
+  def test_extraction_settings_defaults_and_invalid_updates
+    get '/api/settings/extraction'
+    assert last_response.ok?
+    defaults = JSON.parse(last_response.body)
+    assert_equal 4, defaults['ffmpeg_threads']
+    assert_equal false, defaults['no_cache']
+    [{ fps: 0 }, { hwaccel: 'yes' }, { paths: ['/private/recording.mp4'] }, []].each do |invalid|
+      put '/api/settings/extraction', JSON.generate(invalid), 'CONTENT_TYPE' => 'application/json'
+      assert_equal 422, last_response.status
+    end
+    get '/api/settings/extraction'
+    assert_equal defaults, JSON.parse(last_response.body)
+  end
+
   def test_put_api_video_settings_persists_valid_values
     put '/api/settings/video', JSON.generate({ audio_track_count: 3, default_audio_track: 2 }),
         'CONTENT_TYPE' => 'application/json'

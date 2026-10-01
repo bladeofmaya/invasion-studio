@@ -10,7 +10,7 @@ module InvasionStudio
       MUTATIONS = %i[
         create_group rename_group delete_group add_clip_to_group remove_clip_from_group move_clip_between_groups
         reorder_group update_note update_rating update_result update_title update_cuts
-        finalize_cuts delete_clip restore_clip empty_trash save! update_video_settings
+        finalize_cuts delete_clip restore_clip empty_trash save! update_video_settings update_extraction_settings
       ].freeze
 
       MUTATIONS.each do |method_name|
@@ -103,6 +103,14 @@ module InvasionStudio
 
     def video_settings
       @project_settings.video
+    end
+
+    def extraction_settings
+      @project_settings.extraction
+    end
+
+    def update_extraction_settings(options)
+      @project_settings.update_extraction(options)
     end
 
     def update_video_settings(audio_track_count:, default_audio_track:)

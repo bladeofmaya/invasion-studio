@@ -20,6 +20,19 @@ module InvasionStudio
         end
       end
 
+      def extraction
+        value = @metadata.where(key: 'extraction').get(:value)
+        value ? JSON.parse(value) : {}
+      end
+
+      def update_extraction(options)
+        now = Time.now.utc.iso8601
+        value = JSON.generate(options)
+        @metadata.insert_conflict(
+          target: :key, update: { value: value, updated_at: now }
+        ).insert(key: 'extraction', value: value, created_at: now, updated_at: now)
+      end
+
       def update_video(audio_track_count:, default_audio_track:)
         return false unless valid_video_settings?(audio_track_count, default_audio_track)
 

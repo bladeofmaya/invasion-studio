@@ -5,6 +5,20 @@ module InvasionStudio
     module Routes
       module Settings
         def self.registered(app)
+          app.get '/api/settings/extraction' do
+            json_response(ExtractionRequest.validate_options(project.extraction_settings))
+          end
+
+          app.put '/api/settings/extraction' do
+            begin
+              options = ExtractionRequest.validate_options(json_body)
+              project.update_extraction_settings(options)
+              json_response(options)
+            rescue InvasionStudio::Error => e
+              halt 422, json_response(error: e.message)
+            end
+          end
+
           app.get '/api/settings/video' do
             json_response(project.video_settings)
           end

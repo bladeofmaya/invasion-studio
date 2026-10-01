@@ -24,12 +24,10 @@ module InvasionStudio
           end
           expanded
         end.uniq
-        @options = validate_options(options)
+        @options = self.class.validate_options(options)
       end
 
-      private
-
-      def validate_options(options)
+      def self.validate_options(options)
         raise Error, 'Invalid extraction settings' unless options.is_a?(Hash)
         unknown = options.keys - NUMBERS.keys - FLAGS
         raise Error, "Unknown extraction settings: #{unknown.join(', ')}" unless unknown.empty?
