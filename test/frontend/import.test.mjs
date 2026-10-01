@@ -37,6 +37,7 @@ test('Extraction submits the ordered selection and options, with project chosen 
   let request
   const controller = {
     extractionOptions: ExtractionController.prototype.extractionOptions,
+    hasAllowReimportTarget: true, allowReimportTarget: { checked: true },
     fieldsTarget: { disabled: false }, pathsTarget: { value: '/second.mp4\n /first.mp4 \n' },
     threadsTarget: { value: '8' }, workersTarget: { value: '4' }, fpsTarget: { value: '1' },
     padStartTarget: { value: '10' }, padEndTarget: { value: '7.5' },
@@ -50,9 +51,11 @@ test('Extraction submits the ordered selection and options, with project chosen 
   assert.equal(request.method, 'POST')
   assert.deepEqual(JSON.parse(request.body), {
     paths: ['/second.mp4', '/first.mp4'],
+    allow_reimport: true,
     options: { ffmpeg_threads: 8, ocr_workers: 4, fps: 1, pad_start: 10, pad_end: 7.5, hwaccel: true, no_cache: false }
   })
   assert.equal(controller.fieldsTarget.disabled, true)
+  assert.equal(controller.allowReimportTarget.checked, false)
 })
 
 test('Running extraction disables resubmission and reports per-file progress', () => {

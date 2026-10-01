@@ -25,6 +25,7 @@ module InvasionStudio
           'database' => { 'bytes' => database_bytes }
         }
         stats['total_bytes'] = stats.sum { |_key, value| value['bytes'] }
+        stats['project_path'] = @folder
         stats
       end
 

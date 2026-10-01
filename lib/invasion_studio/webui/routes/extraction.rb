@@ -13,7 +13,8 @@ module InvasionStudio
             body = json_body
             halt 422, json_response(error: 'Expected a JSON object') unless body.is_a?(Hash)
             begin
-              result = settings.extraction_task.start(paths: body['paths'], options: body.fetch('options', {}))
+              result = settings.extraction_task.start(paths: body['paths'], options: body.fetch('options', {}),
+                                                      allow_reimport: body.fetch('allow_reimport', false))
               status 202
               json_response(result)
             rescue ExtractionTask::Busy => e

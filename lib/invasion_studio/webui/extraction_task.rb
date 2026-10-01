@@ -27,7 +27,10 @@ module InvasionStudio
         @mutex.synchronize { @state.dup }
       end
 
-      def start(paths:, options: {})
+      def start(paths:, options: {}, allow_reimport: false)
+        unless allow_reimport == true || allow_reimport == false
+          raise Error, 'Import again must be true or false'
+        end
         request = ExtractionRequest.new(paths, options)
         initial = @mutex.synchronize do
           raise Busy, 'An extraction is already running in this project' if @state[:status] == 'running'
@@ -38,7 +41,7 @@ module InvasionStudio
           @state.dup
         end
         begin
-          @executor.call { run(request) }
+          @executor.call { run(request, allow_reimport) }
         rescue StandardError => e
           update(status: 'failed', error: e.message)
           raise
@@ -52,8 +55,15 @@ module InvasionStudio
         @mutex.synchronize { @state.merge!(values) }
       end
 
-      def run(request)
+      def run(request, allow_reimport)
+        lock = File.open(File.join(@project.folder_path, '.extraction.lock'), File::RDWR | File::CREAT, 0o600)
+        raise Busy, 'An extraction is already running in this project' unless lock.flock(File::LOCK_EX | File::LOCK_NB)
+        reserved = []
+        history = @project.recording_import_history
+        update(stage: 'checking')
+        fingerprints = history.fingerprints(request.paths) { |path| update(file: File.basename(path)) }
         @dependency_check.call
+        reserved = history.reserve(fingerprints, allow_reimport: allow_reimport)
         importer = ExtractionImporter.new(@project.folder_path, project: @project)
         options = request.options.merge(
           command: 'extract', outdir: File.join(@project.folder_path, 'clips'),
@@ -74,7 +84,13 @@ module InvasionStudio
         end
         update(status: 'completed', stage: 'done', file: nil, current: nil, total: nil)
       rescue StandardError => e
+        # Retain history for partial results (or a crash) to prevent duplicate clips.
+        if history && reserved && (!engine || engine.clip_extraction_stage.created.empty?)
+          history.release(reserved)
+        end
         update(status: 'failed', error: e.message, current: nil, total: nil)
+      ensure
+        lock&.close
       end
     end
   end

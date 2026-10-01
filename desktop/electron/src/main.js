@@ -6,6 +6,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from "elect
 
 import { DesktopLog } from "./desktop-log.js"
 import { selectProject, validateProjectPath } from "./project-selection.js"
+import { openProjectFolder } from "./project-folder.js"
 import { selectRecordings } from "./recording-selection.js"
 import { RecentProjects } from "./recent-projects.js"
 import { isAllowedAppUrl, isAllowedExternalUrl } from "./security.js"
@@ -210,6 +211,7 @@ async function boot() {
     env: sidecarEnvironment()
   })
 
+  ipcMain.handle("project:open-folder", event => openProjectFolder(event, mainWindow, ready.port, projectPath, shell))
   ipcMain.handle("recordings:choose", event => selectRecordings(event, mainWindow, ready.port, dialog))
   session.defaultSession.webRequest.onCompleted({ urls: [`${ready.origin}/clip/*`] }, details => {
     desktopLog.write("media-request", JSON.stringify({ url: details.url, status: details.statusCode, error: details.error }))

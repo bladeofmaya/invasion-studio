@@ -151,9 +151,22 @@ padding, and cache reuse are also configurable.
 Extraction runs in the background, reports progress, and registers the new
 clips with their source recording. You can change tabs or reload the page and
 return to see its status. Keep the application open: this initial version
-allows one extraction at a time per running server and does not resume jobs
-after shutdown. Repeating an extraction adds new clips. Original recordings
-are read in place, and thumbnails/metadata are queued after extraction.
+allows one GUI extraction at a time per project and does not resume jobs after
+shutdown. Original recordings are read in place, and thumbnails/metadata are
+queued after extraction.
+
+Before extraction, a background SHA-256 content check reads each recording and
+compares it with this project's persistent import history. Renamed or copied
+recordings are recognized. A batch containing a previous import is rejected as
+a whole, preserving recording order for encounters spanning multiple files.
+**Import again** explicitly allows another set of clips. Partial or interrupted
+runs are also guarded; failures before any clips are written can be retried.
+This history covers new GUI extractions, not older imports or CLI extractions.
+The content check adds disk reads, particularly noticeable for large recordings.
+
+In **Settings → Storage**, the full project path is selectable and wraps to fit.
+The desktop app also provides **Open project folder** using the native file
+manager; the browser displays the path without a native folder-opening action.
 
 ## How detection works
 

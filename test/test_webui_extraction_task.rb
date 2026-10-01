@@ -39,6 +39,45 @@ class TestWebuiExtractionTask < Minitest::Test
     assert_equal 0, @task.status[:imported]
   end
 
+  def test_completed_recording_is_blocked_even_after_restart_and_can_be_explicitly_reimported
+    @task.start(paths: [@source])
+    @jobs.shift.call
+    task = InvasionStudio::Webui::ExtractionTask.new(
+      InvasionStudio::Project.new(@project.folder_path), executor: ->(&job) { @jobs << job },
+      dependency_check: -> {}, engine_factory: ->(*) { @engine }
+    )
+    task.start(paths: [@source])
+    @jobs.shift.call
+    assert_equal 'failed', task.status[:status]
+    assert_match(/Already imported/, task.status[:error])
+    task.start(paths: [@source], allow_reimport: true)
+    @jobs.shift.call
+    assert_equal 'completed', task.status[:status]
+  end
+
+  def test_failure_before_writing_clips_allows_retry
+    @engine.define_singleton_method(:run!) { raise InvasionStudio::Error, 'Failed before writing' }
+    @task.start(paths: [@source])
+    @jobs.shift.call
+    @engine.define_singleton_method(:run!) {}
+    @task.start(paths: [@source])
+    @jobs.shift.call
+    assert_equal 'completed', @task.status[:status]
+  end
+
+  def test_project_lock_blocks_another_server_without_reserving_recordings
+    File.open(File.join(@project.folder_path, '.extraction.lock'), 'w') do |lock|
+      lock.flock(File::LOCK_EX)
+      @task.start(paths: [@source])
+      @jobs.shift.call
+      assert_equal 'failed', @task.status[:status]
+      assert_match(/already running/, @task.status[:error])
+    end
+    @task.start(paths: [@source])
+    @jobs.shift.call
+    assert_equal 'completed', @task.status[:status]
+  end
+
   def test_validates_all_files_and_options_before_scheduling
     [[@source, '/missing.mp4'], [], 'not an array'].each do |paths|
       assert_raises(InvasionStudio::Error) { @task.start(paths: paths) }
@@ -78,6 +117,9 @@ class TestWebuiExtractionTask < Minitest::Test
     assert_equal 'not a real video', File.read(@source)
     @task.start(paths: [@source])
     assert_equal 'running', @task.status[:status]
+    @jobs.shift.call
+    assert_equal 'failed', @task.status[:status]
+    assert_match(/Already imported/, @task.status[:error])
   end
 
   def test_continues_numbering_after_existing_clips

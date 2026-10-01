@@ -1281,7 +1281,7 @@ class TestWebuiServer < Minitest::Test
     InvasionStudio::Webui::Server.set :project, project
 
     get '/api/clips'
-    clip = JSON.parse(last_response.body).first
+    clip = JSON.parse(last_response.body).find { |item| item['id'] == 'clip' }
     assert_equal '/thumbnail/clip', clip['thumbnail_url']
 
     get '/thumbnail/clip'

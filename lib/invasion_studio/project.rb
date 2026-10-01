@@ -22,7 +22,7 @@ module InvasionStudio
 
     prepend MutationLock
 
-    attr_reader :folder_path, :storage, :clip_repository
+    attr_reader :folder_path, :storage, :clip_repository, :recording_import_history
 
     def initialize(folder_path, database: nil, storage: nil, process_runner: nil,
                    clip_repository: nil, group_repository: nil, tag_repository: nil,
@@ -39,6 +39,7 @@ module InvasionStudio
         @database, clip_repository: @clip_repository
       )
       @project_settings = InvasionStudio::Database::ProjectSettings.new(@database)
+      @recording_import_history = RecordingImportHistory.new(@database)
       @clip_trash = clip_trash || ClipTrash.new(@folder_path, @storage)
       @clip_finalizer = clip_finalizer || ClipFinalizer.new(
         @folder_path, @storage, process_runner: process_runner || ProcessRunner.new

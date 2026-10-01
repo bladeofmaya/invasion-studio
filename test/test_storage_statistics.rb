@@ -30,6 +30,7 @@ class TestStorageStatistics < Minitest::Test
 
   def test_call_reports_per_category_counts_and_bytes
     stats = @statistics.call
+    assert_equal @project.folder_path, stats['project_path']
 
     assert_equal 2, stats['clips']['count']
     assert_equal 150, stats['clips']['bytes']

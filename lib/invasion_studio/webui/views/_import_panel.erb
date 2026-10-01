@@ -34,12 +34,13 @@
             <label class="flex gap-2 items-center mt-3 text-sm"><input type="checkbox" data-extraction-target="noCache" <%= 'checked' if extraction_settings[:no_cache] %>>Rescan recordings instead of using cached detection</label>
             <p class="m-0 mt-3 text-xs text-text-muted" role="status" data-extraction-target="settingsStatus">Settings are saved automatically for this project.</p>
           </details>
+          <label class="flex gap-2 items-center text-sm"><input type="checkbox" data-extraction-target="allowReimport">Import again even if these recordings were previously imported (creates duplicate clips)</label>
           <button type="submit" class="bg-primary text-primary-fg border-none px-4 py-2 rounded text-sm font-semibold cursor-pointer hover:bg-primary-hover">Extract clips</button>
         </fieldset>
       </form>
       <div class="mt-4 text-sm text-text-muted" role="status" aria-live="polite" data-extraction-target="status">Checking extraction status…</div>
       <progress class="w-full mt-3" data-extraction-target="progress" hidden></progress>
-      <p class="m-0 mt-3 text-xs text-text-muted">You can switch tabs while extraction runs. Keep the application open until it finishes. Repeating an extraction adds another set of clips.</p>
+      <p class="m-0 mt-3 text-xs text-text-muted">You can switch tabs while extraction runs. Keep the application open until it finishes. Previously imported recordings are blocked unless you select Import again. Duplicate checks apply to recordings imported through this tab from now on.</p>
       <button type="button" class="mt-4 bg-surface-secondary text-text-primary border border-border px-4 py-2 rounded text-sm cursor-pointer hover:bg-surface-hover" data-extraction-target="viewClips" data-action="click->extraction#viewClips" hidden>View imported clips</button>
     </section>
   </div>
