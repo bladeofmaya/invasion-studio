@@ -1,0 +1,112 @@
+[
+  {
+    "name": "ffmpeg",
+    "buildsystem": "autotools",
+    "config-opts": [
+      "--disable-doc",
+      "--disable-debug",
+      "--disable-autodetect",
+      "--disable-network",
+      "--disable-ffplay",
+      "--enable-pthreads",
+      "--enable-zlib",
+      "--enable-vaapi",
+      "--enable-libdrm"
+    ],
+    "post-install": [
+      "install -Dm644 COPYING.LGPLv2.1 /app/share/licenses/ffmpeg/COPYING.LGPLv2.1"
+    ],
+    "sources": [
+      {
+        "type": "archive",
+        "url": "https://ffmpeg.org/releases/ffmpeg-7.1.3.tar.xz",
+        "sha256": "f0bf043299db9e3caacb435a712fc541fbb07df613c4b893e8b77e67baf3adbe"
+      }
+    ],
+    "cleanup": [
+      "/include",
+      "/lib/pkgconfig",
+      "/lib/*.a"
+    ]
+  },
+  {
+    "name": "leptonica",
+    "buildsystem": "autotools",
+    "config-opts": [
+      "--disable-static",
+      "--disable-programs"
+    ],
+    "post-install": [
+      "install -Dm644 leptonica-license.txt /app/share/licenses/leptonica/LICENSE"
+    ],
+    "sources": [
+      {
+        "type": "archive",
+        "url": "https://github.com/DanBloomberg/leptonica/releases/download/1.86.0/leptonica-1.86.0.tar.gz",
+        "sha256": "1fa08e40bb37fd45802d5e6e7b43927449a5c47d4608ef99d3bd3f0fa76baedc"
+      }
+    ],
+    "cleanup": [
+      "/include",
+      "/lib/pkgconfig",
+      "/lib/*.la"
+    ]
+  },
+  {
+    "name": "tesseract",
+    "buildsystem": "cmake-ninja",
+    "config-opts": [
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DBUILD_TRAINING_TOOLS=OFF",
+      "-DBUILD_TESTS=OFF",
+      "-DDISABLE_ARCHIVE=ON",
+      "-DDISABLE_CURL=ON"
+    ],
+    "post-install": [
+      "install -Dm644 ../LICENSE /app/share/licenses/tesseract/LICENSE"
+    ],
+    "sources": [
+      {
+        "type": "archive",
+        "url": "https://github.com/tesseract-ocr/tesseract/archive/refs/tags/5.5.1.tar.gz",
+        "sha256": "a7a3f2a7420cb6a6a94d80c24163e183cf1d2f1bed2df3bbc397c81808a57237"
+      }
+    ],
+    "cleanup": [
+      "/include",
+      "/lib/pkgconfig",
+      "/lib/cmake",
+      "/lib/*.a"
+    ],
+    "builddir": true
+  },
+  {
+    "name": "english-ocr-data",
+    "buildsystem": "simple",
+    "build-commands": [
+      "install -Dm644 eng.traineddata /app/share/tessdata/eng.traineddata",
+      "install -Dm644 LICENSE /app/share/licenses/tessdata-fast/LICENSE"
+    ],
+    "sources": [
+      {
+        "type": "file",
+        "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/4.1.0/eng.traineddata",
+        "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+      },
+      {
+        "type": "file",
+        "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/4.1.0/LICENSE",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      }
+    ]
+  },
+  {
+    "name": "release-cleanup",
+    "buildsystem": "simple",
+    "build-commands": [
+      "rm -rf /app/include /app/lib/pkgconfig /app/lib/cmake /app/lib/debug",
+      "find /app/lib -maxdepth 1 -type f \\( -name \"*.a\" -o -name \"*.la\" \\) -delete"
+    ],
+    "sources": []
+  }
+]

@@ -6,4 +6,7 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_DIR"
 
 npm ci
+# Remove retired generated entry points on incremental builds too.
+rm -f lib/invasion_studio/webui/public/assets/player-prototype.js \
+  lib/invasion_studio/webui/public/assets/player-prototype.css
 npm run build

@@ -1,0 +1,78 @@
+#!/usr/bin/env node
+// No media is decoded or processed: this uses an empty temporary project.
+import assert from 'node:assert/strict'
+import { mkdtemp, rm, readFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { Sidecar } from '../desktop/electron/src/sidecar.js'
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const version = JSON.parse(await readFile(path.join(root, 'desktop/electron/package.json'))).version
+const temporary = await mkdtemp(path.join(os.tmpdir(), 'invasion-release-check-'))
+const flatpak = process.argv.includes('--flatpak')
+const sidecar = new Sidecar()
+const appId = 'com.bladeofmaya.InvasionStudio'
+const tools = {
+  INVASION_STUDIO_FFMPEG: '/app/bin/ffmpeg',
+  INVASION_STUDIO_FFPROBE: '/app/bin/ffprobe',
+  INVASION_STUDIO_TESSERACT: '/app/bin/tesseract',
+  TESSDATA_PREFIX: '/app/share/tessdata'
+}
+const launch = {
+  executable: flatpak ? 'flatpak' : path.join(root, 'pkg/sidecar/linux-x64/invasion-studio'),
+  prefixArgs: flatpak ? ['run', '--die-with-parent', `--filesystem=${temporary}`, `--env=XDG_CONFIG_HOME=${temporary}/config`,
+    ...Object.entries(tools).map(([key, value]) => `--env=${key}=${value}`),
+    `--command=/app/lib/${appId}/resources/invasion-studio`, appId] : [],
+  projectPath: temporary,
+  env: { ...process.env, XDG_CONFIG_HOME: path.join(temporary, 'config') }
+}
+async function request(origin, route, method = 'GET', body) {
+  const response = await fetch(origin + route, { method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(5000) })
+  assert.ok(response.ok, `${route}: HTTP ${response.status}`)
+  return response
+}
+try {
+  const start = performance.now()
+  const { origin } = await sidecar.start(launch)
+  assert.equal((await (await request(origin, '/api/health')).json()).version, version)
+  console.log(`v${version}: ready in ${Math.round(performance.now() - start)} ms`)
+  const shell = await (await request(origin, '/')).text()
+  assert.ok(shell.includes('Invasion Studio'))
+  assert.ok(!/<(?:script|link)[^>]*(?:src|href)="https?:/i.test(shell))
+  for (const asset of ['/assets/app.css', '/assets/app.js']) {
+    assert.ok((await (await request(origin, asset)).text()).length > 100)
+  }
+  assert.equal((await fetch(origin + '/player-prototype')).status, 404)
+  await request(origin, '/api/groups', 'POST', { name: 'Release check' })
+  await request(origin, '/api/settings/video', 'PUT', { audio_track_count: 4, default_audio_track: 2 })
+  if (flatpak) {
+    const { tools: detected } = await (await request(origin, '/api/settings/dependencies')).json()
+    for (const tool of detected) {
+      assert.equal(tool.detected_path, `/app/bin/${tool.name}`)
+    }
+  }
+  await sidecar.stop()
+  let stopped = false
+  for (let attempt = 0; attempt < 30; attempt++) {
+    try {
+      await fetch(origin + '/api/health', { signal: AbortSignal.timeout(500) })
+      await new Promise(resolve => setTimeout(resolve, 100))
+    } catch {
+      stopped = true
+      break
+    }
+  }
+  assert.ok(stopped, 'backend must stop serving after shutdown')
+  const restarted = await sidecar.start(launch)
+  const groups = await (await request(restarted.origin, '/api/groups')).json()
+  assert.ok(JSON.stringify(groups).includes('Release check'))
+  const settings = await (await request(restarted.origin, '/api/settings/video')).json()
+  assert.equal(settings.default_audio_track, 2)
+  console.log('PASS: version, local assets, retired route, settings/compilation persistence, restart and shutdown')
+} finally {
+  await sidecar.stop()
+  await rm(temporary, { recursive: true, force: true })
+}

@@ -5,7 +5,7 @@
     "test": "node --test test/frontend/*.test.mjs",
     "build": "npm run build:css && npm run build:js",
     "build:css": "tailwindcss -i lib/invasion_studio/webui/frontend/app.css -o lib/invasion_studio/webui/public/assets/app.css --minify",
-    "build:js": "esbuild lib/invasion_studio/webui/frontend/app.js lib/invasion_studio/webui/frontend/player-prototype.js --bundle --format=esm --minify --outdir=lib/invasion_studio/webui/public/assets"
+    "build:js": "esbuild lib/invasion_studio/webui/frontend/app.js --bundle --format=esm --minify --outdir=lib/invasion_studio/webui/public/assets"
   },
   "devDependencies": {
     "@hotwired/stimulus": "3.2.2",

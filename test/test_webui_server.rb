@@ -79,14 +79,9 @@ class TestWebuiServer < Minitest::Test
     refute last_response.ok?
   end
 
-  def test_player_prototype_is_separate_and_uses_local_assets
+  def test_retired_player_prototype_is_not_served
     get '/player-prototype'
-    assert last_response.ok?
-    assert_includes last_response.body, '<video-player>'
-    assert_includes last_response.body, '/assets/player-prototype.js'
-    assert_includes last_response.body, '/assets/player-prototype.css'
-    assert_includes last_response.body, 'id="editor" disabled'
-    refute_includes last_response.body, 'https://'
+    assert_equal 404, last_response.status
 
     get '/'
     assert_includes last_response.body, 'data-video-player-target="timelineEditor"'

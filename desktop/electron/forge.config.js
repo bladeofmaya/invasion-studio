@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs"
+import { readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -11,16 +11,14 @@ const platformNames = { darwin: "macos", linux: "linux", win32: "windows" }
 const platformKey = `${platformNames[process.platform] ?? process.platform}-${process.arch}`
 const sidecarName = process.platform === "win32" ? "invasion-studio.exe" : "invasion-studio"
 const sidecar = path.join(repositoryRoot, "pkg", "sidecar", platformKey, sidecarName)
-const tools = path.join(repositoryRoot, "pkg", "tools", platformKey)
-const extraResource = [sidecar]
-
-if (existsSync(tools)) extraResource.push({ from: tools, to: "tools" })
+const extraResource = [sidecar, path.join(path.dirname(sidecar), "backend-notices"), path.join(path.dirname(sidecar), "dependencies.json"), ...["MIT-LICENSE", "THIRD_PARTY_LICENSES.md"].map(file => path.join(repositoryRoot, file))]
+const mediaModules = JSON.parse(readFileSync(path.join(repositoryRoot, "desktop", "flatpak", "media-modules.json"), "utf8"))
 
 export default {
   packagerConfig: {
     asar: true,
     executableName: "invasion-studio",
-    icon: path.join(electronDirectory, "assets", "icon.png"),
+    icon: path.join(electronDirectory, "assets", "app-icon.png"),
     ignore: [/^\/(out|test|probes)(\/|$)/],
     extraResource
   },
@@ -40,8 +38,11 @@ export default {
           runtime: "org.freedesktop.Platform",
           runtimeVersion: "25.08",
           sdk: "org.freedesktop.Sdk",
-          modules: [],
+          modules: mediaModules,
+          extraFlatpakBuilderArgs: ["--force-clean", "--jobs=8", `--state-dir=${path.join(repositoryRoot, ".flatpak-builder")}`],
           finishArgs: [
+            "--env=TMPDIR=/var/tmp",
+            "--env=TESSDATA_PREFIX=/app/share/tessdata",
             "--share=ipc",
             "--share=network",
             "--socket=wayland",
@@ -51,7 +52,7 @@ export default {
             "--filesystem=host"
           ],
           categories: ["AudioVideo"],
-          icon: path.join(electronDirectory, "assets", "icon.png")
+          icon: { "512x512": path.join(electronDirectory, "assets", "app-icon.png") }
         }
       }
     }

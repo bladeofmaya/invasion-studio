@@ -1,4 +1,4 @@
-# Video.js v10 prototype
+# Video editor
 
 The main clip preview now uses Video.js with the editable timeline and persistent
 manual markers. Expand **Edit video** below the video to access seek, cuts, and
@@ -28,24 +28,6 @@ runs. Concurrent source-file changes reject the scan results; rerun afterward.
 Timing follows the OCR sampling rate and extraction offsets, so markers remain
 editable for adjustment. Actual media/OCR accuracy needs manual verification.
 
-The original isolated prototype remains available at `/player-prototype` for
-comparison. Its demo events are temporary and do not modify saved manual markers.
-
-Visit `/player-prototype` to open the isolated demo. The player pins
-`@videojs/html` to `10.0.0-rc.4` and bundles it locally; no CDN is required.
-
-Select a clip, then choose **Load demo markers + two cuts** to populate the
-timeline. Demo events are synthetic, not OCR results. Drag the red range edges,
-edit their start/end times, or use Mark start / Mark end at the playhead. Marker
-buttons seek to events. Undo restores the previous cut ranges. Disable **Skip
-removal ranges during playback** to review the original footage at those times.
-
-Cuts remain drafts until **Save cuts**. Saved cuts appear in the regular player
-and survive reopening. Demo markers are temporary and reset when changing clips
-or finalizing. **Finalize cuts** confirms, saves, and calls the existing Ruby
-finalizer; its stream-copy/keyframe limitations remain unchanged. Loading demo
-ranges replaces draft cuts only, and requires confirmation when cuts exist.
-
 The Video.js fullscreen control shows the video skin. **Fullscreen editor**
 includes the custom event/cut timeline and editing controls.
 
@@ -62,5 +44,3 @@ includes the custom event/cut timeline and editing controls.
 
 Automated checks use timeline calculations, dummy-file API tests, and an Electron
 smoke check with mocked media. No real video processing was run by the agent.
-The isolated demo keeps its synthetic events temporary; the main editor supports
-persistent manual markers and OCR detection as described above.

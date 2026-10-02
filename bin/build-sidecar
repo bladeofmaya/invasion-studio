@@ -20,28 +20,31 @@ command -v docker >/dev/null 2>&1 || fail "docker is required"
 mkdir -p "$OUTPUT_DIR"
 "$PROJECT_DIR/bin/build-assets"
 mkdir -p "$STAGE_DIR"
-tar \
-  --exclude=.git \
-  --exclude=.bundle \
-  --exclude=node_modules \
-  --exclude=pkg \
-  --exclude=tmp \
-  --exclude='*.gem' \
-  --exclude=desktop/electron/out \
-  -cf - -C "$PROJECT_DIR" . | tar -xf - -C "$STAGE_DIR"
+tar -cf - -C "$PROJECT_DIR" bin lib Gemfile Gemfile.lock invasion-studio.gemspec \
+  MIT-LICENSE README.md THIRD_PARTY_LICENSES.md | tar -xf - -C "$STAGE_DIR"
+
+bundle exec ruby "$PROJECT_DIR/desktop/prepare-sidecar.rb" "$STAGE_DIR"
+cp "$PROJECT_DIR/desktop/collect-runtime-notices.sh" "$STAGE_DIR/collect-runtime-notices.sh"
 
 docker run --rm \
+  --env BUILD_UID="$(id -u)" --env BUILD_GID="$(id -g)" \
   --volume "$STAGE_DIR:/mnt/source:ro" \
   --volume "$TEMP_OUTPUT_DIR:/mnt/output" \
-  "$TEBAKO_IMAGE" \
+  --entrypoint /bin/sh \
+  "$TEBAKO_IMAGE" -c '
   tebako press \
   --root=/mnt/source \
   --entry-point=invasion-studio \
-  --Ruby="$TEBAKO_RUBY_VERSION" \
+  --Ruby="$1" \
   --mode=fat \
   --patchelf \
-  --output=/mnt/output/invasion-studio
+  --output=/mnt/output/invasion-studio && sh /mnt/source/collect-runtime-notices.sh
+  ' sh "$TEBAKO_RUBY_VERSION"
 
 /usr/bin/install -m 755 "$TEMP_OUTPUT_DIR/invasion-studio" "$OUTPUT_DIR/invasion-studio"
+/usr/bin/install -m 644 "$STAGE_DIR/desktop-dependencies.json" "$OUTPUT_DIR/dependencies.json"
+"$OUTPUT_DIR/invasion-studio" --tebako-extract "$TEMP_OUTPUT_DIR/extracted"
+ruby "$PROJECT_DIR/desktop/collect-notices.rb" "$TEMP_OUTPUT_DIR/extracted" "$OUTPUT_DIR/backend-notices"
+cp -R "$TEMP_OUTPUT_DIR/runtime-notices" "$OUTPUT_DIR/backend-notices/"
 "$OUTPUT_DIR/invasion-studio" --version
 echo "Sidecar artifact: $OUTPUT_DIR/invasion-studio"

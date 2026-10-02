@@ -1,4 +1,4 @@
-# Third-party frontend licenses
+# Third-party licenses
 
 The release asset bundle includes code from Stimulus, Lucide, SortableJS, and the Video.js dependencies.
 Tailwind CSS and esbuild are build-only tools and are not required by installed
@@ -75,7 +75,7 @@ SOFTWARE.
 - Tailwind CSS: Copyright (c) Tailwind Labs, Inc., MIT License.
 - esbuild: Copyright (c) 2020 Evan Wallace, MIT License.
 
-## Video.js v10 prototype
+## Video.js v10
 
 Bundled packages: @videojs/html, @videojs/core, @videojs/element,
 @videojs/media, @videojs/store, and @videojs/utils (10.0.0-rc.4).
@@ -336,3 +336,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+
+## Desktop runtime and media tools
+
+The Linux Flatpak includes Electron (MIT) and Chromium third-party code; their
+complete notices are shipped as `LICENSE` and `LICENSES.chromium.html` beside
+the Electron executable. The Ruby/Tebako backend embeds its runtime and gems;
+see `resources/dependencies.json` and `resources/backend-notices/` in the desktop
+package. The pinned Tebako runtime includes DwarFS under GPLv3, as recorded in
+`backend-notices/runtime-notices/dwarfs-copyright`. The MIT license on Studio's
+own source does not replace licenses on the runtime or its dependencies.
+Corresponding runtime source materials require review before public distribution.
+
+Media sources and SHA-256 checksums are recorded in
+`desktop/flatpak/media-modules.json`:
+
+| Component | Version | License |
+|---|---|---|
+| FFmpeg / ffprobe | 7.1.3 | LGPL-2.1-or-later (no GPL/nonfree build options) |
+| Leptonica | 1.86.0 | BSD-2-Clause |
+| Tesseract | 5.5.1 | Apache-2.0 |
+| tessdata_fast English model | 4.1.0 | Apache-2.0 |
+
+Full media license texts are installed under `/app/share/licenses/` in the
+Flatpak. FFmpeg is built from unmodified source with static internal libraries;
+release source materials must accompany the binary so recipients can rebuild
+or modify it. The runtime supplies shared system libraries. Its own notices
+and source distribution are maintained by Freedesktop/Flatpak.

@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+"""Assemble local release artifacts and verified media sources; never publishes."""
+import hashlib
+import json
+import pathlib
+import shutil
+import subprocess
+import tarfile
+import tempfile
+
+root = pathlib.Path(__file__).resolve().parent.parent
+version = json.loads((root / 'desktop/electron/package.json').read_text())['version']
+release = root / 'pkg/release' / version
+release.mkdir(parents=True, exist_ok=True)
+flatpak = root / 'desktop/electron/out/make/flatpak/x86_64/com.bladeofmaya.InvasionStudio_stable_x86_64.flatpak'
+if not flatpak.is_file():
+    raise SystemExit('Build the Flatpak with bin/build-desktop --make first')
+shutil.copy2(flatpak, release / f'invasion-studio-{version}-linux-x64.flatpak')
+gem = root / f'invasion-studio-{version}.gem'
+if gem.is_file():
+    shutil.copy2(gem, release / gem.name)
+modules = json.loads((root / 'desktop/flatpak/media-modules.json').read_text())
+cache = root / 'pkg/release-sources'
+cache.mkdir(parents=True, exist_ok=True)
+with tempfile.TemporaryDirectory(prefix='invasion-sources-') as temporary:
+    stage = pathlib.Path(temporary)
+    for module in modules:
+        destination = stage / module['name']
+        destination.mkdir()
+        for source in module['sources']:
+            name = source['url'].split('/')[-1]
+            cached = cache / (source['sha256'] + '-' + name)
+            if not cached.exists():
+                subprocess.run(['curl', '--fail', '--location', '--retry', '2', source['url'], '-o', str(cached)], check=True)
+            if hashlib.sha256(cached.read_bytes()).hexdigest() != source['sha256']:
+                raise SystemExit(f'Checksum mismatch: {cached}; remove it and retry')
+            shutil.copy2(cached, destination / name)
+    shutil.copy2(root / 'desktop/flatpak/media-modules.json', stage / 'media-modules.json')
+    (stage / 'README.txt').write_text(
+        'Unmodified sources for the Invasion Studio media tools. Build instructions and options\n'
+        'are in media-modules.json (flatpak-builder, Freedesktop SDK 25.08).\n'
+        'Replace source URLs with these local archives, retaining their SHA-256 checksums.\n'
+        'FFmpeg is LGPL-2.1-or-later; build without --enable-gpl or --enable-nonfree.\n'
+        'The application source release also contains bin/build-desktop and the Forge configuration.\n')
+    with tarfile.open(release / f'invasion-studio-{version}-media-sources.tar.gz', 'w:gz') as archive:
+        archive.add(stage, arcname='media-sources')
+for name in ['MIT-LICENSE', 'THIRD_PARTY_LICENSES.md', 'RELEASING.md', 'CHANGELOG.md']:
+    shutil.copy2(root / name, release / name)
+shutil.copy2(root / 'pkg/sidecar/linux-x64/dependencies.json', release / 'backend-dependencies.json')
+# Collect build provenance; runtime branches may receive security updates.
+provenance = {'version': version, 'flatpak_refs': {},
+              'source_revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
+              'source_dirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=root, text=True).strip())}
+for ref in ['org.freedesktop.Platform//25.08', 'org.freedesktop.Sdk//25.08', 'org.electronjs.Electron2.BaseApp//25.08']:
+    provenance['flatpak_refs'][ref] = subprocess.check_output(['flatpak', 'info', '--show-commit', ref], text=True).strip()
+(release / 'build-info.json').write_text(json.dumps(provenance, indent=2) + '\n')
+files = sorted(p for p in release.iterdir() if p.is_file() and p.name != 'SHA256SUMS')
+(release / 'SHA256SUMS').write_text(''.join(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n' for p in files))
+print(f'Release candidates: {release}')

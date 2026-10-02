@@ -21,7 +21,7 @@ test("Electron package uses production identity and the application version", ()
 })
 
 test("production Linux icon is present", () => {
-  assert.equal(existsSync(path.join(electronDirectory, "assets", "icon.png")), true)
+  assert.equal(existsSync(path.join(electronDirectory, "assets", "app-icon.png")), true)
 })
 
 test("sandboxed launcher resources are packaged", () => {
@@ -46,4 +46,18 @@ test("future platform directories are retained in the repository", () => {
   for (const platform of ["windows-x64", "macos-x64", "macos-arm64"]) {
     assert.equal(existsSync(path.join(electronDirectory, "platforms", platform, ".gitkeep")), true)
   }
+})
+
+// Source pins are release inputs, not opportunistic host binaries.
+test("Flatpak builds all media tools from checksummed sources", () => {
+  const { modules } = forgeConfig.makers[0].config.options
+  assert.deepEqual(modules.map(module => module.name), ['ffmpeg', 'leptonica', 'tesseract', 'english-ocr-data', 'release-cleanup'])
+  for (const module of modules) {
+    for (const source of module.sources) {
+      assert.match(source.sha256, /^[a-f0-9]{64}$/)
+      assert.ok(source.url.startsWith('https://'))
+    }
+  }
+  assert.ok(!modules[0]['config-opts'].includes('--enable-gpl'))
+  assert.ok(!modules[0]['config-opts'].includes('--enable-nonfree'))
 })

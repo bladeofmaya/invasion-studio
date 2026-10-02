@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# flatpak-builder uses hardlinks between its state and build directories.
+# Forge otherwise creates the build under /tmp, which may be another filesystem.
+export TMPDIR="$PROJECT_DIR/tmp/desktop-build"
+mkdir -p "$TMPDIR"
+cd "$PROJECT_DIR/desktop/electron"
+exec npx --no-install electron-forge make "$@"

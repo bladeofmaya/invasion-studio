@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url"
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from "electron"
 
+import { mediaEnvironment } from "./media-environment.js"
 import { DesktopLog } from "./desktop-log.js"
 import { configurePermissions } from "./permissions.js"
 import { selectProject, validateProjectPath } from "./project-selection.js"
@@ -32,25 +33,6 @@ function sidecarExecutable() {
   if (process.env.INVASION_STUDIO_SIDECAR) return process.env.INVASION_STUDIO_SIDECAR
   if (app.isPackaged) return packagedResource("invasion-studio")
   return path.join(repositoryRoot, "pkg", "sidecar", "linux-x64", "invasion-studio")
-}
-
-function sidecarEnvironment() {
-  const environment = { ...process.env }
-  if (!app.isPackaged) return environment
-
-  const tools = {
-    INVASION_STUDIO_FFMPEG: packagedResource("tools", "ffmpeg"),
-    INVASION_STUDIO_FFPROBE: packagedResource("tools", "ffprobe"),
-    INVASION_STUDIO_TESSERACT: packagedResource("tools", "tesseract")
-  }
-
-  for (const [name, executable] of Object.entries(tools)) {
-    if (existsSync(executable)) environment[name] = executable
-  }
-
-  const tessdata = packagedResource("tessdata")
-  if (existsSync(tessdata)) environment.TESSDATA_PREFIX = tessdata
-  return environment
 }
 
 function secureWindow(port) {
@@ -210,7 +192,7 @@ async function boot() {
     executable,
     projectPath,
     parentPid: process.pid,
-    env: sidecarEnvironment()
+    env: mediaEnvironment(process.env)
   })
 
   ipcMain.handle("project:open-folder", event => openProjectFolder(event, mainWindow, ready.port, projectPath, shell))

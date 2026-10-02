@@ -19,6 +19,9 @@ required_files = %w[
 
 entries = Gem::Package.new(gem_path).spec.files
 
+retired_files = entries.grep(/player[-_]prototype/)
+abort "Gem contains retired player prototype: #{retired_files.join(', ')}" unless retired_files.empty?
+
 missing_files = required_files - entries
 abort "Gem is missing: #{missing_files.join(', ')}" unless missing_files.empty?
 

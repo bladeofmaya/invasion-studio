@@ -21,8 +21,8 @@ Platform/SDK and Electron BaseApp 25.08.
 Both renderers have Node integration disabled, context isolation and Chromium's
 sandbox enabled, denied permission requests, and restricted navigation. The
 launcher has a minimal preload bridge limited to listing recent projects and
-requesting validated native folder selection. The Sinatra WebUI window has no
-preload bridge. HTTPS links may open in the system browser. Packaging disables
+requesting validated native folder selection. The Sinatra WebUI window exposes only validated recording selection and
+project-folder opening through its preload bridge. HTTPS links may open in the system browser. Packaging disables
 RunAsNode and Node CLI environment fuses and requires an integrity-checked ASAR.
 
 ## Develop and test
@@ -60,11 +60,20 @@ Both desktop builds recreate the sidecar to prevent application/database
 migrations from becoming newer than the packaged backend. The unpacked app is
 written to `desktop/electron/out/InvasionStudio-linux-x64`; Forge writes
 installers under `desktop/electron/out/make`. The sidecar is written to
-`pkg/sidecar/linux-x64/invasion-studio`. Optional
-portable tools may be staged under `pkg/tools/linux-x64`; when present, Forge
-copies that directory into the application's `resources/tools` directory.
-FFmpeg, FFprobe, Tesseract, and `eng.traineddata` still need a pinned download,
-checksum, and licensing pipeline before the Flatpak release is self-contained.
+`pkg/sidecar/linux-x64/invasion-studio`. The unpacked app uses host media tools and is for development.
+The release Flatpak builds FFmpeg, Leptonica, and Tesseract from checksummed
+sources in `../flatpak/media-modules.json`, installs English trained data, and
+uses `/app/bin` executables. Missing packaged tools stop startup with a diagnostic.
+License texts are installed in `/app/share/licenses` and Electron resources.
+
+`bin/make-flatpak` keeps temporary build files and the Flatpak cache on the same
+filesystem. For a shell-only change after building the backend, use
+`npm run make --prefix desktop/electron`; `bin/build-desktop --make` rebuilds all.
+
+Run `bin/check-desktop` for an empty-project backend check, or
+`bin/check-desktop --flatpak` after installing the Flatpak. Both check version,
+local assets, settings/compilation persistence, restart, and shutdown. Neither
+processes videos. The latter uses a temporary project and temporary settings.
 
 Recent projects are stored in Electron's per-user application-data directory.
 Missing folders are pruned when the launcher loads. The list contains only
@@ -78,16 +87,12 @@ verify the packaged application using a representative 2K, five-audio-track
 clip:
 
 - upload, metadata, H.264/AAC playback, seeking, and pause/resume;
-- every direct audio selection and audible track result;
-- playback position and state restoration after switching;
-- original playback and switching without new `.preview_cache` files;
+- settings-selected audio track, read-only player label, and audible result;
+- reopen a clip after changing the default track in Settings;
+- original playback without new `.preview_cache` files when supported;
 - remux fallback in a browser without direct audio-track support;
 - project persistence and arbitrary project-folder access under Flatpak;
 - window close, sidecar exit, cold start, readiness latency, and RSS.
-
-The previous host package was approximately 370 MB including its 60 MB
-sidecar. The Flatpak maker has not completed its final distributable stage yet;
-that is the next packaging gate.
 
 ### Playback diagnostics
 
@@ -96,8 +101,8 @@ and selects audio directly in the original video, avoiding preview-cache copies.
 Players without this API, or unable to select the requested track, use the
 existing FFmpeg remux fallback. Track numbers are one-based and the configured
 default track is applied after metadata loads. Console messages identify direct
-versus remux playback. The standalone probe is documented in
-[`probes/audio-tracks/README.md`](probes/audio-tracks/README.md).
+versus remux playback. The retired standalone probe and isolated player demo
+are no longer shipped.
 
 The desktop shell writes a rotating `desktop.log` (plus `desktop.log.1`) under
 Electron's application logs directory. The exact path is printed at startup.

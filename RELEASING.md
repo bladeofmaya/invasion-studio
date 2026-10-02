@@ -56,25 +56,69 @@ release targets Linux x64 and Flatpak. Windows x64 and macOS x64/ARM64 have
 reserved directories under `desktop/electron/platforms/`, but are not release
 targets yet.
 
-1. Run the gem release gate with `bin/release-check`.
-2. Build the unpacked desktop application with `bin/build-desktop`. This
-   rebuilds WebUI assets and the Linux x64 Tebako sidecar, installs the exact
-   Electron dependencies, runs non-video Electron tests, and packages the app.
-3. Launch it with `bin/run-desktop /path/to/project` and complete the manual
-   media checklist in `desktop/electron/README.md`.
-4. Build the Flatpak distributable with `bin/build-desktop --make`.
-5. Install the Flatpak in a clean environment and repeat the lifecycle,
-   project-access, persistence, playback, seeking, and audio-track checks.
-6. Attach the verified artifact and checksums to the matching GitHub release.
+Build prerequisites: Ruby/Bundler, Node.js/npm, Docker, Flatpak,
+flatpak-builder, and elfutils (`eu-strip`). Install the 25.08 Freedesktop
+Platform/SDK and Electron BaseApp from Flathub before building.
 
-The application version in `desktop/electron/package.json` and its lockfile
-must match `InvasionStudio::VERSION`; `bin/bump-version` updates all three.
-Electron/Forge versions remain independently pinned in the desktop lockfile.
+For a local rebuild and reinstall in one command, close the app and run
+`bin/install-desktop`. This runs `bin/build-desktop --make`, then installs the
+generated Flatpak for the current user; a failed build stops installation.
 
-The Flatpak is not release-ready until pinned Linux x64 FFmpeg, FFprobe,
-Tesseract, and English trained-data resources are staged under
-`pkg/tools/linux-x64`, verified by checksum, and covered by the third-party
-license inventory. Signing and automated publication are later release gates.
+1. Run `bin/release-check` (or `ALLOW_DIRTY=1 bin/release-check` while reviewing
+   uncommitted changes). `rake test` contains no video-processing tests; the
+   Kdenlive integration test lives under `test/system`.
+2. Run `bin/build-desktop --make`. This rebuilds local assets and the Tebako
+   backend, runs Electron tests, packages the shell, and builds the Flatpak.
+   The desktop-only gemspec pins the entire runtime dependency closure from
+   Gemfile.lock; it does not change the standalone gem's dependency policy.
+3. Run `bin/check-desktop` for empty-project backend checks.
+4. Install the generated Flatpak:
+   `flatpak install --user desktop/electron/out/make/flatpak/x86_64/com.bladeofmaya.InvasionStudio_stable_x86_64.flatpak`.
+5. Run `bin/check-desktop --flatpak`. Verify the installed app with
+   `flatpak run com.bladeofmaya.InvasionStudio` and complete the manual checks below.
+6. Build the gem with `bin/build-gem` if not already produced by the release gate.
+7. Run `bin/prepare-release` to assemble the versioned Flatpak, gem, media source
+   archives, notices, dependency/build inventories, and SHA256SUMS under
+   `pkg/release/0.8.0/`. This command downloads and verifies pinned sources;
+   it does not publish anything.
+8. Only after acceptance: commit the reviewed source, attach the corresponding
+   source snapshot, verify license/source completeness (including the embedded
+   Ruby/Tebako runtime), and publish artifacts and matching source materials
+   together. Signing and automatic updates are not implemented.
+
+FFmpeg 7.1.3, Leptonica 1.86.0, Tesseract 5.5.1, and tessdata_fast 4.1.0 are pinned
+by URL and SHA-256 in `desktop/flatpak/media-modules.json`. FFmpeg is built without
+GPL/nonfree components, with built-in H.264/HEVC decoders and AAC encoding; the
+app's normal video editing/export operations copy video streams. Shared system
+libraries are supplied by the Freedesktop runtime. Do not substitute its default
+FFmpeg: that build may lack required software decoders.
+
+Full media notices live at `/app/share/licenses/`. Electron's notices are beside
+its executable; application/frontend and collected backend notices live in
+Electron resources. The media-source archive is part of the release, not an
+optional download to omit when mirroring the binaries.
+
+The Ruby version and Electron package/lockfile must agree; `bin/bump-version`
+updates all of them. `bin/check-desktop` verifies the running backend's version.
+Runtime branches receive security updates, so `build-info.json` records the
+installed Flatpak commits. Byte-for-byte reproducibility is not claimed.
+
+### Owner acceptance checklist (real media)
+
+- [ ] Install on a clean Linux x64 machine with no host Ruby/media tools.
+- [ ] Create/open projects in home and on an external drive; reopen from Recents.
+- [ ] Verify offline UI, import, metadata/thumbnails, searching, tags and compilations.
+- [ ] Play representative H.264/AAC recordings, seek/scrub and jump to markers.
+- [ ] Change the default audio track in Settings, reopen the clip, and verify its label and sound.
+- [ ] Extract invasions; verify progress, duplicate-import protection and death-marker timing.
+- [ ] Trim/finalize a disposable clip, export a compilation, and open the Kdenlive output.
+- [ ] Close during idle and after processing; confirm no backend remains running.
+- [ ] Back up an existing project, upgrade, and verify saved metadata/cuts/markers.
+
+Automated checks do not process videos. `bin/check-desktop` verifies startup,
+version, local assets, settings/compilation persistence, restart, and shutdown.
+Byte-range serving is covered by the dummy-file API tests; playback remains an
+owner check. Do not describe an artifact as accepted until this checklist passes.
 
 ## Not automated (deliberately)
 

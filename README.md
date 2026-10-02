@@ -7,9 +7,36 @@ straight into the WebUI, so the library is not limited to extractor output.
 
 ![Invasion Studio](images/invasion-studio.png)
 
-## Install
+## Desktop installation (Linux x64)
 
-Invasion Studio requires Ruby 3.3 or newer, ffmpeg, and Tesseract OCR.
+The v0.8.0 desktop package is a Flatpak containing Electron, the Ruby backend,
+FFmpeg/ffprobe, Tesseract, and English OCR data. You do not need Ruby, Node.js,
+FFmpeg, or Tesseract installed on the host. Flatpak installs the required
+Freedesktop 25.08 runtime separately.
+
+Download the `.flatpak` release artifact, then install and launch it:
+
+```bash
+flatpak install --user ./invasion-studio-0.8.0-linux-x64.flatpak
+flatpak run com.bladeofmaya.InvasionStudio
+```
+
+A configured Flathub remote is needed to obtain the runtime. The app works
+offline after installation. Open or create a project in the launcher, then use
+**Import** to upload existing clips or extract encounters from recordings.
+Windows and macOS desktop installers are not part of v0.8.0.
+
+The Flatpak has access to your home and mounted drives so you can select project
+folders and recordings. It stores preferences under
+`~/.var/app/com.bladeofmaya.InvasionStudio/`; clips and metadata remain in your
+chosen project folder. Back up that whole folder before upgrading.
+
+## Ruby gem installation (alternative)
+
+The standalone CLI/WebUI requires Ruby 3.3.3 or newer, FFmpeg, and Tesseract OCR
+with English language data. These dependencies are supplied automatically only
+in the desktop Flatpak:
+
 
 ```bash
 # macOS
@@ -77,7 +104,7 @@ the first time they are opened.
 
 From the WebUI you can:
 
-- preview clips and switch audio tracks;
+- preview clips using the audio track selected in Settings, shown as a label in the player;
 - add titles, notes, ratings, results, and tags;
 - search the library and filter by tag, rating, or result;
 - upload clips and extract invasions from longer recordings in the Import tab;
@@ -189,6 +216,11 @@ The extractor samples the game-text area and uses OCR to find these messages:
 
 - Start: `Defeat … Host of Fingers` or `Commencing combat`
 - End: `Returning to your world` or `Combat ends`
+
+Phantom and hunter death markers are placed eight seconds before the first OCR
+detection of their death message, clamped to the start of the clip. This is an
+estimate based on the game's delayed banner, not frame-exact death detection.
+Markers can be adjusted manually; rescanning preserves existing marker positions.
 
 Clips include 10 seconds before the detected start and 7.5 seconds after the
 detected end by default.
@@ -347,16 +379,33 @@ bin/run-desktop /path/to/project
 
 # Run the Flatpak maker instead of producing only the unpacked app.
 bin/build-desktop --make
+
+# Build and install/reinstall the Flatpak for the current user.
+bin/install-desktop
 ```
+
+Close the running app before reinstalling. Launch the installed build with
+`flatpak run com.bladeofmaya.InvasionStudio`.
+
+After editing `desktop/electron/assets/logo.png`, run `bin/build-icon` to
+regenerate the 512×512 app icon, then `bin/install-desktop` to build and reinstall.
+Icon generation requires ImageMagick 7 (`magick`). It preserves the artwork's
+aspect ratio and transparency, padding non-square logos without cropping.
 
 Build output is ignored under `desktop/electron/out/`. The sidecar is generated
 under `pkg/sidecar/linux-x64/`. Empty platform directories reserve the planned
 Windows x64 and macOS x64/ARM64 targets, but those packaging pipelines are not
 implemented for the first release.
 
-Portable FFmpeg, FFprobe, Tesseract, and trained-data resources are the next
-Flatpak packaging gate. Until they are staged under `pkg/tools/linux-x64`, the
-desktop development build uses tools available through the host environment.
+The unpacked app is a development build and uses host media tools. The Flatpak
+release builds its own pinned FFmpeg, Leptonica, and Tesseract from the
+checksummed sources in `desktop/flatpak/media-modules.json`, and includes English
+OCR data. Build prerequisites are Docker, Node.js/npm, Flatpak, flatpak-builder,
+elfutils, Freedesktop SDK/Platform 25.08, and Electron BaseApp 25.08.
+
+See [RELEASING.md](RELEASING.md) for build commands, source archives, dependency
+notices, and the manual acceptance checklist. Local artifacts are release
+candidates until those checks pass.
 
 ### Verification and releases
 

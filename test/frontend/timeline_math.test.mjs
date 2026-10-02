@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { moveBoundary, skipCut, demoTimeline } from '../../lib/invasion_studio/webui/frontend/timeline_math.mjs'
+import { moveBoundary, skipCut } from '../../lib/invasion_studio/webui/frontend/timeline_math.mjs'
 
 test('dragging clamps boundaries to the video and prevents inverted cuts', () => {
   const cuts = [{ start: 2, end: 5 }]
@@ -17,10 +17,3 @@ test('preview skips overlapping removal ranges in any order', () => {
   assert.equal(skipCut(1, cuts), 1)
 })
 
-test('demo has two valid ranges and labelled events within the duration', () => {
-  const { cuts, markers } = demoTimeline(100)
-  assert.equal(cuts.length, 2)
-  assert.ok(cuts.every(cut => cut.start >= 0 && cut.end > cut.start && cut.end <= 100))
-  assert.ok(markers.every(marker => marker.time < 100 && marker.label.includes('Demo')))
-  assert.deepEqual(demoTimeline(NaN), { cuts: [], markers: [] })
-})

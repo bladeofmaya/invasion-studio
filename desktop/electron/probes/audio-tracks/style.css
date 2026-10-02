@@ -1,8 +1,0 @@
-:root { color-scheme: dark; font: 15px system-ui, sans-serif; background: #181510; color: #f6f1e8; }
-body { max-width: 1000px; margin: 24px auto; padding: 0 20px; }
-h1 { font-size: 24px; }
-p { line-height: 1.5; color: #c7beae; }
-label { display: block; margin: 14px 0; }
-select, input, textarea { font: inherit; margin-left: 8px; }
-video { display: block; width: 100%; max-height: 430px; background: black; }
-textarea { display: block; box-sizing: border-box; width: 100%; margin: 8px 0; font: 12px monospace; }
