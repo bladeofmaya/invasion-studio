@@ -53,6 +53,44 @@ class TestClipRepository < Minitest::Test
     assert_equal 'aac', clip['audio_codec']
   end
 
+  def test_markers_survive_reopening_and_can_be_edited_and_deleted
+    create_clip('clip1.mp4', 'duration' => 30)
+    markers = [{ 'id' => 'marker-1', 'time' => 12.5, 'event_type' => 'phantom_defeated', 'label' => 'Blue phantom' }]
+    assert @repository.update_markers('clip1', markers)
+    reopened = InvasionStudio::Database::ClipRepository.new(@db, @storage)
+    assert_equal markers, reopened.find('clip1')['markers']
+    markers[0]['time'] = 15.0
+    assert reopened.update_markers('clip1', markers)
+    assert_equal 15.0, reopened.find('clip1')['markers'][0]['time']
+    assert reopened.update_markers('clip1', [])
+    assert_empty reopened.find('clip1')['markers']
+  end
+
+  def test_invalid_markers_do_not_replace_saved_markers
+    create_clip('clip1.mp4', 'duration' => 30)
+    marker = { 'id' => 'm1', 'time' => 5.0, 'event_type' => 'custom', 'label' => '' }
+    assert @repository.update_markers('clip1', [marker])
+    [nil, [nil], [marker.merge('time' => -1)], [marker.merge('time' => 31)],
+     [marker.merge('time' => Float::NAN)], [marker.merge('event_type' => 'invalid')],
+     [marker.merge('label' => [])], [marker, marker]].each do |invalid|
+      refute @repository.update_markers('clip1', invalid)
+      assert_equal [marker], @repository.find('clip1')['markers']
+    end
+    refute @repository.update_markers('missing', [marker])
+  end
+
+  def test_markers_follow_trash_restore_and_purge
+    create_clip('clip1.mp4')
+    marker = { 'id' => 'm1', 'time' => 5.0, 'event_type' => 'custom', 'label' => '' }
+    @repository.update_markers('clip1', [marker])
+    @repository.mark_deleted('clip1')
+    assert_equal [marker], @repository.find('clip1')['markers']
+    @repository.mark_restored('clip1')
+    assert_equal [marker], @repository.find('clip1')['markers']
+    @repository.purge('clip1')
+    assert_empty @db[:clip_markers].all
+  end
+
   def test_create_and_find_clip
     clip = create_clip('clip1.mp4', 'title' => 'First clip')
 

@@ -28,6 +28,8 @@ class TestWebuiServer < Minitest::Test
     InvasionStudio::Webui::Server.set :project, project
     InvasionStudio::Webui::Server.set :file_opener, nil
     InvasionStudio::Webui::Server.set :preview_remuxer, nil
+    InvasionStudio::Webui::Server.set :marker_identification_task,
+                                    InvasionStudio::Webui::MarkerIdentificationTask.new(project, executor: ->(&job) {})
   end
 
   def teardown
@@ -39,6 +41,56 @@ class TestWebuiServer < Minitest::Test
   end
 
   # ========== Page Routes ==========
+
+  def test_marker_identification_routes_start_a_background_scan_and_report_busy
+    get '/api/marker-identification'
+    assert_equal 'idle', JSON.parse(last_response.body)['status']
+    post '/api/clip/missing/identify-markers'
+    assert_equal 404, last_response.status
+    post '/api/clip/clip1/identify-markers'
+    assert_equal 202, last_response.status
+    assert_equal 'clip1', JSON.parse(last_response.body)['clip_id']
+    post '/api/clip/clip2/identify-markers'
+    assert_equal 409, last_response.status
+    get '/api/marker-identification'
+    assert_equal 'running', JSON.parse(last_response.body)['status']
+  end
+
+  def test_clip_preview_has_separate_details_and_video_sections
+    get '/'
+
+    assert_includes last_response.body, 'aria-label="Clip details"'
+    assert_includes last_response.body, 'aria-label="Video editor"'
+    assert_includes last_response.body, 'placeholder="Add a description about this clip..."'
+  end
+
+  def test_markers_api_persists_and_validates_manual_events
+    marker = { 'id' => 'm1', 'time' => 3.25, 'event_type' => 'phantom_defeated', 'label' => 'First phantom' }
+    post '/api/markers', JSON.generate(id: 'clip1', markers: [marker]), 'CONTENT_TYPE' => 'application/json'
+    assert last_response.ok?
+    get '/api/clip/clip1'
+    assert_equal [marker], JSON.parse(last_response.body)['markers']
+    post '/api/markers', JSON.generate(id: 'clip1', markers: [marker.merge('time' => -1)]), 'CONTENT_TYPE' => 'application/json'
+    refute last_response.ok?
+    assert_equal [marker], project.find_clip('clip1')['markers']
+    post '/api/markers', JSON.generate(id: 'missing', markers: [marker]), 'CONTENT_TYPE' => 'application/json'
+    refute last_response.ok?
+  end
+
+  def test_player_prototype_is_separate_and_uses_local_assets
+    get '/player-prototype'
+    assert last_response.ok?
+    assert_includes last_response.body, '<video-player>'
+    assert_includes last_response.body, '/assets/player-prototype.js'
+    assert_includes last_response.body, '/assets/player-prototype.css'
+    assert_includes last_response.body, 'id="editor" disabled'
+    refute_includes last_response.body, 'https://'
+
+    get '/'
+    assert_includes last_response.body, 'data-video-player-target="timelineEditor"'
+    assert_includes last_response.body, 'Fullscreen editor'
+    refute_includes last_response.body, '/assets/player-prototype.js'
+  end
 
   def test_health_reports_version_and_project_state
     get '/api/health'
@@ -84,10 +136,11 @@ class TestWebuiServer < Minitest::Test
     refute_includes controller, "this.groupValue + ' ('"
   end
 
-  def test_saved_cut_changes_update_the_finalize_button
+  def test_cut_editing_and_finalization_live_in_the_player_timeline
     get '/'
 
-    assert_includes last_response.body, 'video-player:cuts-saved@window->editor#updateFinalizeButton'
+    assert_includes last_response.body, 'data-video-player-target="timelineEditor"'
+    refute_includes last_response.body, 'data-editor-target="finalizeBtn"'
 
     controller = File.read(File.expand_path(
       '../lib/invasion_studio/webui/public/controllers/video_player_controller.js', __dir__

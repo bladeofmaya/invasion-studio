@@ -17,6 +17,7 @@ module InvasionStudio
       set :file_opener, nil
       set :preview_remuxer, nil
       set :extraction_task, nil
+      set :marker_identification_task, nil
       set :dependency_settings, nil
       # nil = default cache locations; tests inject temp dirs so clearing the
       # cache never touches the real user cache.
@@ -44,6 +45,7 @@ module InvasionStudio
         project = InvasionStudio::Project.new(folder_path)
         set :project, project
         set :extraction_task, ExtractionTask.new(project)
+        set :marker_identification_task, MarkerIdentificationTask.new(project)
         set :quiet, quiet
         set :server_settings, { Silent: quiet }
         set :file_opener, FileOpener.new

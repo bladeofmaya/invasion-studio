@@ -5,7 +5,7 @@
     "test": "node --test test/frontend/*.test.mjs",
     "build": "npm run build:css && npm run build:js",
     "build:css": "tailwindcss -i lib/invasion_studio/webui/frontend/app.css -o lib/invasion_studio/webui/public/assets/app.css --minify",
-    "build:js": "esbuild lib/invasion_studio/webui/frontend/app.js --bundle --format=esm --minify --outfile=lib/invasion_studio/webui/public/assets/app.js"
+    "build:js": "esbuild lib/invasion_studio/webui/frontend/app.js lib/invasion_studio/webui/frontend/player-prototype.js --bundle --format=esm --minify --outdir=lib/invasion_studio/webui/public/assets"
   },
   "devDependencies": {
     "@hotwired/stimulus": "3.2.2",
@@ -14,6 +14,7 @@
     "tailwindcss": "4.3.3"
   },
   "dependencies": {
+    "@videojs/html": "10.0.0-rc.4",
     "lucide": "1.27.0",
     "sortablejs": "1.15.7"
   }

@@ -34,6 +34,22 @@ class TestExtractionImporter < Minitest::Test
     assert_equal 0, importer.record([{ path: File.join(@tmp_dir, 'clips', 'nope.mp4'), source: 'x.mp4' }])
   end
 
+  def test_imports_detected_markers_without_erasing_manual_edits_on_retry
+    path = File.join(@tmp_dir, 'clips', 'clip_00001.mp4')
+    File.write(path, 'dummy')
+    project = InvasionStudio::Project.new(@tmp_dir)
+    manual = { 'id' => 'manual', 'time' => 1.0, 'event_type' => 'custom', 'label' => 'Keep' }
+    project.update_markers('clip_00001', [manual])
+    detected = { 'id' => 'detected', 'time' => 2.0, 'event_type' => 'hunter_defeated', 'label' => 'Alice' }
+    importer = InvasionStudio::ExtractionImporter.new(@tmp_dir, project: project)
+    entries = [{ path: path, source: 'a.mp4', markers: [detected] }]
+    assert_equal 1, importer.record(entries)
+    assert_equal [manual, detected], project.find_clip('clip_00001')['markers']
+    project.update_markers('clip_00001', [manual, detected.merge('label' => 'Edited')])
+    assert_equal 1, importer.record(entries)
+    assert_equal 'Edited', project.find_clip('clip_00001')['markers'].last['label']
+  end
+
   def test_records_files_created_after_the_project_was_opened
     project = InvasionStudio::Project.new(@tmp_dir)
     importer = InvasionStudio::ExtractionImporter.new(@tmp_dir, project: project)

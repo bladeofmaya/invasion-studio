@@ -44,8 +44,11 @@ module InvasionStudio
           if clip.file_exists?(output)
             @reporter.clip_skipped(output)
           else
+            markers = @options[:marker_mapper]&.call(clip)
             clip.write(output)
-            @created << { path: output, source: segment.start_video }
+            entry = { path: output, source: segment.start_video }
+            entry[:markers] = markers if markers
+            @created << entry
             @reporter.clip_extracted(output)
           end
         rescue StandardError => error

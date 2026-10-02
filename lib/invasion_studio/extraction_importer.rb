@@ -39,6 +39,8 @@ module InvasionStudio
           'source_kind' => 'extracted',
           'source_video' => File.basename(entry[:source].to_s)
         )
+        @project.merge_detected_markers(clip['id'], entry[:markers]) if entry[:markers]
+        true
       end
     end
   end

@@ -18,7 +18,10 @@ module InvasionStudio
       @ocr_stage = options[:ocr_stage] || Extraction::OcrStage.new(@options, reporter: reporter)
       @scan_stage = options[:scan_stage] || Extraction::ScanStage.new(reporter: reporter)
       @clip_extraction_stage = options[:clip_extraction_stage] || Extraction::ClipExtractionStage.new(
-        @options,
+        @options.merge(marker_mapper: ->(clip) {
+          @event_markers ||= Extraction::EventMarkers.new(@videos)
+          @event_markers.for_segment(clip.segment)
+        }),
         reporter: reporter,
         clip_factory: @clip_factory
       )
@@ -52,6 +55,7 @@ module InvasionStudio
     def invalidate_scan_results
       @scanner = nil
       @clips = nil
+      @event_markers = nil
     end
   end
 end

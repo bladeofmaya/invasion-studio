@@ -20,3 +20,29 @@ test('Playback errors are visible and include decoder diagnostics in the console
     console.error = original
   }
 })
+
+test('finalization waits for timeline saves and refuses failed saves', async () => {
+  const timeline = { disabled: false }
+  let paused = false
+  const controller = {
+    clipIdValue: 'first', timeline,
+    playback: { video: { pause() { paused = true } } },
+    saves: { async flush(id) { assert.equal(id, 'first'); return false } },
+    setStatus(message) { this.status = message }
+  }
+  assert.equal(await VideoPlayerController.prototype.prepareFinalize.call(controller, 'first'), false)
+  assert.equal(paused, true)
+  assert.equal(timeline.disabled, false)
+  assert.match(controller.status, /Retry/)
+  controller.saves.flush = async () => true
+  assert.equal(await VideoPlayerController.prototype.prepareFinalize.call(controller, 'first'), true)
+  assert.equal(timeline.disabled, true)
+})
+
+test('selection changing while saving prevents finalizing a different clip', async () => {
+  const controller = {
+    clipIdValue: 'first', timeline: {}, playback: { video: { pause() {} } },
+    saves: { async flush() { controller.clipIdValue = 'second'; return true } }
+  }
+  assert.equal(await VideoPlayerController.prototype.prepareFinalize.call(controller, 'first'), false)
+})

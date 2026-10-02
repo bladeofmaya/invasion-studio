@@ -153,6 +153,23 @@ module InvasionStudio
         true
       end
 
+      def update_markers(id, markers)
+        record = clip_dataset.where(id: id).first
+        return false unless record
+
+        normalized = ClipMarkers.normalize(markers, duration: record[:duration])
+        return false unless normalized
+
+        @database.transaction do
+          @database[:clip_markers].where(clip_id: id).delete
+          normalized.each do |marker|
+            @database[:clip_markers].insert(marker.transform_keys(&:to_sym).merge(clip_id: id))
+          end
+          clip_dataset.where(id: id).update(updated_at: current_timestamp)
+        end
+        true
+      end
+
       def mark_restored(id)
         clip_dataset.where(id: id).update(
           deleted_at: nil,
@@ -176,6 +193,7 @@ module InvasionStudio
         @database.transaction do
           group_clips_dataset.where(clip_id: missing_ids).delete
           cuts_dataset.where(clip_id: missing_ids).delete
+          @database[:clip_markers].where(clip_id: missing_ids).delete
           clip_tags_dataset.where(clip_id: missing_ids).delete
           clip_dataset.where(id: missing_ids).delete
         end
@@ -187,6 +205,7 @@ module InvasionStudio
           group_clips_dataset.where(clip_id: id).delete
           cuts_dataset.where(clip_id: id).delete
           clip_tags_dataset.where(clip_id: id).delete
+          @database[:clip_markers].where(clip_id: id).delete
           clip_dataset.where(id: id).delete
         end
         true
@@ -281,6 +300,8 @@ module InvasionStudio
           'audio_codec' => record[:audio_codec],
           'thumbnail_path' => record[:thumbnail_path],
           'cuts' => cuts,
+          'markers' => @database[:clip_markers].where(clip_id: record[:id]).order(:time, :id)
+                         .select(:id, :time, :event_type, :label).map { |marker| marker.transform_keys(&:to_s) },
           'deleted' => !record[:deleted_at].nil?,
           'trash_path' => record[:deleted_path],
           'created_at' => record[:created_at],

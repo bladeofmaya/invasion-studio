@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url"
 import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from "electron"
 
 import { DesktopLog } from "./desktop-log.js"
+import { configurePermissions } from "./permissions.js"
 import { selectProject, validateProjectPath } from "./project-selection.js"
 import { openProjectFolder } from "./project-folder.js"
 import { selectRecordings } from "./recording-selection.js"
@@ -187,6 +188,7 @@ async function boot() {
   desktopLog.write("startup", JSON.stringify({ version: app.getVersion(), electron: process.versions.electron, chrome: process.versions.chrome }))
   console.log(`Desktop log: ${desktopLog.path}`)
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false))
+  session.defaultSession.setPermissionCheckHandler(() => false)
   const recentProjects = new RecentProjects({
     filePath: path.join(app.getPath("userData"), "recent-projects.json")
   })
@@ -220,6 +222,7 @@ async function boot() {
     desktopLog.write("media-request-failed", JSON.stringify({ url: details.url, error: details.error }))
   })
   mainWindow = secureWindow(ready.port)
+  configurePermissions(session.defaultSession, mainWindow.webContents, ready.port)
   await mainWindow.loadURL(`${ready.origin}/`)
   windowHandoff?.complete(mainWindow)
   await recentProjects.add(projectPath).catch(error => console.warn("Could not save recent project:", error))

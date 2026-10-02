@@ -9,7 +9,7 @@ module InvasionStudio
     module MutationLock
       MUTATIONS = %i[
         create_group rename_group delete_group add_clip_to_group remove_clip_from_group move_clip_between_groups
-        reorder_group update_note update_rating update_result update_title update_cuts
+        reorder_group update_note update_rating update_result update_title update_cuts update_markers merge_detected_markers
         finalize_cuts delete_clip restore_clip empty_trash save! update_video_settings update_extraction_settings update_group_details
       ].freeze
 
@@ -187,6 +187,31 @@ module InvasionStudio
       (CutPlan.build(clip['cuts']) || CutPlan.empty).effective_duration(media_duration)
     end
 
+    def update_markers(clip_id, markers)
+      @clip_repository.update_markers(clip_id, markers)
+    end
+
+    def clip_fingerprint(clip_id)
+      clip = find_clip(clip_id)
+      raise Error, 'Clip is unavailable' unless clip && !clip['deleted']
+
+      stat = File.stat(resolve_clip_path(clip))
+      [stat.size, stat.mtime.to_r.to_s, stat.ino]
+    end
+
+    def merge_detected_markers(clip_id, markers, fingerprint: nil)
+      if fingerprint && clip_fingerprint(clip_id) != fingerprint
+        raise Error, 'The clip changed during detection. Run Identify markers again.'
+      end
+      clip = find_clip(clip_id)
+      raise Error, 'Clip is unavailable' unless clip && !clip['deleted']
+
+      merged = ClipMarkers.merge_detected(clip['markers'], markers)
+      raise Error, 'Detected markers could not be saved' unless update_markers(clip_id, merged)
+
+      merged.length - clip['markers'].length
+    end
+
     def compilation_statistics
       @group_repository.statistics
     end
@@ -195,9 +220,13 @@ module InvasionStudio
       clip = find_clip(clip_id)
       return false unless clip
 
+      plan = CutPlan.build(clip['cuts']) || CutPlan.empty
       success = @clip_finalizer.finalize(clip, media_operation: finalizer)
       return false unless success
 
+      # Keep event timestamps on the edited timeline, before metadata changes
+      # shorten the duration used to validate marker positions.
+      update_markers(clip_id, ClipMarkers.after_cuts(clip['markers'] || [], plan))
       refreshed = @clip_metadata_updater.update(clip_id)
       unless refreshed
         @clip_repository.update(clip_id, 'duration' => nil)

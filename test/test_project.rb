@@ -399,6 +399,11 @@ class TestProject < Minitest::Test
     project = InvasionStudio::Project.new(@tmp_dir)
     project.update_cuts('test', [{ 'start' => 2.0, 'end' => 4.0 }])
 
+    project.update_markers('test', [
+      { 'id' => 'removed', 'time' => 3.0, 'event_type' => 'custom', 'label' => '' },
+      { 'id' => 'kept', 'time' => 6.0, 'event_type' => 'phantom_defeated', 'label' => 'Phantom' }
+    ])
+
     orig_new = InvasionStudio::Video.method(:new)
     InvasionStudio::Video.define_singleton_method(:new) do |path|
       metadata = File.read(path) == 'finalized' ?
@@ -415,6 +420,8 @@ class TestProject < Minitest::Test
     assert project.finalize_cuts('test', finalizer: finalizer)
     assert_equal [], project.find_clip('test')['cuts']
     assert_equal 8.0, project.find_clip('test')['duration']
+    assert_equal [{ 'id' => 'kept', 'time' => 4.0, 'event_type' => 'phantom_defeated', 'label' => 'Phantom' }],
+                 project.find_clip('test')['markers']
     assert File.exist?(File.join(@tmp_dir, '.backup', 'test.mp4'))
     assert_equal 'finalized', File.read(File.join(@tmp_dir, 'test.mp4'))
   ensure

@@ -5,6 +5,24 @@ module InvasionStudio
     module Routes
       module Clips
         def self.registered(app)
+          app.get '/api/marker-identification' do
+            json_response(settings.marker_identification_task.status)
+          end
+
+          app.post %r{/api/clip/(.+)/identify-markers} do
+            clip_id = params['captures'][0]
+            find_clip!(clip_id)
+            begin
+              result = settings.marker_identification_task.start(clip_id)
+              status 202
+              json_response(result)
+            rescue MarkerIdentificationTask::Busy => error
+              halt 409, json_response(error: error.message)
+            rescue InvasionStudio::Error, Errno::ENOENT => error
+              halt 422, json_response(error: error.message)
+            end
+          end
+
           app.get '/api/clips' do
             group = params['group']
             list = if group && !group.empty?
@@ -93,7 +111,8 @@ module InvasionStudio
             '/api/rating' => [:update_rating, 'rating', ->(value) { value.to_i }, 'Failed to update rating'],
             '/api/result' => [:update_result, 'result', ->(value) { value.to_s }, 'Failed to update result'],
             '/api/title' => [:update_title, 'title', ->(value) { value.to_s }, 'Failed to update title'],
-            '/api/cuts' => [:update_cuts, 'cuts', ->(value) { value }, 'Failed to update cuts']
+            '/api/cuts' => [:update_cuts, 'cuts', ->(value) { value }, 'Failed to update cuts'],
+            '/api/markers' => [:update_markers, 'markers', ->(value) { value }, 'Invalid markers or clip not found']
           }.each do |path, (method_name, field, coercion, failure)|
             app.post path do
               body = json_body

@@ -1,10 +1,16 @@
-<div class="flex flex-col min-h-0 overflow-hidden bg-surface-overlay border-l border-border relative" id="preview-panel" data-navigation-target="previewPanel" data-controller="video-player" data-video-player-clip-id-value="" data-video-player-src-value="" data-action="editor:cuts-finalized->video-player#reloadFinalizedClip">
+<div class="clip-show-view flex flex-col min-h-0 bg-surface-overlay border-l border-border relative" id="preview-panel" data-navigation-target="previewPanel" data-controller="video-player" data-video-player-clip-id-value="" data-video-player-src-value="" data-action="editor:cuts-finalized->video-player#reloadFinalizedClip">
   <%= erb :_editor %>
+  <section class="clip-player-shell" aria-label="Video editor" data-video-player-target="playerShell">
   <div class="px-4 py-2 text-sm text-text-muted" role="status" aria-live="polite" data-video-player-target="playbackStatus" hidden></div>
-  <div class="flex-1 min-h-0 bg-black flex items-center justify-center" id="video-wrapper" data-video-player-target="videoWrapper">
-    <div class="text-text-muted text-sm">Select a clip to preview</div>
+  <div class="px-4 py-2 text-sm text-danger" role="alert" data-video-player-target="saveError" hidden>
+    Timeline edits could not be saved. Keep this window open.
+    <button type="button" class="underline" data-action="click->video-player#retrySaves">Retry saving</button>
   </div>
-  <%= erb :_video_controls %>
+    <div class="bg-black flex items-center justify-center" id="video-wrapper" data-video-player-target="videoWrapper">
+      <div class="text-text-muted text-sm">Select a clip to preview</div>
+    </div>
+    <%= erb :_video_controls %>
+  </section>
   <div class="absolute inset-0 bg-surface-overlay/100 flex items-center justify-center z-10" data-video-player-target="placeholder">
     <div class="text-text-muted text-lg font-medium">Select a clip to preview</div>
   </div>
