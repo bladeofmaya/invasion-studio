@@ -13,7 +13,13 @@ inside removed ranges and shifts the surviving event timestamps.
 Automatic OCR event detection recognizes English “Furled Finger … has died” and
 “Hunter … has died” messages in the existing invasion-message crop. New imports
 save these as Phantom defeated / Hunter defeated markers, with the player name
-as the label. Repeated sightings of the same banner are grouped into one event.
+as the label. The marker is placed eight seconds before the first detected death
+banner, clamped to the clip start, to account for the game's delayed message.
+This estimates the animation time; banner-delay variation and OCR sampling mean
+it is not frame-exact. Repeated sightings of the same banner are grouped into one event.
+The offset applies to newly detected markers during import and Identify markers.
+Previously saved markers retain their positions (including manual adjustments);
+repeat scans do not automatically retime or duplicate them.
 
 Use **Identify markers** in Edit video to rescan an existing clip. This forces a
 fresh OCR pass using the project’s extraction settings, displays frame progress,
@@ -45,8 +51,8 @@ includes the custom event/cut timeline and editing controls.
 
 ## Manual evaluation
 
-- Open a large recording in Electron and select audio track 4. Verify sound,
-  seeking, pause/resume, and synchronization before and after changing tracks.
+- Set audio track 4 in Settings and open a large recording in Electron. Verify
+  the player's read-only audio label, sound, seeking, pause/resume, and synchronization.
 - Repeat in the browser. The existing `ClipPlayback` helper uses original media
   when native audio selection is available and remuxes otherwise.
 - Drag both cut boundaries; try keyboard time edits and marker navigation.

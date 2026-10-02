@@ -8,6 +8,8 @@ module InvasionStudio
     class EventMarkers
       DEATH_MESSAGE = /\b(Furled\s+Finger|Hunter)\s+(.+?)\s+has\s+died\b/i
       BANNER_GAP = 8.0
+      # Death banners appear approximately eight seconds after the animation.
+      DEATH_MESSAGE_DELAY = 8.0
 
       def initialize(videos)
         @videos = videos.to_h { |video| [video.path, video] }
@@ -44,8 +46,11 @@ module InvasionStudio
           last_seen[identity] = event[:time]
           next if previous && event[:time] - previous <= BANNER_GAP
 
-          time = event[:time].round(3)
-          { 'id' => "ocr-#{Digest::SHA256.hexdigest([*identity, time].join('|'))[0, 32]}",
+          # Deduplicate and identify by the observed banner, then estimate death
+          # on the joined clip timeline (which may cross recording boundaries).
+          banner_time = event[:time].round(3)
+          time = [event[:time] - DEATH_MESSAGE_DELAY, 0.0].max.round(3)
+          { 'id' => "ocr-#{Digest::SHA256.hexdigest([*identity, banner_time].join('|'))[0, 32]}",
             'time' => time, 'event_type' => event[:type], 'label' => event[:label] }
         end
       end

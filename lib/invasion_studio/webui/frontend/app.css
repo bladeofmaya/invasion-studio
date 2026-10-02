@@ -44,6 +44,19 @@ html {
   color-scheme: dark;
 }
 
+/* Native WebKit selects paint an OS-themed background over our colors.
+   Retain native keyboard/menu behavior, but draw the closed control ourselves. */
+select:not([multiple]):not([size]) {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-inline-end: 2em;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 1em) center, calc(100% - .65em) center;
+  background-size: .35em .35em;
+  background-repeat: no-repeat;
+}
+
 html[data-theme="light"] {
   color-scheme: light;
   --color-app-bg: #fdf8f0;

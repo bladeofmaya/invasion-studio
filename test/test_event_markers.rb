@@ -25,7 +25,7 @@ class TestEventMarkers < Minitest::Test
     detector = InvasionStudio::Extraction::EventMarkers.new([video])
     markers = detector.for_segment(segment)
     assert_equal %w[phantom_defeated hunter_defeated hunter_defeated], markers.map { |marker| marker['event_type'] }
-    assert_equal [2.0, 10.0, 15.0], markers.map { |marker| marker['time'] }
+    assert_equal [0.0, 2.0, 7.0], markers.map { |marker| marker['time'] }
     assert_equal %w[reaper2point0 Roxis_7 Other], markers.map { |marker| marker['label'] }
     assert_equal markers, detector.for_segment(segment)
   end
@@ -34,7 +34,7 @@ class TestEventMarkers < Minitest::Test
     video = Video.new('a.mp4', [frame(8, 'Furled Finger Alice has died')], { duration: 60 })
     detector = InvasionStudio::Extraction::EventMarkers.new([video])
     clip = InvasionStudio::Clip.new(segment('00:00:05', '00:00:20'), pad_start: 10, pad_end: 2)
-    assert_equal 8.0, detector.for_segment(clip.segment).first['time']
+    assert_equal 0.0, detector.for_segment(clip.segment).first['time']
   end
 
   def test_cross_recording_offsets_and_banner_duplicates
@@ -43,13 +43,30 @@ class TestEventMarkers < Minitest::Test
       Video.new('b.mp4', [frame(0, 'Hunter Alice has died', 'b.mp4'), frame(5, 'Furled Finger Bob has died', 'b.mp4')], { duration: 20 })
     ]
     markers = InvasionStudio::Extraction::EventMarkers.new(videos).for_segment(segment('00:00:50', '00:00:10', 'b.mp4'))
-    assert_equal [8.0, 15.0], markers.map { |marker| marker['time'] }
+    assert_equal [0.0, 7.0], markers.map { |marker| marker['time'] }
     assert_equal %w[Alice Bob], markers.map { |marker| marker['label'] }
   end
 
   def test_separate_occurrences_of_the_same_message_are_retained
     video = Video.new('a.mp4', [12, 13, 30].map { |time| frame(time, 'Hunter Alice has died') }, { duration: 60 })
     markers = InvasionStudio::Extraction::EventMarkers.new([video]).for_segment(segment)
-    assert_equal [2.0, 20.0], markers.map { |marker| marker['time'] }
+    assert_equal [0.0, 12.0], markers.map { |marker| marker['time'] }
+  end
+
+  def test_delay_is_applied_after_cross_recording_offsets_with_fractional_precision
+    videos = [
+      Video.new('a.mp4', [], { duration: 60 }),
+      Video.new('b.mp4', [frame(3.5, 'Hunter Alice has died', 'b.mp4')], { duration: 20 })
+    ]
+    markers = InvasionStudio::Extraction::EventMarkers.new(videos).for_segment(segment('00:00:50', '00:00:10', 'b.mp4'))
+    assert_equal 5.5, markers.first['time']
+  end
+
+  def test_marker_identity_stays_based_on_banner_time_for_repeat_scans
+    video = Video.new('a.mp4', [frame(20, 'Hunter Alice has died')], { duration: 60 })
+    marker = InvasionStudio::Extraction::EventMarkers.new([video]).for_segment(segment).first
+    id = "ocr-#{Digest::SHA256.hexdigest(['hunter_defeated', 'alice', 10.0].join('|'))[0, 32]}"
+    assert_equal id, marker['id']
+    assert_equal 2.0, marker['time']
   end
 end

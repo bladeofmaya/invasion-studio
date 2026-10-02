@@ -2,6 +2,25 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import VideoPlayerController from '../../lib/invasion_studio/webui/public/controllers/video_player_controller.js'
 
+test('player displays the settings audio track and reloads an open clip when settings change', () => {
+  const controller = {
+    audioTrackTarget: { textContent: '' }, clipIdValue: 'clip1', reloads: 0,
+    loadClip() { this.reloads++ }
+  }
+  VideoPlayerController.prototype.applyVideoSettings.call(controller, { audio_track_count: 4, default_audio_track: 2 })
+  assert.equal(controller.defaultAudioTrack, 2)
+  assert.equal(controller.audioTrackTarget.textContent, 'Track 2')
+  assert.equal(controller.reloads, 1)
+  controller.clipIdValue = ''
+  VideoPlayerController.prototype.applyVideoSettings.call(controller, { audio_track_count: 4, default_audio_track: 3 })
+  assert.equal(controller.audioTrackTarget.textContent, 'Track 3')
+  assert.equal(controller.reloads, 1)
+})
+
+test('clip loading waits for the configured audio track before starting playback', async () => {
+  await VideoPlayerController.prototype.loadClip.call({ defaultAudioTrack: undefined })
+})
+
 test('Playback errors are visible and include decoder diagnostics in the console', () => {
   const messages = []
   const original = console.error

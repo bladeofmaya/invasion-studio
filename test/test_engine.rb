@@ -23,7 +23,7 @@ class TestEngine < Minitest::Test
         video_factory: ->(*) { video }, clip_writer: writer)
       engine.run!
       created = engine.clip_extraction_stage.created
-      assert_equal [10.0, 15.0], created.first[:markers].map { |marker| marker['time'] }
+      assert_equal [2.0, 7.0], created.first[:markers].map { |marker| marker['time'] }
       importer = InvasionStudio::ExtractionImporter.new(folder)
       assert_equal 1, importer.record(created)
       project = InvasionStudio::Project.new(folder)

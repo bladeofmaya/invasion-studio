@@ -29,8 +29,8 @@ class TestMarkerIdentificationTask < Minitest::Test
     @jobs.shift.call
     assert_equal 'completed', @task.status[:status]
     assert_equal 1, @task.status[:added]
-    assert_equal [manual, { 'id' => @project.find_clip('clip')['markers'].last['id'], 'time' => 2.0,
-                           'event_type' => 'hunter_defeated', 'label' => 'Alice' }], @project.find_clip('clip')['markers']
+    assert_equal [{ 'id' => @project.find_clip('clip')['markers'].first['id'], 'time' => 0.0,
+                    'event_type' => 'hunter_defeated', 'label' => 'Alice' }, manual], @project.find_clip('clip')['markers']
     @task.start('clip')
     @jobs.shift.call
     assert_equal 0, @task.status[:added]

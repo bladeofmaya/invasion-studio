@@ -4,11 +4,7 @@
       <i data-lucide="file-video" class="size-3.5"></i>
       <span id="meta-filename" data-video-player-target="filename">File</span>
     </button>
-    <label>Audio:
-      <select data-video-player-target="audioTrack" data-action="change->video-player#changeAudioTrack">
-        <option value="4" selected>Track 4</option>
-      </select>
-    </label>
+    <span>Audio: <span data-video-player-target="audioTrack" title="Selected in Settings">—</span></span>
     <button type="button" data-action="click->video-player#fullscreen">Fullscreen editor</button>
   </div>
   <div data-video-player-target="timelineEditor"></div>

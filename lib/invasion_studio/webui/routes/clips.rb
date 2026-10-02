@@ -130,7 +130,9 @@ module InvasionStudio
             track = params['audio_track']
             if track&.match?(/^\d+$/)
               preview = preview_remuxer.remux(path, track.to_i)
-              return send_file(preview, type: 'video/mp4', disposition: 'inline') if preview && File.exist?(preview)
+              halt 422, json_response(error: 'Could not prepare audio preview') unless preview && File.exist?(preview)
+
+              return send_file(preview, type: 'video/mp4', disposition: 'inline')
             end
             send_file(path, type: 'video/mp4', disposition: 'inline')
           end

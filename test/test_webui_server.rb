@@ -61,6 +61,8 @@ class TestWebuiServer < Minitest::Test
 
     assert_includes last_response.body, 'aria-label="Clip details"'
     assert_includes last_response.body, 'aria-label="Video editor"'
+    assert_includes last_response.body, '<span data-video-player-target="audioTrack"'
+    refute_includes last_response.body, 'change->video-player#changeAudioTrack'
     assert_includes last_response.body, 'placeholder="Add a description about this clip..."'
   end
 
@@ -859,6 +861,17 @@ class TestWebuiServer < Minitest::Test
     assert_equal 206, last_response.status
     assert_equal 'umm', last_response.body
     assert_equal 'bytes 1-3/5', last_response.headers['content-range']
+  end
+
+  def test_failed_audio_preview_does_not_fall_back_to_multitrack_original
+    remuxer = Object.new
+    remuxer.define_singleton_method(:remux) { |*| nil }
+    InvasionStudio::Webui::Server.set :preview_remuxer, remuxer
+
+    get '/clip/clip1.mp4?audio_track=4'
+
+    assert_equal 422, last_response.status
+    assert_equal 'Could not prepare audio preview', JSON.parse(last_response.body)['error']
   end
 
   def test_clip_audio_preview_uses_remuxer_service
