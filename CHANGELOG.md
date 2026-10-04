@@ -2,6 +2,11 @@
 
 ## 0.8.0
 
+- Fix uploaded cover previews under CSP and preserve pending search text on tab switches.
+- Coordinate manual/background thumbnail capture with clip mutations.
+- Add opt-in Chromium UI smoke checks (`bin/test --browser`) without video processing.
+- Preserve runtime provenance and stage runtime notices separately; document remaining source gaps.
+
 - Consolidate public tooling into `bin/setup`, `bin/dev`, `bin/release`, `bin/test`
   and `bin/invasion-studio`; move private helpers under `script/`.
 - Add source-based Electron/browser development with asset watching, UI reload
@@ -18,12 +23,12 @@
 - Compact single-card clip editor with header metadata, an aligned scrubber,
   and permanently visible cut/marker controls.
 - Audio playback follows Settings; the player shows the selected track as a label.
-- Phantom/hunter death markers estimate death eight seconds before the detected banner.
+- Phantom/hunter/fellow-invader death markers estimate death eight seconds before the detected banner.
 - Compilation descriptions and archiving, library search, tags and statistics.
 - Dependency diagnostics and separate project-preview/global-OCR cache controls.
 - Removed the isolated player prototype and standalone audio-track probe.
 
 The Linux package is a local release candidate until the real-media and clean-machine
 acceptance checks in RELEASING.md pass. Windows/macOS installers, signing, automatic
-updates, and public publication are not included. The embedded Tebako/DwarFS runtime's
+updates, and public publication are not included. The embedded Ruby/Tebako runtime's
 corresponding source materials must be reviewed before public redistribution.

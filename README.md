@@ -405,6 +405,7 @@ Close the installed app before reinstalling, then launch it with
 
 ```bash
 bin/test                  # Non-video Ruby + frontend + Electron suites
+bin/test --browser        # Chromium UI smoke test, temporary project, no media processing
 bin/test --packaged       # Empty-project backend checks after a desktop build
 bin/test --installed      # Same checks inside the installed Flatpak
 bin/test --release        # Non-video suites, isolated gem installation, backend check

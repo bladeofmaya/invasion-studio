@@ -44,3 +44,14 @@ test('tab switches preserve clip filters, while history and explicit navigation 
     }
   }
 })
+
+
+test('typing records the search before an immediate tab switch', async () => {
+  const { default: ClipList } = await import('../../lib/invasion_studio/webui/public/controllers/clip_list_controller.js')
+  const navigations = []
+  ClipList.prototype.setSearch.call({
+    searchInputTarget: { value: ' parry ' },
+    navigateTo: (...args) => navigations.push(args)
+  })
+  assert.deepEqual(navigations, [[{ q: 'parry' }, { replace: true }]])
+})

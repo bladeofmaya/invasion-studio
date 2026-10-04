@@ -78,7 +78,9 @@ SOFTWARE.
 ## Video.js v10
 
 Bundled packages: @videojs/html, @videojs/core, @videojs/element,
-@videojs/media, @videojs/store, and @videojs/utils (10.0.0-rc.4).
+@videojs/media, @videojs/store, and @videojs/utils (10.0.1).
+The installed dependency tree also contains @videojs/native-hls-video and
+@videojs/spf at 10.0.1 (Apache-2.0).
 
    Copyright 2025-present Video.js contributors
 
@@ -349,7 +351,9 @@ the embedded runtime and filesystem components; their complete notices and
 corresponding sources must be reviewed for this exact build before publication.
 The MIT license on Studio's
 own source does not replace licenses on the runtime or its dependencies.
-Corresponding runtime source materials require review before public distribution.
+The build-specific findings and remaining source gaps are recorded in
+`docs/runtime-redistribution-audit.md`. Corresponding runtime source materials
+remain a publication blocker.
 
 Media sources and SHA-256 checksums are recorded in
 `desktop/flatpak/media-modules.json`:

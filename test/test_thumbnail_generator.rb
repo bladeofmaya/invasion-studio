@@ -48,8 +48,39 @@ class TestThumbnailGenerator < Minitest::Test
       'id' => id,
       'filename' => filename || File.basename(path),
       'path' => path,
-      'source_kind' => 'external'
+      'source_kind' => 'external',
+      'duration' => 30
     )
+  end
+
+  def test_project_instances_share_the_mutation_lock
+    other = InvasionStudio::Project.new(@tmp_dir)
+    assert_same @project.instance_variable_get(:@mutation_lock), other.instance_variable_get(:@mutation_lock)
+  end
+
+  def test_preview_generation_is_a_project_mutation
+    assert_includes InvasionStudio::Project::MutationLock::MUTATIONS, :generate_thumbnail
+    assert_includes InvasionStudio::Project::MutationLock::MUTATIONS, :set_preview_frame
+  end
+
+  def test_project_holds_shared_lock_during_capture_and_background_job_keeps_manual_frame
+    create_clip('chosen', path: 'chosen.mp4')
+    runner = ThumbnailRunner.new
+    lock = @project.instance_variable_get(:@mutation_lock)
+    owned = []
+    original = runner.method(:run)
+    runner.define_singleton_method(:run) do |*args|
+      owned << lock.mon_owned?
+      original.call(*args)
+    end
+    assert @project.set_preview_frame('chosen', 12, process_runner: runner)
+    other = InvasionStudio::Project.new(@tmp_dir)
+    assert other.generate_thumbnail('chosen', process_runner: runner)
+    assert_equal [true], owned
+    assert_equal 1, runner.commands.length
+    @project.delete_clip('chosen')
+    refute other.set_preview_frame('chosen', 12, process_runner: runner)
+    assert_equal 1, runner.commands.length
   end
 
   def test_selected_frame_replaces_existing_preview_without_probing_video

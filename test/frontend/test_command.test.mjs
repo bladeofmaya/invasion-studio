@@ -8,6 +8,7 @@ import test from 'node:test'
 // Fake runners prove dispatch without running nested suites or processing media.
 for (const [args, expected] of [
   [[], 'bundle exec rake test\nnpm test\nnpm test --prefix desktop/electron\n'],
+  [['--browser'], 'npm run build\nnode script/check-browser\n'],
   [['--video'], 'bundle exec rake test:system\n'],
   [['--packaged'], 'node script/check-desktop\n'],
   [['--installed'], 'node script/check-desktop --flatpak\n'],

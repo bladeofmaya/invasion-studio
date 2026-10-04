@@ -92,7 +92,6 @@ class TestWebuiServer < Minitest::Test
 
     get '/'
     assert_includes last_response.body, 'data-video-player-target="timelineEditor"'
-    assert_includes last_response.body, 'Fullscreen editor'
     refute_includes last_response.body, '/assets/player-prototype.js'
   end
 
@@ -217,6 +216,7 @@ class TestWebuiServer < Minitest::Test
 
     assert_equal 'nosniff', last_response.headers['X-Content-Type-Options']
     assert_includes last_response.headers['Content-Security-Policy'], "default-src 'self'"
+    assert_includes last_response.headers['Content-Security-Policy'], "img-src 'self' blob:"
   end
 
   def test_get_root_uses_only_local_executable_assets

@@ -131,3 +131,19 @@ owner check. Do not describe an artifact as accepted until this checklist passes
   same `bin/release --gem` entry point.
 - There is no CI service configured; `bin/test --release` is the gate. If CI
   is added later, it should run the same script.
+
+## Browser UI and notice checks
+
+Run `bin/test --browser` before accepting a candidate. It builds current assets
+and uses the installed Electron Chromium to exercise real Stimulus navigation,
+clip-title editing, search/selection restoration, settings, compilation dialog
+layout, blob cover preview/upload, theme switching and local-only requests.
+It requires a graphical session (or an externally provided virtual display).
+Its project/profile are temporary; fixture media serving and processing are disabled.
+It does not validate real playback, OCR, cutting or exports.
+
+The 2026-10-04 audit is in `docs/runtime-redistribution-audit.md`. Runtime notices
+are now staged separately alongside media sources. That notice archive is not a
+complete Ruby/Tebako corresponding-source bundle: the audit's remaining items
+must be resolved before publication. Rebuild artifacts before installed checks;
+the previous local package does not include the latest changes.

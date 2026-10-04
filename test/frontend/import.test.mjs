@@ -17,7 +17,7 @@ test('Import deep links round trip without clip filters or selection', () => {
 test('Import hides the library and preview, and Clips restores them', () => {
   const controller = { currentViewValue: 'import', hasMainTarget: true }
   for (const name of ['clipPanel', 'importPanel', 'backBtn', 'groupGrid', 'previewPanel', 'main']) {
-    controller[`${name}Target`] = { style: {} }
+    controller[`${name}Target`] = { style: {}, dataset: {} }
   }
   NavigationController.prototype.updateVisibility.call(controller)
   assert.equal(controller.importPanelTarget.style.display, 'block')

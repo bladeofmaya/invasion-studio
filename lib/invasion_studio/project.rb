@@ -5,12 +5,18 @@ require 'monitor'
 module InvasionStudio
   class Project
     DB_SCHEMA_VERSION = 1
+    MUTATION_LOCKS = {}
+    MUTATION_LOCKS_GUARD = Mutex.new
+
+    def self.mutation_lock(folder)
+      MUTATION_LOCKS_GUARD.synchronize { MUTATION_LOCKS[File.realpath(folder)] ||= Monitor.new }
+    end
 
     module MutationLock
       MUTATIONS = %i[
         create_group rename_group delete_group replace_group_cover remove_group_cover add_clip_to_group remove_clip_from_group move_clip_between_groups
         reorder_group update_note update_rating update_result update_title update_cuts update_markers merge_detected_markers
-        finalize_cuts delete_clip restore_clip empty_trash save! update_interface_settings update_video_settings update_extraction_settings update_group_details
+        generate_thumbnail set_preview_frame finalize_cuts delete_clip restore_clip empty_trash save! update_interface_settings update_video_settings update_extraction_settings update_group_details
       ].freeze
 
       MUTATIONS.each do |method_name|
@@ -28,7 +34,8 @@ module InvasionStudio
                    clip_repository: nil, group_repository: nil, tag_repository: nil,
                    clip_trash: nil, clip_finalizer: nil, clip_metadata_updater: nil)
       @folder_path = File.expand_path(folder_path)
-      @mutation_lock = Monitor.new
+      FileUtils.mkdir_p(@folder_path)
+      @mutation_lock = self.class.mutation_lock(@folder_path)
       @database = database || InvasionStudio::Database.migrate_to_current!(@folder_path)
       @storage = storage || InvasionStudio::Storage::LocalDiskStorage.new(@folder_path)
       @clip_repository = clip_repository || InvasionStudio::Database::ClipRepository.new(@database, @storage)
@@ -52,6 +59,14 @@ module InvasionStudio
 
       sync_clips!
       ensure_default_group!
+    end
+
+    def generate_thumbnail(clip_id, process_runner: ProcessRunner.new)
+      ThumbnailGenerator.new(self, process_runner: process_runner).generate(clip_id)
+    end
+
+    def set_preview_frame(clip_id, seconds, process_runner: ProcessRunner.new)
+      ThumbnailGenerator.new(self, process_runner: process_runner).generate_at(clip_id, seconds)
     end
 
     def enqueue_missing_thumbnails

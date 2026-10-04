@@ -30,6 +30,7 @@ def assemble(release):
         artifact = root / 'desktop/electron/out/make/flatpak/x86_64/com.bladeofmaya.InvasionStudio_stable_x86_64.flatpak'
         shutil.copy2(artifact, release / f'invasion-studio-{version}-linux-x64.flatpak')
         collect_media_sources(release)
+        collect_runtime_notices(release)
         shutil.copy2(root / 'pkg/sidecar/linux-x64/dependencies.json', release / 'backend-dependencies.json')
     for name in ['MIT-LICENSE', 'THIRD_PARTY_LICENSES.md', 'RELEASING.md', 'CHANGELOG.md']:
         shutil.copy2(root / name, release / name)
@@ -48,6 +49,17 @@ def assemble(release):
     files = sorted(p for p in release.iterdir() if p.is_file())
     (release / 'SHA256SUMS').write_text(''.join(
         f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n' for p in files))
+
+
+def collect_runtime_notices(release):
+    # These are evidence/notices, not a claim of complete corresponding source.
+    backend = root / 'pkg/sidecar/linux-x64/backend-notices'
+    electron = root / 'desktop/electron/node_modules/electron/dist'
+    with tarfile.open(release / f'invasion-studio-{version}-runtime-notices.tar.gz', 'w:gz') as archive:
+        archive.add(backend, arcname='runtime-notices/backend')
+        for name in ['LICENSE', 'LICENSES.chromium.html']:
+            archive.add(electron / name, arcname='runtime-notices/electron/' + name)
+        archive.add(root / 'docs/runtime-redistribution-audit.md', arcname='runtime-notices/AUDIT.md')
 
 
 def collect_media_sources(release):

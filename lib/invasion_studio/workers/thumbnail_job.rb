@@ -9,7 +9,7 @@ module InvasionStudio
 
       def perform(clip_id, folder_path)
         project = InvasionStudio::Project.new(folder_path)
-        InvasionStudio::ThumbnailGenerator.new(project).generate(clip_id)
+        project.generate_thumbnail(clip_id)
       rescue StandardError => e
         warn "ThumbnailJob failed for #{clip_id}: #{e.message}"
       end

@@ -26,7 +26,7 @@ module InvasionStudio
       before do
         headers 'X-Content-Type-Options' => 'nosniff',
                 'Referrer-Policy' => 'no-referrer',
-                'Content-Security-Policy' => "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+                'Content-Security-Policy' => "default-src 'self'; img-src 'self' blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
 
         next unless %w[POST PUT PATCH DELETE].include?(request.request_method)
         origin = request.env['HTTP_ORIGIN']

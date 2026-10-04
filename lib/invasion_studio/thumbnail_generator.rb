@@ -16,7 +16,7 @@ module InvasionStudio
 
     def generate(clip_id)
       clip = @repository.find(clip_id)
-      return false unless clip
+      return false unless clip && !clip['deleted']
 
       source_path = @storage.resolve(clip['path'])
       return false unless source_path && File.exist?(source_path)
@@ -31,7 +31,7 @@ module InvasionStudio
         return @repository.find(clip_id)
       end
 
-      timestamp = extract_timestamp(source_path)
+      timestamp = clip['duration'].to_f.positive? ? [clip['duration'].to_f * 0.25, 1.0].max : extract_timestamp(source_path)
       FileUtils.mkdir_p(File.dirname(thumbnail_path))
 
       success = @process_runner.run(

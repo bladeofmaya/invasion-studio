@@ -3,6 +3,25 @@ require_relative '../desktop/runtime_dependencies'
 require 'open3'
 
 class TestDesktopDependencies < Minitest::Test
+  def test_collects_runtime_provenance_alongside_license_texts
+    Dir.mktmpdir('studio-notices-') do |directory|
+      source = File.join(directory, 'source')
+      output = File.join(directory, 'notices')
+      %w[__tpkg__/manifest.yaml lib/tebako/layout.yaml lib/COPYING].each do |relative|
+        path = File.join(source, relative)
+        FileUtils.mkdir_p(File.dirname(path))
+        File.write(path, relative)
+      end
+      log, status = Open3.capture2e(RbConfig.ruby, File.expand_path('../desktop/collect-notices.rb', __dir__), source, output)
+      assert status.success?, log
+      assert_equal 'lib/COPYING', File.read(File.join(output, 'lib/COPYING'))
+      %w[__tpkg__/manifest.yaml lib/tebako/layout.yaml].each do |relative|
+        assert_equal relative, File.read(File.join(output, 'runtime-provenance', relative))
+      end
+      assert_equal [], JSON.parse(File.read(File.join(output, 'inventory.json')))
+    end
+  end
+
   def test_writes_a_gemfile_with_exact_runtime_versions
     assert_equal "source \"https://rubygems.org\"\n\ngem \"rack\", \"= 3.2.7\"\ngem \"sinatra\", \"= 4.2.1\"\n",
                  DesktopPackaging.gemfile({ 'rack' => '3.2.7', 'sinatra' => '4.2.1' })

@@ -28,3 +28,13 @@ File.write(File.join(destination, 'inventory.json'), JSON.pretty_generate(specs)
 Dir.glob(root.join('lib/ruby/gems/*/gems/tebako-runtime-*/tebako-runtime.gemspec')).each do |file|
   FileUtils.cp(file, File.join(destination, 'tebako-runtime-notice.txt'))
 end
+
+# Preserve upstream provenance alongside notices, not just the top-level gem list.
+%w[__tpkg__/manifest.yaml lib/tebako/layout.yaml].each do |relative|
+  source = root.join(relative)
+  next unless source.file?
+
+  target = File.join(destination, 'runtime-provenance', relative)
+  FileUtils.mkdir_p(File.dirname(target))
+  FileUtils.cp(source, target)
+end
