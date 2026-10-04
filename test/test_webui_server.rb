@@ -585,6 +585,31 @@ class TestWebuiServer < Minitest::Test
     assert_equal({ 'audio_track_count' => 4, 'default_audio_track' => 4 }, JSON.parse(last_response.body))
   end
 
+  def test_interface_settings_merge_partial_updates_and_reject_invalid_values
+    get '/api/settings/interface'
+    assert last_response.ok?
+    assert_equal({ 'library_width' => 35, 'compact' => false }, JSON.parse(last_response.body))
+
+    put '/api/settings/interface', JSON.generate(library_width: 42), 'CONTENT_TYPE' => 'application/json'
+    assert last_response.ok?
+    put '/api/settings/interface', JSON.generate(compact: true), 'CONTENT_TYPE' => 'application/json'
+    assert last_response.ok?
+    expected = { 'library_width' => 42, 'compact' => true }
+    assert_equal expected, JSON.parse(last_response.body)
+
+    put '/api/settings/interface', JSON.generate(library_width: 100), 'CONTENT_TYPE' => 'application/json'
+    assert_equal 422, last_response.status
+    get '/api/settings/interface'
+    assert_equal expected, JSON.parse(last_response.body)
+  end
+
+  def test_thumbnail_capture_rejects_missing_clips_and_invalid_times
+    post '/api/clip/missing/thumbnail', JSON.generate(time: 0), 'CONTENT_TYPE' => 'application/json'
+    assert_equal 404, last_response.status
+    post '/api/clip/clip1/thumbnail', JSON.generate(time: -1), 'CONTENT_TYPE' => 'application/json'
+    assert_equal 422, last_response.status
+  end
+
   def test_compilation_details_can_be_archived_edited_and_restored
     put '/api/groups/Group1', JSON.generate(description: 'My highlights', archived: true), 'CONTENT_TYPE' => 'application/json'
     assert last_response.ok?
@@ -1379,7 +1404,7 @@ class TestWebuiServer < Minitest::Test
 
     get '/api/clips'
     clip = JSON.parse(last_response.body).find { |item| item['id'] == 'clip' }
-    assert_equal '/thumbnail/clip', clip['thumbnail_url']
+    assert_match %r{\A/thumbnail/clip\?v=\d}, clip['thumbnail_url']
 
     get '/thumbnail/clip'
     assert last_response.ok?

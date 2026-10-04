@@ -41,6 +41,14 @@ module InvasionStudio
             json_response(list.map { |clip| clip_with_thumbnail_url(clip) })
           end
 
+          app.post %r{/api/clip/(.+)/thumbnail} do
+            clip_id = params['captures'][0]
+            find_clip!(clip_id)
+            clip = ThumbnailGenerator.new(project).generate_at(clip_id, json_body['time'])
+            halt 422, json_response(error: 'Could not capture preview at this time') unless clip
+            json_response(clip_with_thumbnail_url(clip))
+          end
+
           app.post %r{/api/clip/(.+)/open} do
             clip_id = params['captures'][0]
             clip = find_clip!(clip_id)

@@ -52,6 +52,38 @@ class TestThumbnailGenerator < Minitest::Test
     )
   end
 
+  def test_selected_frame_replaces_existing_preview_without_probing_video
+    create_clip('chosen', path: 'chosen.mp4')
+    @repository.update('chosen', 'duration' => 30)
+    runner = ThumbnailRunner.new
+    generator = InvasionStudio::ThumbnailGenerator.new(@project, process_runner: runner)
+    result = generator.generate_at('chosen', 12.5)
+    assert result
+    assert_includes runner.commands.first[:command], '00:00:12.500'
+    assert_equal 'thumb', File.read(@storage.resolve(result['thumbnail_path']))
+  end
+
+  def test_failed_selected_frame_preserves_previous_preview
+    create_clip('chosen', path: 'chosen.mp4')
+    @repository.update('chosen', 'duration' => 30, 'thumbnail_path' => 'thumbnails/chosen.jpg')
+    FileUtils.mkdir_p(File.join(@tmp_dir, 'thumbnails'))
+    File.write(File.join(@tmp_dir, 'thumbnails/chosen.jpg'), 'previous')
+    generator = InvasionStudio::ThumbnailGenerator.new(@project, process_runner: ThumbnailRunner.new(success: false))
+    refute generator.generate_at('chosen', 12)
+    assert_equal 'previous', File.read(File.join(@tmp_dir, 'thumbnails/chosen.jpg'))
+  end
+
+  def test_selected_frame_rejects_invalid_times_without_running_ffmpeg
+    create_clip('chosen', path: 'chosen.mp4')
+    @repository.update('chosen', 'duration' => 30)
+    runner = ThumbnailRunner.new
+    generator = InvasionStudio::ThumbnailGenerator.new(@project, process_runner: runner)
+    [nil, '12', -1, 30, Float::NAN, Float::INFINITY].each do |time|
+      refute generator.generate_at('chosen', time)
+    end
+    assert_empty runner.commands
+  end
+
   def test_generates_thumbnail_and_updates_clip
     create_clip('a', path: 'a.mp4')
     runner = ThumbnailRunner.new(success: true)

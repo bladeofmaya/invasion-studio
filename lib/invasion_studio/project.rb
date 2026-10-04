@@ -10,7 +10,7 @@ module InvasionStudio
       MUTATIONS = %i[
         create_group rename_group delete_group add_clip_to_group remove_clip_from_group move_clip_between_groups
         reorder_group update_note update_rating update_result update_title update_cuts update_markers merge_detected_markers
-        finalize_cuts delete_clip restore_clip empty_trash save! update_video_settings update_extraction_settings update_group_details
+        finalize_cuts delete_clip restore_clip empty_trash save! update_interface_settings update_video_settings update_extraction_settings update_group_details
       ].freeze
 
       MUTATIONS.each do |method_name|
@@ -100,6 +100,14 @@ module InvasionStudio
 
     def groups
       @group_repository.all
+    end
+
+    def interface_settings
+      @project_settings.interface
+    end
+
+    def update_interface_settings(changes)
+      @project_settings.update_interface(changes)
     end
 
     def video_settings

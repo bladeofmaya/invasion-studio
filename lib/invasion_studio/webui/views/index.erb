@@ -13,8 +13,9 @@
 <body class="m-0 font-sans bg-app-bg text-text-primary h-screen overflow-hidden">
   <div class="h-full grid grid-rows-[auto_1fr]" data-controller="router navigation" data-navigation-current-view-value="all">
     <%= erb :_header %>
-    <main class="grid grid-cols-2 min-h-0 overflow-hidden" data-navigation-target="main">
+    <main class="clips-workspace grid min-h-0 overflow-hidden" data-navigation-target="main" data-controller="pane-layout">
       <%= erb :_clip_panel %>
+      <div class="clips-pane-divider" role="separator" tabindex="0" aria-label="Resize clip library" aria-orientation="vertical" aria-valuemin="25" aria-valuemax="55" aria-valuenow="35" aria-controls="clip-panel preview-panel" data-pane-layout-target="divider" data-action="pointerdown->pane-layout#start pointermove->pane-layout#move pointerup->pane-layout#stop pointercancel->pane-layout#stop keydown->pane-layout#keydown"></div>
       <%= erb :_preview_panel %>
       <%= erb :_import_panel %>
     </main>

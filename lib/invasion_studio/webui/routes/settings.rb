@@ -5,6 +5,15 @@ module InvasionStudio
     module Routes
       module Settings
         def self.registered(app)
+          app.get '/api/settings/interface' do
+            json_response(project.interface_settings)
+          end
+
+          app.put '/api/settings/interface' do
+            halt 422, json_response(error: 'Invalid interface settings') unless project.update_interface_settings(json_body)
+            json_response(project.interface_settings)
+          end
+
           app.get '/api/settings/dependencies' do
             configuration = settings.dependency_settings || DependencySettings.new
             begin

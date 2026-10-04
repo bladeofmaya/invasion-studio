@@ -152,7 +152,9 @@ module InvasionStudio
         def thumbnail_url_for(clip)
           return nil unless clip['thumbnail_path']
 
-          '/thumbnail/' + URI.encode_www_form_component(clip['id'])
+          path = project.storage.resolve(clip['thumbnail_path'])
+          version = path && File.file?(path) ? File.mtime(path).to_f.to_s : '0'
+          '/thumbnail/' + URI.encode_www_form_component(clip['id']) + '?v=' + version
         end
       end
 

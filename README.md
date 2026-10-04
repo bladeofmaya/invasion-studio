@@ -153,6 +153,17 @@ The video files stay ordinary files — deleting `project.db` loses the metadata
 but never the clips. Video files copied into the folder by hand are picked up
 the next time the WebUI starts.
 
+### Browsing clips
+
+Clip rows show duration alongside result and rating. Use **Compact** for a denser
+list without preview images. Drag the divider between the library and player to
+resize the panes; pane width and compact mode are remembered per project.
+Active search and filter chips can be removed individually, or cleared together.
+
+To replace a clip's thumbnail, seek to a representative moment and choose **Use
+current frame as preview** in the player controls. The library refreshes after
+capture; a failed capture keeps the existing preview.
+
 ### Uploading clips
 
 Open **Import → Upload clips → Choose clips** to select one or more video files

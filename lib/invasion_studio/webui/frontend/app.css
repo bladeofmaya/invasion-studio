@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./clip_timeline.css";
+@import "./clip_library.css";
 
 @source "../views";
 @source "../public/controllers";

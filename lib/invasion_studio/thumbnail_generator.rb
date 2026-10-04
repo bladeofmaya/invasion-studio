@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'fileutils'
+require 'tmpdir'
 
 module InvasionStudio
   class ThumbnailGenerator
@@ -48,6 +49,30 @@ module InvasionStudio
       else
         false
       end
+    end
+
+    # Generate into a temporary file so a failed capture preserves the old preview.
+    def generate_at(clip_id, seconds)
+      clip = @repository.find(clip_id)
+      return false unless clip && !clip['deleted']
+      duration = clip['duration'].to_f
+      return false unless seconds.is_a?(Numeric) && seconds.finite? && seconds >= 0 && duration > 0 && seconds < duration
+      source = @storage.resolve(clip['path'])
+      return false unless source && File.file?(source)
+
+      key = thumbnail_key_for(clip_id)
+      destination = @storage.resolve(key)
+      FileUtils.mkdir_p(File.dirname(destination))
+      Dir.mktmpdir('preview-', File.dirname(destination)) do |directory|
+        output = File.join(directory, 'frame.jpg')
+        success = @process_runner.run(Executables.ffmpeg, '-y', '-ss', format_time(seconds),
+                                      '-i', source, '-vframes', '1', '-q:v', '2',
+                                      '-vf', "scale=#{DEFAULT_WIDTH}:-1", output)
+        return false unless success && File.file?(output) && File.size?(output)
+        File.rename(output, destination)
+      end
+      @repository.update(clip_id, 'thumbnail_path' => key)
+      @repository.find(clip_id)
     end
 
     private

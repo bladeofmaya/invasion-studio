@@ -20,6 +20,26 @@ module InvasionStudio
         end
       end
 
+      def interface
+        value = @metadata.where(key: 'interface').get(:value)
+        { 'library_width' => 35, 'compact' => false }.merge(value ? JSON.parse(value) : {})
+      end
+
+      def update_interface(changes)
+        return false unless changes.is_a?(Hash) && (changes.keys - %w[library_width compact]).empty?
+        width = changes['library_width']
+        return false if changes.key?('library_width') && !(width.is_a?(Numeric) && width.finite? && width.between?(25, 55))
+        return false if changes.key?('compact') && ![true, false].include?(changes['compact'])
+
+        @metadata.db.transaction do
+          now = Time.now.utc.iso8601
+          value = JSON.generate(interface.merge(changes))
+          @metadata.insert_conflict(target: :key, update: { value: value, updated_at: now })
+                   .insert(key: 'interface', value: value, created_at: now, updated_at: now)
+        end
+        true
+      end
+
       def extraction
         value = @metadata.where(key: 'extraction').get(:value)
         value ? JSON.parse(value) : {}
