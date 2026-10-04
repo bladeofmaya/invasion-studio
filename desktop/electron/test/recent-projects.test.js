@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import test from "node:test"
@@ -54,3 +54,29 @@ function sequenceClock() {
   let second = 0
   return () => new Date(`2026-08-06T12:00:0${second++}.000Z`)
 }
+
+
+test("removing a recent entry persists without touching project files and allows reopening", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "studio-forget-project-"))
+  try {
+    const project = path.join(root, "project")
+    const other = path.join(root, "other")
+    await mkdir(project)
+    await mkdir(other)
+    await writeFile(path.join(project, "project.db"), "keep project data")
+    const filePath = path.join(root, "recents.json")
+    const recents = new RecentProjects({ filePath })
+    await recents.add(project)
+    await recents.add(other)
+    await recents.remove(project)
+    assert.deepEqual((await new RecentProjects({ filePath }).list()).map(p => p.path), [other])
+    assert.equal(await readFile(path.join(project, "project.db"), "utf8"), "keep project data")
+    await recents.remove(project)
+    await assert.rejects(recents.remove(null), /project path/i)
+    await assert.rejects(recents.remove(""), /project path/i)
+    await recents.add(project)
+    assert.equal((await recents.list())[0].path, project)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})

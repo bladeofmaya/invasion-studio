@@ -30,3 +30,9 @@ button.primary { border-color: #7b5535; background: #6d4728; }
 button.primary:hover { background: #805633; }
 button:disabled { cursor: wait; opacity: .65; }
 .status { min-height: 20px; margin-top: 14px; font-size: 13px; }
+
+.recent-project-row { display: flex; align-items: stretch; gap: 6px; }
+.recent-project-row .recent-project { flex: 1; min-width: 0; }
+.remove-project { flex: 0 0 36px; padding: 0; background: transparent; border-color: transparent; color: #979ca3; font-size: 22px; }
+.remove-project:hover { color: #e7e7e7; background: #2c3136; }
+button:focus-visible { outline: 2px solid #d78745; outline-offset: 2px; }

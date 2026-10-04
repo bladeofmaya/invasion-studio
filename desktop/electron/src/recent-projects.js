@@ -38,6 +38,14 @@ export class RecentProjects {
     await this.write(projects.slice(0, this.limit))
   }
 
+  async remove(projectPath) {
+    if (typeof projectPath !== "string" || projectPath.trim() === "") {
+      throw new Error("Invalid project path")
+    }
+    const resolved = path.resolve(projectPath)
+    await this.write((await this.read()).filter(project => path.resolve(project.path) !== resolved))
+  }
+
   async read() {
     try {
       const value = JSON.parse(await readFile(this.filePath, "utf8"))

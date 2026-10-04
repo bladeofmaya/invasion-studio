@@ -43,7 +43,34 @@ function renderProjects(projects) {
     projectPath.title = project.path
     button.append(name, projectPath)
     button.addEventListener("click", () => select(() => desktop.openRecentProject(project.path)))
-    recentProjects.append(button)
+    const row = document.createElement("div")
+    row.className = "recent-project-row"
+    const remove = document.createElement("button")
+    remove.type = "button"
+    remove.className = "remove-project"
+    remove.textContent = "×"
+    remove.title = "Remove from recent projects — files are kept"
+    remove.setAttribute("aria-label", `Remove ${project.name} from recent projects`)
+    remove.addEventListener("click", () => removeProject(project))
+    row.append(button, remove)
+    recentProjects.append(row)
+  }
+}
+
+async function removeProject(project) {
+  setDisabled(true)
+  showStatus("")
+  try {
+    const projects = await desktop.removeRecentProject(project.path)
+    renderProjects(projects)
+    showStatus(`${project.name} removed from recent projects. Files are unchanged.`)
+    setDisabled(false)
+    const nextButton = recentProjects.querySelector("button") || openButton
+    nextButton.focus()
+  } catch {
+    showStatus("Could not remove the project from the list. Please try again.")
+  } finally {
+    setDisabled(false)
   }
 }
 

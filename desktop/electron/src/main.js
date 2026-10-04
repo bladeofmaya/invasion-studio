@@ -135,13 +135,18 @@ function waitForProjectSelection(recentProjects) {
       return selectPath(event, candidate)
     }
     const cleanup = () => {
-      for (const channel of ["projects:list", "projects:open", "projects:create", "projects:open-recent"]) {
+      for (const channel of ["projects:list", "projects:open", "projects:create", "projects:open-recent", "projects:remove-recent"]) {
         ipcMain.removeHandler(channel)
       }
     }
 
     ipcMain.handle("projects:list", event => {
       assertLauncherSender(event)
+      return recentProjects.list()
+    })
+    ipcMain.handle("projects:remove-recent", async (event, candidate) => {
+      assertLauncherSender(event)
+      await recentProjects.remove(candidate)
       return recentProjects.list()
     })
     ipcMain.handle("projects:open", choose("open"))

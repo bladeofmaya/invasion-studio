@@ -1,437 +1,631 @@
-# Elden Ring Invasion Studio
+<p align="center">
+  <img src="desktop/electron/assets/logo.png" alt="Invasion Studio logo" width="112">
+</p>
+<h1 align="center">Invasion Studio</h1>
+<p align="center">Turn Elden Ring recordings into clips worth sharing.</p>
 
-Invasion Studio finds invasions and arena encounters in Elden Ring recordings,
-extracts them as individual clips, and provides a local WebUI for reviewing,
-organizing, trimming, and exporting them. Clips cut elsewhere can be uploaded
-straight into the WebUI, so the library is not limited to extractor output.
+## Contents
 
-![Invasion Studio](images/invasion-studio.png)
+1. [Introduction](#introduction)
+2. [Installation](#installation)
+3. [Projects and storage](#projects-and-storage)
+4. [Importing videos](#importing-videos)
+5. [The Clips tab](#the-clips-tab)
+6. [The video editor](#the-video-editor)
+7. [Compilations and export](#compilations-and-export)
+8. [Settings](#settings)
+9. [Command-line tools](#command-line-tools)
+10. [Development and contributions](#development-and-contributions)
+11. [Troubleshooting](#troubleshooting)
+12. [Donation and support](#donation-and-support)
+13. [License](#license)
 
-## Desktop installation (Linux x64)
+## Introduction
 
-The v0.8.0 desktop package is a Flatpak containing Electron, the Ruby backend,
-FFmpeg/ffprobe, Tesseract, and English OCR data. You do not need Ruby, Node.js,
-FFmpeg, or Tesseract installed on the host. Flatpak installs the required
-Freedesktop 26.08 runtime separately.
+Invasion Studio is a local desktop app for reviewing, organizing and preparing
+Elden Ring gameplay for videos. Import finished clips or let it find invasions
+and arena encounters in longer recordings, then tag your favourites, remove
+unwanted sections and assemble compilations for editing in Kdenlive.
 
-Download the `.flatpak` release artifact, then install and launch it:
+Your library stays on your computer. No account or cloud upload is required.
+The usual workflow is **Create a project → Import → Review and edit → Compile → Export**.
+
+![The Clips tab with a selected clip and editing controls](docs/screenshots/003-clips-window.jpg)
+
+## Installation
+
+| Platform | Status | Installation |
+|---|---|---|
+| Linux x64 | v0.8.0 local release candidate | Flatpak; instructions below |
+| macOS | **Pending — not yet tested for v0.8.0** | Desktop installer not available yet |
+| Windows | **Pending — not yet tested for v0.8.0** | Desktop installer not available yet |
+
+### Linux desktop
+
+Install Flatpak and configure the Flathub remote using your distribution's
+package manager or software centre. Once you have the `.flatpak` release file,
+install and launch it:
 
 ```bash
 flatpak install --user ./invasion-studio-0.8.0-linux-x64.flatpak
 flatpak run com.bladeofmaya.InvasionStudio
 ```
 
-A configured Flathub remote is needed to obtain the runtime. The app works
-offline after installation. Open or create a project in the launcher, then use
-**Import** to upload existing clips or extract encounters from recordings.
-Windows and macOS desktop installers are not part of v0.8.0.
+The package includes Electron, Ruby, FFmpeg/ffprobe, Tesseract and English OCR
+data. You do not need to install those separately. Flatpak obtains the required
+Freedesktop runtime during installation; afterwards the app works offline.
+Kdenlive is a separate, optional installation for opening exported projects.
 
-The Flatpak has access to your home and mounted drives so you can select project
-folders and recordings. It stores preferences under
-`~/.var/app/com.bladeofmaya.InvasionStudio/`; clips and metadata remain in your
-chosen project folder. Back up that whole folder before upgrading.
-
-## Ruby gem installation (alternative)
-
-The standalone CLI/WebUI requires Ruby 3.3.3 or newer, FFmpeg, and Tesseract OCR
-with English language data. These dependencies are supplied automatically only
-in the desktop Flatpak:
-
+The app can access your home directory and mounted drives for projects and
+recordings. To update from another bundle, close the app first:
 
 ```bash
-# macOS
-brew install ffmpeg tesseract
+flatpak install --user --reinstall ./invasion-studio-0.8.0-linux-x64.flatpak
+```
 
-# Ubuntu/Debian
-sudo apt-get install ffmpeg tesseract-ocr
+Public release hosting is not finalized. For building your own candidate, see
+[Development](#development-and-contributions). Remaining release acceptance
+checks are documented in [RELEASING.md](RELEASING.md).
+
+### Alternative: Ruby gem and browser UI
+
+The standalone gem provides the CLI and the same interface in a browser.
+It requires Ruby **3.3.3 or newer**, FFmpeg/ffprobe and Tesseract with English
+language data. Development uses the versions pinned in `mise.toml`.
+
+Example Linux dependency installation:
+
+```bash
+# Debian / Ubuntu
+sudo apt-get install ffmpeg tesseract-ocr tesseract-ocr-eng
 
 # Arch Linux
 sudo pacman -S ffmpeg tesseract tesseract-data-eng
 ```
 
-Install the gem:
+Then install and start the gem:
 
 ```bash
 gem install invasion-studio
+invasion-studio webui /path/to/project
 ```
 
-## Quick usage
+Open **http://localhost:4567**. Use `webui --port 8080 /path/to/project` to choose
+another port. Ruby itself is installed separately; native gem dependencies may
+also need a compiler toolchain. This alternative does not imply tested macOS or
+Windows support for v0.8.0.
 
-The normal workflow has two steps.
+## Projects and storage
 
-### 1. Generate clips into a new folder
+A **project** is your library folder. A **compilation** is an ordered selection
+of clips inside that library, usually intended to become one finished video.
+You can keep multiple compilations in one project.
 
-Choose a new output folder and pass one or more gameplay recordings:
+### Create or open a project
 
-```bash
-invasion-studio extract \
-  --outdir ~/Videos/ER/my-invasion-project \
-  ~/Videos/Capture/*.mp4
-```
+1. Launch Invasion Studio and choose **New project…**.
+2. Create or select a folder with enough space for your clips and exports.
+3. Choose **Use this folder**. The app initializes the library there.
+4. Open **Import** to add footage.
 
-The output folder is created automatically. Each detected encounter becomes an
-MP4 clip inside it.
+Use **Open project…** for an existing library. A new project includes an initial
+compilation named **Video 1**, which you can rename or replace.
 
-Once a project exists, later extractions can target it directly:
+<p align="center">
+  <img src="docs/screenshots/001-project-picker.jpg" alt="Project launcher with Open project and New project actions" width="760">
+</p>
 
-```bash
-invasion-studio extract \
-  --project ~/Videos/ER/my-invasion-project \
-  ~/Videos/Capture/*.mp4
-```
+Previously opened folders appear under **Recent projects**. Click one to reopen
+it, or use the **×** beside it to remove it from the list. Removing an entry
+keeps its folder and files; opening that folder again adds it back. Missing
+folders are removed from the list automatically.
 
-`--project` writes the clips into the project's `clips/` folder as
-`clip_00022.mp4`, `clip_00023.mp4`, ... (continuing from the highest existing
-number) and registers them in `project.db` right away, with the source
-recording stored as provenance. Thumbnails are generated the next time the
-WebUI starts.
+<details>
+<summary>Screenshot: recent projects</summary>
 
-If OBS split one recording into several files, pass them together in
-chronological order. Invasions spanning two files are joined automatically.
+![Recent project with its folder path and remove action](docs/screenshots/002-project-picker-with-previous-project.jpg)
 
-![How Invasion Studio detects and extracts encounters](images/invasion-extractor.jpg)
+</details>
 
-### 2. Start the WebUI with that folder
+### What the project stores
 
-```bash
-invasion-studio webui ~/Videos/ER/my-invasion-project
-```
-
-Open [http://localhost:4567](http://localhost:4567). All project metadata
-lives in a SQLite database (`project.db`) inside the selected folder; projects
-created by versions before 0.6.0 (`project.json`) are migrated automatically
-the first time they are opened.
-
-From the WebUI you can:
-
-- preview clips using the audio track selected in Settings, shown as a label in the player;
-- add titles, notes, ratings, results, and tags;
-- search the library and filter by tag, rating, or result;
-- upload clips and extract invasions from longer recordings in the Import tab;
-- organize clips into compilations and reorder them by drag & drop;
-- mark unwanted sections for removal;
-- move clips to the trash, restore them, or empty the trash for good;
-- export a compilation as a combined video and Kdenlive project.
-
-To use another port:
-
-```bash
-invasion-studio webui --port 8080 ~/Videos/ER/my-invasion-project
-```
-
-Desktop launchers can request an OS-selected port and monitor their sidecar:
-
-```bash
-invasion-studio --quiet webui --port 0 --parent-pid "$launcher_pid" ~/Videos/ER/my-invasion-project
-```
-
-Once listening, the command writes a JSON line such as
-`{"event":"ready","port":49152}` to standard output. `GET /api/health`
-returns the application version and current project state. SIGTERM shuts the
-server down cleanly, and `--parent-pid` stops it if its launcher disappears.
-
-Packaged applications may set `INVASION_STUDIO_FFMPEG`,
-`INVASION_STUDIO_FFPROBE`, and `INVASION_STUDIO_TESSERACT` to absolute tool
-paths. When unset, the usual `PATH` lookup is used.
-
-## Project folder layout
-
-A project is a plain folder. Everything Invasion Studio knows about it lives
-inside:
+Folders are created as needed:
 
 ```text
-my-invasion-project/
-├── clips/            clips added through the WebUI upload
-├── thumbnails/       generated preview thumbnails
-├── covers/           custom compilation cover images
-├── exports/          combined videos and Kdenlive projects
-├── .trashed/         clips moved to the trash (until the trash is emptied)
-└── project.db        SQLite database: titles, notes, ratings, tags,
-                      compilations, cut markers
+my-project/
+├── project.db        Clip metadata, tags, compilations, cuts, markers and project settings
+├── clips/            Uploaded clips and clips extracted into this project
+├── thumbnails/       Generated or manually selected clip previews
+├── covers/           Custom compilation thumbnails
+├── exports/          Exported videos and Kdenlive projects
+├── .trashed/         Deleted clips that can still be restored
+├── .backup/          Original clip copies saved when finalizing cuts
+└── .preview_cache/   Temporary playback previews, rebuilt when needed
 ```
 
-The video files stay ordinary files — deleting `project.db` loses the metadata
-but never the clips. Video files copied into the folder by hand are picked up
-the next time the WebUI starts.
+Videos remain ordinary files. Titles, descriptions, ratings, results, tags,
+compilation order and editing information live in the SQLite database. Keep
+`project.db` with the videos: copying only the videos loses that organization.
+Older `project.json` libraries are migrated on first open. Video files placed in
+the project root by hand are discovered when the library starts.
 
-### Browsing clips
+Close the app before backing up or moving a project, then copy the **whole
+folder**, including hidden folders. Reopen it at its new location. Original
+long recordings used for extraction remain where you selected them; they are
+not copied into the project.
 
-Clip rows show duration alongside result and rating. Use the **Extended / Compact** icon toggle for image-backed rows or a denser
-list without preview images. The same toggle appears inside compilations. Drag the divider between the library and player to
-resize the panes; pane width and compact mode are remembered per project.
-Active search and filter chips can be removed individually, or cleared together.
+Some data lives outside projects: launcher history, machine preferences and
+the shared OCR cache. Flatpak stores its application data under
+`~/.var/app/com.bladeofmaya.InvasionStudio/`. The standalone app follows XDG
+locations, including `~/.config/invasion-studio/` for configuration and
+`~/.cache/invasion-studio/` for OCR results. **Settings → Storage** shows the
+actual project and cache paths.
 
-To replace a clip's thumbnail, seek to a representative moment and choose **Set preview frame** in the player controls. The library refreshes after
-capture; a failed capture keeps the existing preview.
+## Importing videos
 
-### Compilation projects
+The **Import** tab offers two ways to add footage:
 
-The **Compilations** tab separates **Active** projects from **Archived** ones.
-Search by title or description, and sort by name, recent updates, or archive date.
-Choose **+ New compilation** to start a video project, then add clips from the
-library. Cards show clip count and total duration after saved cuts.
+| Method | Use it for | What happens |
+|---|---|---|
+| **Upload clips** | Individual clips you have already cut | Copies the files into the library |
+| **Extract from recordings** | Long gameplay recordings or saved streams | Scans game messages and creates a clip for each detected encounter |
 
-Use a card's **⋯ → Edit details…**, or the **settings gear beside the clip count** inside a compilation, to change
-its title, description, YouTube link, and cover. Covers accept PNG, JPEG or WebP
-files up to 10 MB and are stored in the project's `covers/` directory. Without a
-custom cover, a clip thumbnail is used. The details dialog shows the full image
-in a 16:9 preview; click it to inspect a larger version.
+### Upload existing clips
 
-When finished, choose **⋯ → Archive…**. You can add the final YouTube video link
-and thumbnail then, or archive without them. Linked videos have a **Watch on
-YouTube ↗** action that opens the browser. Archiving does not remove clips;
-**Restore to active** preserves the cover and publication details. Deleting a
-compilation removes its cover and metadata but keeps its clips.
+Choose **Upload clips → Choose clips** and select one or several files.
+Supported file extensions are `.mp4`, `.mkv`, `.mov`, `.avi`, `.webm`, `.flv`,
+`.m4v`, `.mpeg` and `.mpg`, with a maximum of **4 GB per uploaded file**.
+Playback support also depends on the codecs inside the file.
 
-### Uploading clips
+Files are checked with ffprobe, copied into `clips/`, registered in the database
+and given preview thumbnails in the background. Originals remain untouched.
+Invalid files are reported individually so the remaining uploads can continue.
 
-Open **Import → Upload clips → Choose clips** to select one or more video files
-(`.mp4`, `.mkv`, `.mov`, `.avi`, `.webm`, `.flv`, `.m4v`, `.mpeg`, `.mpg`,
-up to 4 GB each). Files are validated with ffprobe before they enter the
-library, stored under `clips/`, and get a preview thumbnail generated in the
-background. Files that fail validation are reported individually and the rest
-of the batch is imported normally.
+### Extract encounters from recordings
 
-### Extracting recordings from the GUI
+1. Choose **Extract from recordings → Choose recordings** in the desktop app.
+2. Check the **Recording paths** box. Use one path per line, in playback order.
+3. Adjust **Extraction settings** if needed.
+4. Choose **Extract clips** and follow the progress indicator.
+5. Choose **View imported clips** when the job finishes.
 
-Open **Import → Extract from recordings**. In the desktop app, use **Choose
-recordings** to select multiple local videos. In the browser WebUI, enter one
-file path per line on the computer running Invasion Studio. Paths can also be
-edited in the desktop app. Use individual paths without shell quotes or
-wildcards, in playback order; the picker initially sorts by filename/path.
+For recordings split across files, submit them together in chronological order.
+An encounter spanning two files can then become one clip. The picker initially
+sorts by filename/path; edit the order if that is not chronological.
 
-Under **Extraction settings**, set **FFmpeg threads** to `8` and enable
-**Hardware acceleration** to match `extract --ffmpeg-threads 8 --hwaccel`.
-The current project is always the destination. Frame rate, OCR worker count,
-padding, and cache reuse are also configurable.
+In the browser interface, enter paths on the computer running Invasion Studio.
+The path box takes individual filenames **without quotes or wildcards**.
+This processes recordings already on disk; it does not capture a live stream.
 
-Extraction runs in the background, reports progress, and registers the new
-clips with their source recording. You can change tabs or reload the page and
-return to see its status. Keep the application open: this initial version
-allows one GUI extraction at a time per project and does not resume jobs after
-shutdown. Original recordings are read in place, and thumbnails/metadata are
-queued after extraction.
+<details>
+<summary>Screenshot: import and extraction settings</summary>
 
-Before extraction, a background SHA-256 content check reads each recording and
-compares it with this project's persistent import history. Renamed or copied
-recordings are recognized. A batch containing a previous import is rejected as
-a whole, preserving recording order for encounters spanning multiple files.
-**Import again** explicitly allows another set of clips. Partial or interrupted
-runs are also guarded; failures before any clips are written can be retried.
-This history covers new GUI extractions, not older imports or CLI extractions.
-The content check adds disk reads, particularly noticeable for large recordings.
+<p align="center">
+  <img src="docs/screenshots/005-import-with-extraction-settings.jpg" alt="Import screen with all extraction options expanded" width="680">
+</p>
 
-In **Settings → Storage**, the full project path is selectable and wraps to fit.
-The desktop app also provides **Open project folder** using the native file
-manager; the browser displays the path without a native folder-opening action.
+</details>
 
-Storage reports the current project's preview cache and the shared OCR cache
-separately, with individual paths, sizes, and Clear buttons. Clearing OCR cache
-affects all projects on this computer and requires confirmation. The storage
-total includes this shared cache.
+### Extraction options
 
-**Settings → Dependencies** shows the active and automatically detected FFmpeg,
-FFprobe, and Tesseract paths and whether each is an executable file. Enter a full
-custom path and choose **Apply**, or choose **Use detected** to reset it. These
-machine-wide preferences persist in
-`${XDG_CONFIG_HOME:-$HOME/.config}/invasion-studio/dependencies.json` and apply to
-new tool invocations in the desktop app, WebUI, and CLI. Resolution order is
-custom path, `INVASION_STUDIO_FFMPEG`/`INVASION_STUDIO_FFPROBE`/
-`INVASION_STUDIO_TESSERACT`, then system `PATH`. Availability checks do not run
-the binary or verify codec support.
+These settings save automatically for the current project. Defaults below apply
+to a new project; screenshots may show customized values.
 
-## How detection works
+| Setting | Default | What it controls |
+|---|---|---|
+| **FFmpeg threads** | `4` | Thread setting passed to FFmpeg; allowed range `1–64` |
+| **OCR workers** | Up to `4`, limited by CPU count | Parallel text-recognition workers; allowed range `1–64`. More workers use more CPU |
+| **Frames scanned per second** | `1` | OCR sampling rate, `1–10`. Higher values can catch shorter messages but increase work |
+| **Seconds before invasion** | `10` | Extra footage before the detected start, `0–3600` seconds |
+| **Seconds after invasion** | `7.5` | Extra footage after the detected end, `0–3600` seconds |
+| **Hardware acceleration** | Off | Use VAAPI for frame extraction on supported Linux GPUs. This is separate from player decoding |
+| **Rescan recordings instead of using cached detection** | Off | Reprocess the recordings without reusing or writing the OCR cache |
+| **Import again…** | Off | Allow recordings already imported through this project's Import tab, creating another set of clips |
 
-The extractor samples the game-text area and uses OCR to find these messages:
+The job runs in the background, so you can change tabs and return to it. Keep
+the application open until it finishes: extraction does not resume after
+shutdown, and only one GUI extraction runs at a time per project.
 
-- Start: `Defeat … Host of Fingers` or `Commencing combat`
-- End: `Returning to your world` or `Combat ends`
+Before extraction, a SHA-256 content check detects previously imported
+recordings, including renamed copies. A batch containing a previous import is
+rejected as a whole unless **Import again** is enabled. Partial imports are
+also guarded. This history covers GUI extractions recorded by this feature;
+it does not cover older imports, CLI extraction or ordinary clip uploads.
 
-Phantom and hunter death markers are placed eight seconds before the first OCR
-detection of their death message, clamped to the start of the clip. This is an
-estimate based on the game's delayed banner, not frame-exact death detection.
-Markers can be adjusted manually; rescanning preserves existing marker positions.
+### How detection works
 
-Clips include 10 seconds before the detected start and 7.5 seconds after the
-detected end by default.
+OCR reads the game's English encounter messages:
 
-## Other commands
+| Event | Recognized message |
+|---|---|
+| Encounter starts | `Defeat … Host of Fingers` or `Commencing combat` |
+| Encounter ends | `Returning to your world` or `Combat ends` |
+
+Padding includes the moments around these messages. Menus, overlays, unusual
+capture layouts or unreadable text can affect detection. Review the resulting
+clips and adjust them in the editor. Automatic death markers are explained
+[below](#automatic-death-markers).
+
+## The Clips tab
+
+Select a clip in the list to preview it and edit its details. The selected row
+is highlighted. Drag the divider to give more space to the list or player.
+Use the **Extended / Compact** icons for image-backed rows or a denser list.
+Pane width and compact mode are saved per project.
+
+### Find and organize footage
+
+| Control | Purpose |
+|---|---|
+| **Everything / Unassigned / Assigned / Trash** | Browse the library by compilation membership or deletion state |
+| **Search** | Find clips by title, description or filename |
+| **Tag filter** | Show a specific tag or only untagged clips |
+| **Rating filter** | Show a minimum star rating or unrated clips |
+| **Result filter** | Show wins, losses, disconnects or clips without a result |
+| **Sort** | Default order, newest, oldest, rating, title, longest or shortest |
+| **Filter chips / Clear filters** | Remove individual search constraints or clear them together |
+
+The initial view is **Unassigned**. Switch to **Everything** if a clip seems
+missing after assigning it to a compilation. Your filters, sort order and last
+selected clip are remembered when switching tabs within the current session.
+Use **J / K** to select the next or previous clip when you are not typing in a field.
+
+### Clip details
+
+Give each clip a recognizable **title** and an optional **description**. Set a
+**1–5 star rating**, choose **Win**, **Loss** or **DC**, and use **Add tag…** for
+builds, weapons or themes such as `twinblade`, `duel` or `funny`.
+These details save automatically; leave a text field to save its changes.
+
+Use the compilation control on a list entry to assign it to a compilation.
+Assigned entries show their compilation name, which opens that collection.
+The filename link in the editor reveals the clip in your file manager.
+
+### Trash and restore
+
+The trash icon in the editor moves a clip to the project's trash. Select
+**Trash** in the list filter to restore it. **Empty trash** permanently removes
+the trashed media and thumbnails after confirmation. Removing a clip from a
+compilation is a separate action and keeps it in the library.
+
+## The video editor
+
+Playback and editing share the timeline directly beneath the video. Play or
+pause, adjust volume, seek, and use **Fullscreen editor** for more room.
+The audio label shows the track selected in **Settings → Video**; there is no
+track switcher in the player.
+
+![Video editor with cut ranges and markers](docs/screenshots/008-editor-cuts-markers.png)
+
+### Remove unwanted sections
+
+1. Seek to the beginning of the unwanted section and choose **Start cut**.
+2. Seek to its end and choose **End cut here**.
+3. Adjust the highlighted range by dragging its boundaries or editing the
+   start/end seconds under **Cuts to remove**.
+4. Enable **Preview without cuts** to skip marked sections during playback.
+5. Repeat for other sections. Use **Delete** on a range to keep that section,
+   or **Undo** to undo a recent timeline edit.
+6. Choose **Finalize cuts…** when you are satisfied.
+
+Until finalization, cut ranges are saved editing instructions and the clip file
+is unchanged. Finalization writes the shortened clip and keeps the previous
+file in `.backup/`. It clears the applied ranges, removes markers inside cut
+sections and shifts the remaining markers to their new times.
+
+**Finalize cuts before exporting a compilation.** Export currently joins the
+stored clip files; it does not apply pending cut ranges. Cutting uses stream
+copy, so exact boundaries can depend on the recording's keyframes.
+
+### Add and edit markers
+
+Seek to an event and choose **Add marker**. Give it a label and event type,
+then adjust its timestamp directly or drag it along the timeline. **Jump**
+returns playback to that marker. Manual types include custom events, invasion
+start/end, and defeated host, phantom, hunter or invader.
+
+Markers and cuts save automatically. If a save fails, use the displayed retry
+action before finalizing or leaving the clip.
+
+### Automatic death markers
+
+New extractions detect these death banners. Use **Identify markers** to scan an
+existing clip with the project's extraction settings:
+
+| Banner | Marker type |
+|---|---|
+| `Furled Finger … has died` | Phantom defeated |
+| `Hunter … has died` | Hunter defeated |
+| `Bloody Finger … has died` | Invader defeated |
+| `Recusant … has died` | Invader defeated |
+
+The detected player name becomes the marker label. Because the banner usually
+appears after the death animation, markers are placed **eight seconds before
+the first detected banner**, clamped to the clip start. This estimates the death
+time; OCR sampling and banner timing prevent frame-exact detection. Adjust
+markers manually when necessary.
+
+Repeated sightings are grouped into one event. Rescanning merges detections
+and preserves existing marker positions, including manual adjustments. Keep
+the app open during identification.
+
+### Choose the library preview
+
+Seek to a representative frame and choose **Set preview frame**. The clip's
+list thumbnail updates after capture. A failed capture preserves the old image.
+
+For more editing details, see [the video editor guide](docs/video-editor.md).
+
+## Compilations and export
+
+A compilation is an ordered collection of clips for a finished video: for
+example, a weapon showcase, a stream highlight reel or a PvP montage. It stores
+membership and ordering without making another copy of each clip.
+
+![Active compilations with clip counts, durations and cover images](docs/screenshots/004-compilations-window.jpg)
+
+### Build and sort a compilation
+
+1. Open **Compilations → + New compilation** and give it a name.
+2. Add clips using their compilation controls in the Clips tab.
+3. Open the compilation to review its sequence.
+4. Drag a clip's reorder handle, or use **Move to top / Move to bottom**.
+5. Use **Move to…** to transfer a clip to another compilation, or **Remove** to
+   remove its membership while keeping the clip in the library.
+
+The **Extended / Compact** toggle works here too. The gear beside the clip count
+opens compilation settings. On the overview, search by title or description and
+sort by name or recent updates. Cards summarize clip count and duration after
+saved cuts; pending cuts still need finalizing before export.
+
+<details>
+<summary>Screenshot: ordering clips inside a compilation</summary>
+
+<p align="center">
+  <img src="docs/screenshots/007-compilation-video-list-sorting.png" alt="Compilation clip list with drag handles, move-to-top and move-to-bottom controls" width="560">
+</p>
+
+</details>
+
+### Export to Kdenlive
+
+Finalize any pending cuts, arrange the clips in your preferred order, then
+choose **Export**. The app creates:
+
+```text
+exports/My Compilation/
+├── My Compilation.mp4        Combined video with clip chapters
+└── My Compilation.kdenlive   Kdenlive timeline project
+```
+
+Open the `.kdenlive` file in **Kdenlive 26.04 or newer** and continue editing.
+Keep the combined video with the project so the editor can locate its media.
+Existing exports require overwrite confirmation. A folder-reveal action becomes
+available after export.
+
+Kdenlive is the current editor-project export target. Support for other editing
+tools is planned; there is no release date yet. The combined MP4 can also be
+imported into another editor directly.
+
+### Covers, YouTube links and archiving
+
+Use **⋯ → Edit details…** on a compilation card, or its settings gear, to edit
+the title, description, final YouTube URL and cover image. Covers accept
+**PNG, JPEG or WebP up to 10 MB**. They are copied into `covers/`; without a
+custom cover, the compilation uses a clip thumbnail. Click the cover preview
+in the dialog to inspect it at a larger size.
+
+When a video is finished, choose **⋯ → Archive…**. You can attach the published
+YouTube link and the thumbnail you used, or archive without them. Archived
+compilations appear in the **Archived** tab, with **Watch on YouTube ↗** when a
+link is present. This records publication details; it does not upload to YouTube.
+
+**Restore to active** brings a compilation back with its details intact.
+Archiving keeps all clips. Deleting a compilation removes its metadata and
+custom cover but keeps the clips in your library.
+
+![Archived compilations with custom thumbnails and YouTube links](docs/screenshots/004-compilations-window-archived.jpg)
+
+## Settings
+
+Open the **gear in the top-right app header**. The sun/moon button beside it
+switches between light and dark mode.
+
+| Section | What you can view or change |
+|---|---|
+| **Tags** | View tags and usage counts; rename or delete tags across this project. Create tags from a clip's **Add tag…** field. Deleting a tag removes its associations, not the clips |
+| **Storage** | View the project path, open its folder in the desktop app, inspect media/cache usage and footage duration, clear caches, or permanently empty the trash |
+| **Video** | Set **Audio tracks per clip** (`1–32`) and the **Default audio track**, then choose **Save**. The track count also informs Kdenlive export; it does not add tracks to recordings |
+| **Stats** | View encounter count, total time, win rate and result totals. This page is read-only; change clip results in the editor. Disconnects are excluded from win rate |
+| **Dependencies** | Inspect FFmpeg, ffprobe and Tesseract paths. Set an absolute custom executable path with **Apply**, or reset with **Use detected** |
+
+<details>
+<summary>Screenshot: Storage settings</summary>
+
+<p align="center">
+  <img src="docs/screenshots/006-settins.jpg" alt="Settings dialog showing project storage and cache controls" width="680">
+</p>
+
+</details>
+
+**Preview cache** belongs to the current project and is rebuilt when needed.
+**OCR cache** is shared across projects; clearing it requires confirmation and
+means future detection must rescan recordings. Storage totals include that
+shared cache. Neither cache-clear action deletes library clips.
+
+Video and extraction settings belong to the project. Extraction settings live
+on the **Import** screen. Dependency overrides are machine-wide and also apply
+to the standalone CLI. Tool selection uses a custom path first, then
+`INVASION_STUDIO_FFMPEG`, `INVASION_STUDIO_FFPROBE` or
+`INVASION_STUDIO_TESSERACT`, then the system `PATH`. The Dependencies screen
+checks executable availability, not codec support.
+
+## Command-line tools
+
+From a source checkout, use `bin/invasion-studio`. After installing the gem,
+use `invasion-studio` with the same arguments. The desktop Flatpak does not
+install a host CLI command.
+
+| Command | Example | Purpose |
+|---|---|---|
+| `extract` | `bin/invasion-studio extract --project /path/to/project recording.mp4` | Detect encounters, create clips and register them in the project |
+| `scan` | `bin/invasion-studio scan recording.mp4` | Show detected encounters without generating clips |
+| `import` | `bin/invasion-studio import --project /path/to/project clip.mp4` | Copy existing clips into a project |
+| `webui` | `bin/invasion-studio webui /path/to/project` | Start the browser UI on port 4567 |
+| `concat` | `bin/invasion-studio concat /path/to/project/clips` | Join a folder's videos into `combined.mp4` with chapters |
+| `export-kdenlive` | `bin/invasion-studio export-kdenlive /path/to/project/clips` | Export a folder's videos as combined media and a Kdenlive project |
+| `normalize` | `bin/invasion-studio normalize --dry-run /path/to/project` | Preview sequential clip renaming; omit `--dry-run` to apply it. Stop the app first |
+
+The folder-based `concat` and `export-kdenlive` commands use filename order.
+Use the GUI's **Export** action for a compilation's saved order. Both CLI
+commands accept `-o FILE` to change their output path.
+
+### Extraction flags
+
+`extract` is the default command. Pass multiple recordings in chronological order:
 
 ```bash
-# Show detected timestamps without creating clips
-invasion-studio scan ~/Videos/Capture/*.mp4
-
-# Join every clip in a folder and add chapter markers
-invasion-studio concat ~/Videos/ER/my-invasion-project
-
-# Build a combined video and Kdenlive project directly
-invasion-studio export-kdenlive ~/Videos/ER/my-invasion-project
-
-# Rename a project's clips to clip_00001.mp4, clip_00002.mp4, ...
-# (updates the database, thumbnails, compilations, tags, and cuts;
-#  stop the WebUI first, use --dry-run to preview)
-invasion-studio normalize ~/Videos/ER/my-invasion-project
-
-# Copy existing clips into a project as clip_00001.ext, clip_00002.ext, ...
-invasion-studio import --project ~/Videos/ER/my-invasion-project ~/Videos/Clips/*.{mp4,mkv}
-
-# Show global or command-specific help
-invasion-studio --help
-invasion-studio extract --help
+bin/invasion-studio extract --project ~/Videos/ER/my-project \
+  ~/Videos/recording-001.mp4 ~/Videos/recording-002.mp4
 ```
-
-Commands:
-
-| Command | Purpose |
-|---|---|
-| `extract` | Detect encounters and create clips; this is the default command |
-| `scan` | Detect encounters without creating clips |
-| `webui` | Start the local project WebUI |
-| `concat` | Join clips into one chaptered video |
-| `export-kdenlive` | Create a combined video and Kdenlive timeline |
-| `normalize` | Rename a project's clips to the generic sequential naming |
-| `import` | Copy existing clips into a project with sequential naming |
-
-## Useful extraction options
 
 | Option | Default | Purpose |
-|---|---:|---|
-| `--outdir DIR` | `./invasion_clips` | Folder for generated clips |
-| `--prefix NAME` | `invasion` | Generated filename prefix |
-| `--project DIR` | — | Extract into a project (`clips/`, `clip_` prefix, DB registration); excludes the two options above |
+|---|---|---|
+| `--project DIR` | None | Write into `clips/` with sequential names and database registration |
+| `-o, --outdir DIR` | `./invasion_clips` | Write clips to a standalone output folder |
+| `-p, --prefix NAME` | `invasion` | Filename prefix for standalone extraction |
 | `--fps RATE` | `1` | OCR samples per second |
-| `--pad-start SEC` | `10` | Extra time before an encounter |
-| `--pad-end SEC` | `7.5` | Extra time after an encounter |
-| `--no-cache` | off | Reprocess footage without reading or writing OCR cache |
-| `--continue-on-error` | off | Continue when one input cannot be processed |
-| `--debug` | off | Print matches and write frame OCR to YAML |
-| `--ocr-workers N` | up to `4` | Parallel Tesseract workers |
-| `--ocr-batch-size N` | `1` | Images handled by one Tesseract process |
-| `--hwaccel` | off | Use VAAPI frame extraction when available |
+| `--pad-start SEC` | `10` | Padding before detection |
+| `--pad-end SEC` | `7.5` | Padding after detection |
+| `--ffmpeg-threads N` | `4` | FFmpeg thread setting |
+| `--ocr-workers N` | Up to `4` | Parallel OCR workers |
+| `--ocr-batch-size N` | `1` | Images per Tesseract process; advanced throughput tuning |
+| `--hwaccel` | Off | Enable VAAPI frame extraction where supported |
+| `--no-cache` | Off | Disable reading and writing OCR cache |
+| `--continue-on-error` | Off | Continue after an input-processing error |
+| `-d, --debug` | Off | Print matches and write frame OCR diagnostics to YAML |
+| `-q, --quiet` | Off | Suppress non-error output |
 
-Increasing `--fps` can help with very short messages but increases OCR work
-linearly. `--ocr-batch-size 8` reduced CPU use by about 29% on the project test
-videos, but improved elapsed time by only 1–2%; it remains an optional tuning
-setting rather than the default.
+`--project` cannot be combined with explicit `--outdir` or `--prefix` options.
+For command-specific details, run `bin/invasion-studio COMMAND --help`.
+Use `--version` for the installed version.
 
-## Cache and troubleshooting
+## Development and contributions
 
-OCR results are cached under:
+The backend is Ruby/Sinatra with SQLite persistence. The UI uses Stimulus,
+Tailwind and Video.js, with Electron providing the desktop shell. Ruby and
+Node.js versions are pinned in [mise.toml](mise.toml).
 
-```text
-${XDG_CACHE_HOME:-$HOME/.cache}/invasion-studio
-```
+### Set up and iterate
 
-Use `--no-cache` when checking changed OCR settings or investigating a missed
-encounter.
-
-Detection can be missed when menus or platform overlays cover the game text.
-Use `--debug` to inspect the recognized text and matched timestamps.
-
-The extractor is optimized for English footage at 720p, 1080p, or 1440p on
-macOS and Linux. A modern browser is required for the WebUI.
-
-## Development
-
-Ruby and Node.js are pinned in `mise.toml`. The five public entry points are:
-
-| Command | Purpose |
-| --- | --- |
-| `bin/setup` | Install pinned tools, gems and frontend/Electron dependencies |
-| `bin/dev [PROJECT]` | Run Electron against source Ruby with asset watching and UI reload |
-| `bin/release [--install]` | Build a desktop release, optionally reinstalling it locally |
-| `bin/test` | Run non-video Ruby, frontend and Electron tests |
-| `bin/invasion-studio …` | Application CLI: extraction, scanning, WebUI and exports |
-
-### Fast UI development
+Clone your fork, enter the checkout, and install mise plus the host media tools
+listed under [Installation](#installation). Then run:
 
 ```bash
 bin/setup
-bin/dev /path/to/project
-# Or use a browser (prints the local URL):
-bin/dev --browser /path/to/project
+bin/dev /path/to/disposable-project
+
+# Or iterate in a browser:
+bin/dev --browser /path/to/disposable-project
 ```
 
-Without a project argument, development uses `tmp/dev-project`. Use a disposable
-project when experimenting: development edits are real project changes. Electron
-uses separate development window settings and Recents; the Ruby app still uses
-its usual user settings and host FFmpeg/Tesseract tools.
+`bin/setup` installs the pinned toolchain, gems and frontend/Electron dependencies.
+Without a project argument, `bin/dev` uses `tmp/dev-project`. Use disposable data:
+development edits affect the selected project. Electron development has separate
+launcher history/window settings, but the backend still uses normal user settings
+and host FFmpeg/Tesseract.
 
-`bin/dev` builds assets once, then watches CSS/JS. Templates and completed asset
-changes reload the page automatically. Ruby changes restart the backend; in
-Electron, Ruby or shell changes restart the development window. Reloads reset
-playback and may discard unsaved fields. Browser mode keeps the same URL across
-backend restarts; set `STUDIO_DEV_PORT` to override port 4567.
+CSS/JavaScript changes rebuild and reload automatically. Templates trigger a
+reload; Ruby changes restart the backend. Electron shell changes restart the
+development window. Reloading resets playback and may discard unsaved fields.
+Browser mode defaults to port 4567; `STUDIO_DEV_PORT` overrides it. Ctrl+C stops
+the app and watchers. Rerun `bin/setup` after dependency lockfile changes.
 
-There is no packaging, dependency installation or test execution during `dev`.
-Rerun `bin/setup` after changing dependency lockfiles. Ctrl+C stops the app and
-watchers. Host FFmpeg/ffprobe and Tesseract are required for media operations.
+| Tool | Purpose |
+|---|---|
+| `bin/dev console` | Open a Ruby/Pry console |
+| `bin/dev icon` | Regenerate desktop icons from `desktop/electron/assets/logo.png`; requires ImageMagick 7 |
+| `bin/test` | Run non-video Ruby, frontend and Electron tests |
+| `bin/test --browser` | Build assets and run Chromium UI smoke checks with a temporary project and media disabled |
+| `bin/release` | Build the Linux x64 Flatpak and stage release materials |
+| `bin/release --install` | Build and install/reinstall the Flatpak for the current user |
+| `bin/release --gem` | Build the standalone Ruby gem and stage release materials |
+| `bin/release --gem --install` | Also install the gem locally |
+| `bin/release version patch` | Update version metadata; also accepts `minor`, `major` or an explicit version |
+
+### Build and verify packages
+
+Linux desktop builds additionally require Python 3, ImageMagick 7, a C compiler,
+make, curl, sha256sum, Flatpak, flatpak-builder and elfutils (`eu-strip`), plus
+Freedesktop Platform/SDK and Electron BaseApp **26.08**.
+
+Close the installed app before `bin/release --install`. Artifacts are staged in
+`pkg/release/<version>/desktop/` and `pkg/release/<version>/gem/`, with checksums
+and notices. Builds do not run tests, create tags or publish releases.
 
 ```bash
-bin/dev console    # Ruby/Pry console
-bin/dev icon       # Regenerate app icons from desktop/electron/assets/logo.png
+bin/test --packaged       # Built backend: empty-project checks
+bin/test --installed      # Installed Flatpak: temporary-project checks
+bin/test --release        # Non-video suites, isolated gem installation and backend checks
 ```
 
-Icon generation uses ImageMagick 7 (`magick`) and preserves aspect ratio and
-transparency. Desktop release builds regenerate the icon automatically.
-Generated frontend assets are ignored and must not be committed.
+The release gate requires a current desktop build, a clean checkout and network
+access. `ALLOW_DIRTY=1` is available for local development only. The browser smoke
+check needs a graphical session or virtual display.
 
-### Build and reinstall
+Real-media checks are separate and should be run manually:
 
 ```bash
-bin/release                 # Linux x64 Flatpak plus release materials
-bin/release --install       # Build, then install/reinstall for the current user
-bin/release --gem           # Standalone Ruby gem plus notices/checksums
-bin/release --gem --install # Build and install the gem locally
-bin/release version patch  # Or minor, major, or an explicit version
+bin/test --video          # Video integration suite
+bin/test --media-package  # Packaged sample-media check
 ```
 
-Release folders are `pkg/release/<version>/desktop/` and
-`pkg/release/<version>/gem/`. Each build replaces only its own generated target
-folder after successful assembly; existing artifacts from other targets are
-not silently mixed in. Builds do not run tests, tag commits or publish anything.
+See [RELEASING.md](RELEASING.md) for prerequisites, release acceptance and
+redistribution review. Private build helpers live in `script/`.
 
-Desktop packaging currently supports **Linux x64 only**. Windows/macOS packaging
-is not implemented. Build prerequisites include Python 3, ImageMagick 7, a C
-compiler, make, curl, sha256sum, Flatpak, flatpak-builder and elfutils (`eu-strip`),
-plus the Freedesktop SDK/Platform and Electron BaseApp 26.08. The Flatpak bundles
-pinned media tools; source development and the standalone gem use host tools.
+### Send a pull request
 
-Close the installed app before reinstalling, then launch it with
-`flatpak run com.bladeofmaya.InvasionStudio`. The gem's WebUI can be launched with
-`invasion-studio webui /path/to/project`.
+Create a branch in your fork, make a focused change, and describe the problem and
+resulting behaviour in your pull request. Add regression coverage for behaviour
+changes and include the checks you ran. For UI changes, include screenshots in
+light and dark mode and check a narrow layout.
 
-### Explicit verification
+Use `bin/dev` for iteration rather than rebuilding the desktop package. Do not
+commit generated frontend assets, build output or personal project data.
+See [AGENTS.md](AGENTS.md) for architecture and contributor guidance.
 
-```bash
-bin/test                  # Non-video Ruby + frontend + Electron suites
-bin/test --browser        # Chromium UI smoke test, temporary project, no media processing
-bin/test --packaged       # Empty-project backend checks after a desktop build
-bin/test --installed      # Same checks inside the installed Flatpak
-bin/test --release        # Non-video suites, isolated gem installation, backend check
-bin/test --video          # Video integration suite: run manually
-bin/test --media-package  # Sample-clip upload/probe/serving check: run manually
-```
+## Troubleshooting
 
-`--release` requires a current desktop build and a clean checkout; use
-`ALLOW_DIRTY=1` only for local development. It needs network access to install
-into an isolated gem environment. No tests run implicitly during development or
-release builds. See [RELEASING.md](RELEASING.md) for the manual acceptance checklist.
-Internal helpers live in `script/`; they are not the public command interface.
+| Problem | Check |
+|---|---|
+| A clip seems missing | Switch from **Unassigned** to **Everything**, clear filters, and check **Trash** |
+| A recent project disappeared | Reconnect its drive, then use **Open project…**; removing a recent entry never deletes its files |
+| Extraction misses encounters | Confirm English game text is visible, check recording order, rescan without cache, or inspect CLI `--debug` output |
+| Recording import is blocked as a duplicate | Check whether the recording was previously or partially imported; use **Import again** only when you want another set of clips |
+| Playback has the wrong audio | Check **Settings → Video → Default audio track** and the label in the player |
+| A media tool cannot be found | Inspect **Settings → Dependencies**; development and gem installations use host tools |
+| Export still contains unwanted footage | Finalize the clip's cuts, then export the compilation again |
+| Disk usage is growing | Inspect **Storage**, exports, trash and `.backup/`; preview/OCR caches can be cleared separately |
 
-## Support
+For a bug report, include the application version, OS, installation method,
+steps to reproduce and the error message. For media issues, include the file's
+container, codecs and audio-track count. Share footage only if you are comfortable
+making it available.
 
-If this tool saves you time, consider supporting development:
+## Donation and support
 
-[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/bladeofmaya)
+If Invasion Studio saves you time, you can support its development on Ko-fi:
 
-You can also follow me for Elden Ring streams, videos, and project updates:
+[![Support development on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/bladeofmaya)
 
-- [Twitch](https://www.twitch.tv/bladeofmaya)
-- [YouTube](https://www.youtube.com/@bladeofmaya)
+Bug reports, suggestions and pull requests are welcome through the repository's
+issue tracker. For streams, videos and project updates:
 
-Feel free to stop by and follow!
+- [Twitch — Blade of Maya](https://www.twitch.tv/bladeofmaya)
+- [YouTube — Blade of Maya](https://www.youtube.com/@bladeofmaya)
 
 ## License
 
-MIT License — see [MIT-LICENSE](MIT-LICENSE).
+Invasion Studio is released under the [MIT License](MIT-LICENSE).
+Bundled dependencies have their own licenses; see
+[Third-party licenses](THIRD_PARTY_LICENSES.md).
