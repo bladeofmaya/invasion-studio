@@ -74,6 +74,15 @@ class TestStorageStatistics < Minitest::Test
     assert_equal({ 'count' => 0, 'bytes' => 0 }, stats['exports'])
   end
 
+  def test_custom_covers_are_included_in_storage_totals
+    before = @statistics.call['total_bytes']
+    FileUtils.mkdir_p(File.join(@tmp_dir, 'covers'))
+    File.write(File.join(@tmp_dir, 'covers', 'cover.png'), 'image')
+    stats = @statistics.call
+    assert_equal({ 'count' => 1, 'bytes' => 5 }, stats['covers'])
+    assert_equal before + 5, stats['total_bytes']
+  end
+
   def test_does_not_clear_through_a_symlinked_cache_root
     File.symlink(@cache_dir, File.join(@tmp_dir, '.preview_cache'))
     assert_raises(InvasionStudio::Error) { @statistics.clear_cache!(scope: 'preview') }

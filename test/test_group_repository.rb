@@ -42,6 +42,21 @@ class TestGroupRepository < Minitest::Test
     ], @repository.statistics.map { |stat| stat.slice('name', 'clip_count', 'total_duration') }
   end
 
+  def test_publication_details_survive_rename_and_restore
+    @repository.create('Video')
+    @repository.update_details('Video', youtube_url: 'https://youtu.be/abcdefghijk', cover_path: 'covers/test.png', archived: true)
+    archived_at = @repository.find('Video')['archived_at']
+    refute_nil archived_at
+    @repository.rename('Video', 'Finished')
+    @repository.update_details('Finished', description: 'Published')
+    assert_equal archived_at, @repository.find('Finished')['archived_at']
+    @repository.update_details('Finished', archived: false)
+    group = @repository.find('Finished')
+    assert_nil group['archived_at']
+    assert_equal 'https://youtu.be/abcdefghijk', group['youtube_url']
+    assert_equal 'covers/test.png', group['cover_path']
+  end
+
   def test_archive_and_description_persist_without_changing_membership
     create_clip('a.mp4')
     @repository.create('Best')

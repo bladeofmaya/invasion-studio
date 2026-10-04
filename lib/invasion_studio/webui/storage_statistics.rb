@@ -19,6 +19,7 @@ module InvasionStudio
         stats = {
           'clips' => clips,
           'thumbnails' => dir_stats(File.join(@folder, 'thumbnails')),
+          'covers' => dir_stats(File.join(@folder, 'covers')),
           'exports' => dir_stats(File.join(@folder, 'exports')),
           'trash' => dir_stats(File.join(@folder, '.trashed')),
           'cache' => cache_stats,

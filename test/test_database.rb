@@ -64,6 +64,22 @@ class TestDatabase < Minitest::Test
     db&.disconnect
   end
 
+  def test_publication_migration_preserves_existing_archives
+    db = InvasionStudio::Database.connect(File.join(@tmp_dir, 'project.db'))
+    Sequel::IntegerMigrator.run(db, InvasionStudio::Database::MIGRATIONS_PATH, target: 9)
+    timestamp = '2026-01-02T10:00:00Z'
+    db[:compilations].insert(name: 'Finished', position: 1, archived: true, created_at: timestamp, updated_at: timestamp)
+    db[:compilations].insert(name: 'In progress', position: 2, archived: false, created_at: timestamp, updated_at: timestamp)
+    InvasionStudio::Database.migrate(db)
+    archived = db[:compilations].where(name: 'Finished').first
+    assert_equal timestamp, archived[:archived_at]
+    assert_equal '', archived[:youtube_url]
+    assert_nil archived[:cover_path]
+    assert_nil db[:compilations].where(name: 'In progress').get(:archived_at)
+  ensure
+    db&.disconnect
+  end
+
   def test_migration_merges_existing_duplicate_storage_paths
     db_path = File.join(@tmp_dir, 'project.db')
     db = InvasionStudio::Database.connect(db_path)

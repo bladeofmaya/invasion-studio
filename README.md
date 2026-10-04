@@ -143,6 +143,7 @@ inside:
 my-invasion-project/
 ├── clips/            clips added through the WebUI upload
 ├── thumbnails/       generated preview thumbnails
+├── covers/           custom compilation cover images
 ├── exports/          combined videos and Kdenlive projects
 ├── .trashed/         clips moved to the trash (until the trash is emptied)
 └── project.db        SQLite database: titles, notes, ratings, tags,
@@ -163,6 +164,25 @@ Active search and filter chips can be removed individually, or cleared together.
 To replace a clip's thumbnail, seek to a representative moment and choose **Use
 current frame as preview** in the player controls. The library refreshes after
 capture; a failed capture keeps the existing preview.
+
+### Compilation projects
+
+The **Compilations** tab separates **Active** projects from **Archived** ones.
+Search by title or description, and sort by name, recent updates, or archive date.
+Choose **+ New compilation** to start a video project, then add clips from the
+library. Cards show clip count and total duration after saved cuts.
+
+Use a card's **⋯ → Edit details…**, or **Details** inside a compilation, to change
+its title, description, YouTube link, and cover. Covers accept PNG, JPEG or WebP
+files up to 10 MB and are stored in the project's `covers/` directory. Without a
+custom cover, a clip thumbnail is used. The details dialog shows the full image
+in a 16:9 preview; click it to inspect a larger version.
+
+When finished, choose **⋯ → Archive…**. You can add the final YouTube video link
+and thumbnail then, or archive without them. Linked videos have a **Watch on
+YouTube ↗** action that opens the browser. Archiving does not remove clips;
+**Restore to active** preserves the cover and publication details. Deleting a
+compilation removes its cover and metadata but keeps its clips.
 
 ### Uploading clips
 

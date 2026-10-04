@@ -8,7 +8,7 @@ module InvasionStudio
 
     module MutationLock
       MUTATIONS = %i[
-        create_group rename_group delete_group add_clip_to_group remove_clip_from_group move_clip_between_groups
+        create_group rename_group delete_group replace_group_cover remove_group_cover add_clip_to_group remove_clip_from_group move_clip_between_groups
         reorder_group update_note update_rating update_result update_title update_cuts update_markers merge_detected_markers
         finalize_cuts delete_clip restore_clip empty_trash save! update_interface_settings update_video_settings update_extraction_settings update_group_details
       ].freeze
@@ -142,7 +142,18 @@ module InvasionStudio
     end
 
     def delete_group(name)
-      @group_repository.delete(name)
+      group = @group_repository.find(name)
+      return false unless group && @group_repository.delete(name)
+      @storage.delete(group['cover_path']) unless group['cover_path'].to_s.empty?
+      true
+    end
+
+    def replace_group_cover(name, file)
+      CompilationCover.new(self).replace(name, file)
+    end
+
+    def remove_group_cover(name)
+      CompilationCover.new(self).remove(name)
     end
 
     def add_clip_to_group(group_name, clip_id)

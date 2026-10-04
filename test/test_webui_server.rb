@@ -130,7 +130,8 @@ class TestWebuiServer < Minitest::Test
   def test_compilation_navigation_uses_rounded_cards_and_an_icon_heading
     get '/'
 
-    assert_match(/class="[^"]*rounded-lg[^"]*" id="new-group-card"/, last_response.body)
+    assert_includes last_response.body, 'class="compilation-toolbar"'
+    assert_includes last_response.body, 'aria-label="Search compilations"'
 
     controller = File.read(File.expand_path(
       '../lib/invasion_studio/webui/public/controllers/clip_list_controller.js', __dir__
@@ -627,6 +628,68 @@ class TestWebuiServer < Minitest::Test
     end
     put '/api/groups/Missing', JSON.generate(description: ''), 'CONTENT_TYPE' => 'application/json'
     assert_equal 404, last_response.status
+  end
+
+  def test_compilation_youtube_links_are_validated_and_normalized
+    put '/api/groups/Group1', JSON.generate(youtube_url: 'https://youtu.be/abcdefghijk?t=12'), 'CONTENT_TYPE' => 'application/json'
+    assert last_response.ok?
+    get '/api/groups/stats'
+    assert_equal 'https://www.youtube.com/watch?v=abcdefghijk', JSON.parse(last_response.body).find { |group| group['name'] == 'Group1' }['youtube_url']
+    ['https://youtube.com.evil.test/watch?v=abcdefghijk', 'javascript:alert(1)', 'https://youtube.com/channel/abcdefghijk', 'https://youtu.be/short', 123].each do |url|
+      put '/api/groups/Group1', JSON.generate(youtube_url: url), 'CONTENT_TYPE' => 'application/json'
+      assert_equal 422, last_response.status
+    end
+    put '/api/groups/Group1', JSON.generate(youtube_url: ''), 'CONTENT_TYPE' => 'application/json'
+    assert last_response.ok?
+  end
+
+  def test_compilation_cover_upload_replace_remove_and_delete
+    require 'base64'
+    image = File.join(@folder, 'cover.png')
+    bytes = Base64.decode64('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=')
+    File.binwrite(image, bytes)
+    upload = -> { Rack::Test::UploadedFile.new(image, 'image/png') }
+    post '/api/groups/Group1/cover', image: upload.call
+    assert last_response.ok?
+    original = project.groups.find { |group| group['name'] == 'Group1' }['cover_path']
+    get '/api/groups/Group1/cover'
+    assert last_response.ok?
+    assert_equal bytes, last_response.body.b
+    post '/api/groups/Group1/cover', image: upload.call
+    assert last_response.ok?
+    refute project.storage.exist?(original)
+    delete '/api/groups/Group1/cover'
+    assert last_response.ok?
+    get '/api/groups/Group1/cover'
+    assert_equal 404, last_response.status
+    post '/api/groups/Group1/cover', image: upload.call
+    cover = project.groups.find { |group| group['name'] == 'Group1' }['cover_path']
+    delete '/api/groups/Group1'
+    assert last_response.ok?
+    refute project.storage.exist?(cover)
+  end
+
+  def test_compilation_cover_rejects_non_images
+    image = File.join(@folder, 'fake.png')
+    File.write(image, '<script>alert(1)</script>')
+    post '/api/groups/Group1/cover', image: Rack::Test::UploadedFile.new(image, 'image/png')
+    assert_equal 422, last_response.status
+    assert_nil project.groups.find { |group| group['name'] == 'Group1' }['cover_path']
+  end
+
+  def test_compilation_cover_rejects_oversized_images_without_replacing_existing_cover
+    image = File.join(@folder, 'large.png')
+    File.open(image, 'wb') do |file|
+      file.write("\x89PNG\r\n\x1a\n".b)
+      file.truncate(InvasionStudio::CompilationCover::MAX_BYTES + 1)
+    end
+    project.update_group_details('Group1', cover_path: 'covers/existing.png')
+    FileUtils.mkdir_p(File.join(@folder, 'covers'))
+    File.write(File.join(@folder, 'covers/existing.png'), 'existing')
+    post '/api/groups/Group1/cover', image: Rack::Test::UploadedFile.new(image, 'image/png')
+    assert_equal 422, last_response.status
+    assert_equal 'covers/existing.png', project.groups.find { |group| group['name'] == 'Group1' }['cover_path']
+    assert project.storage.exist?('covers/existing.png')
   end
 
   def test_extraction_settings_persist_when_project_is_reopened

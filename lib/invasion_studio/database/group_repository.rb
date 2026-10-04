@@ -50,8 +50,7 @@ module InvasionStudio
         groups_dataset.where(name: old_name).update(
           name: new_name,
           updated_at: current_timestamp
-        )
-        true
+        ).positive?
       end
 
       def delete(name)
@@ -66,10 +65,17 @@ module InvasionStudio
         true
       end
 
-      def update_details(name, description: nil, archived: nil)
+      def update_details(name, description: nil, archived: nil, youtube_url: nil, cover_path: nil)
         changes = { updated_at: current_timestamp }
         changes[:description] = description unless description.nil?
-        changes[:archived] = archived unless archived.nil?
+        changes[:youtube_url] = youtube_url unless youtube_url.nil?
+        changes[:cover_path] = cover_path unless cover_path.nil?
+        unless archived.nil?
+          group = find(name)
+          return false unless group
+          changes[:archived] = archived
+          changes[:archived_at] = archived ? (group['archived_at'] || current_timestamp) : nil
+        end
         groups_dataset.where(name: name).update(changes).positive?
       end
 
@@ -86,6 +92,7 @@ module InvasionStudio
           position: max_position + 1,
           created_at: current_timestamp
         )
+        groups_dataset.where(id: group['id']).update(updated_at: current_timestamp)
         true
       end
 
@@ -97,6 +104,7 @@ module InvasionStudio
         return false if deleted.zero?
 
         compact_group_positions(group['id'])
+        groups_dataset.where(id: group['id']).update(updated_at: current_timestamp)
         true
       end
 
@@ -174,6 +182,10 @@ module InvasionStudio
             'name' => compilation[:name],
             'description' => compilation[:description],
             'archived' => compilation[:archived],
+            'youtube_url' => compilation[:youtube_url],
+            'updated_at' => compilation[:updated_at],
+            'archived_at' => compilation[:archived_at],
+            'cover_url' => compilation[:cover_path].to_s.empty? ? nil : "/api/groups/#{URI.encode_www_form_component(compilation[:name]).gsub('+', '%20')}/cover?v=#{File.basename(compilation[:cover_path])}",
             'thumbnail_url' => thumbnail && "/thumbnail/#{URI.encode_www_form_component(thumbnail[:clip_id]).gsub('+', '%20')}",
             'clip_count' => clips.length,
             'total_duration' => clips.sum { |clip| durations.fetch(clip[:clip_id], 0.0) }.round(2)
@@ -260,6 +272,9 @@ module InvasionStudio
           'name' => group[:name],
           'description' => group[:description],
           'archived' => group[:archived],
+          'youtube_url' => group[:youtube_url],
+          'cover_path' => group[:cover_path],
+          'archived_at' => group[:archived_at],
           'position' => group[:position],
           'clip_ids' => group_clips_dataset.where(compilation_id: group[:id])
                                           .order(:position, :created_at)
