@@ -6,7 +6,13 @@ module InvasionStudio
   module Extraction
     # Uses the same OCR frames/crop as encounter detection; no second OCR pass.
     class EventMarkers
-      DEATH_MESSAGE = /\b(Furled\s+Finger|Hunter)\s+(.+?)\s+has\s+died\b/i
+      DEATH_MESSAGE = /\b(Furled\s+Finger|Hunter|Bloody\s+Finger|Recusant)\s+(.+?)\s+has\s+died\b/i
+      DEATH_TYPES = {
+        'furled finger' => 'phantom_defeated',
+        'hunter' => 'hunter_defeated',
+        'bloody finger' => 'invader_defeated',
+        'recusant' => 'invader_defeated'
+      }.freeze
       BANNER_GAP = 8.0
       # Death banners appear approximately eight seconds after the animation.
       DEATH_MESSAGE_DELAY = 8.0
@@ -18,7 +24,7 @@ module InvasionStudio
             match = DEATH_MESSAGE.match(frame.text.to_s.gsub(/\s+/, ' '))
             next unless match
 
-            { time: seconds(frame.timestamp), type: match[1].downcase == 'hunter' ? 'hunter_defeated' : 'phantom_defeated',
+            { time: seconds(frame.timestamp), type: DEATH_TYPES.fetch(match[1].downcase),
               label: match[2].strip[0, 500] }
           end
           [video.path, events]

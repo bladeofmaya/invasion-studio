@@ -161,8 +161,7 @@ list without preview images. The same toggle appears inside compilations. Drag t
 resize the panes; pane width and compact mode are remembered per project.
 Active search and filter chips can be removed individually, or cleared together.
 
-To replace a clip's thumbnail, seek to a representative moment and choose **Use
-current frame as preview** in the player controls. The library refreshes after
+To replace a clip's thumbnail, seek to a representative moment and choose **Set preview frame** in the player controls. The library refreshes after
 capture; a failed capture keeps the existing preview.
 
 ### Compilation projects

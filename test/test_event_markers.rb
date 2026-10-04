@@ -37,6 +37,25 @@ class TestEventMarkers < Minitest::Test
     assert_equal 0.0, detector.for_segment(clip.segment).first['time']
   end
 
+  def test_both_red_invader_titles_use_invader_markers_with_the_death_offset
+    video = Video.new('a.mp4', [
+      frame(12, 'Bloody Finger MuRo_TR- has died'),
+      frame(13, "bloody  finger MuRo_TR-\nhas died"),
+      frame(25, 'Recusant Red Wolf has died'),
+      frame(26, 'Recusant Red Wolf has died'),
+      frame(30, 'Bloody Finger Someone has invaded'),
+      frame(31, 'Recusant Another has returned to their world')
+    ], { duration: 60 })
+    detector = InvasionStudio::Extraction::EventMarkers.new([video])
+    markers = detector.for_segment(segment)
+    assert_equal %w[invader_defeated invader_defeated], markers.map { |marker| marker['event_type'] }
+    assert_equal ['MuRo_TR-', 'Red Wolf'], markers.map { |marker| marker['label'] }
+    assert_equal [0.0, 7.0], markers.map { |marker| marker['time'] }
+    assert_equal markers, detector.for_segment(segment)
+    assert_equal markers, InvasionStudio::ClipMarkers.normalize(markers, duration: 30)
+    assert_equal markers, InvasionStudio::ClipMarkers.merge_detected(markers, detector.for_segment(segment))
+  end
+
   def test_cross_recording_offsets_and_banner_duplicates
     videos = [
       Video.new('a.mp4', [frame(58, 'Hunter Alice has died')], { duration: 60 }),

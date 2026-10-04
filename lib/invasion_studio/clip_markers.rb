@@ -2,7 +2,7 @@
 
 module InvasionStudio
   module ClipMarkers
-    EVENT_TYPES = %w[custom phantom_defeated hunter_defeated host_defeated invasion_start invasion_end].freeze
+    EVENT_TYPES = %w[custom phantom_defeated hunter_defeated invader_defeated host_defeated invasion_start invasion_end].freeze
 
     def self.merge_detected(existing, detected)
       detected.reduce(existing.dup) do |result, marker|
