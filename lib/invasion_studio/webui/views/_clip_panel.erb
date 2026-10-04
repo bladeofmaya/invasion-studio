@@ -1,5 +1,5 @@
 <div class="flex flex-col min-h-0 overflow-hidden bg-app-bg" id="clip-panel" data-navigation-target="clipPanel" data-controller="clip-list" data-clip-list-view-value="all" data-clip-list-filter-value="unassigned" data-clip-list-sort-value="" data-clip-list-group-value="" data-clip-list-selected-clip-id-value="">
-  <div class="px-4 py-3 border-b border-border flex items-center gap-2" data-clip-list-target="toolbar">
+  <div class="px-4 py-3 border-b border-border flex flex-wrap items-center gap-2" data-clip-list-target="toolbar">
     <h2 class="m-0 text-base text-text-muted" data-clip-list-target="panelTitle">Clips</h2>
     <span class="bg-surface-secondary text-text-muted border border-border rounded-full px-2.5 py-1 text-xs font-medium" style="display:none" data-clip-list-target="clipCount" id="clip-count">0</span>
     <div class="block" data-clip-list-target="filterDropdown" id="filter-dropdown">
@@ -22,10 +22,12 @@
         <option value="duration-asc">Shortest</option>
       </select>
     </div>
-    <button type="button" class="clip-density-toggle" data-clip-list-target="compactToggle" data-action="click->clip-list#toggleCompact" aria-pressed="false" title="Toggle compact list">Compact</button>
+    <div class="clip-view-toggle" role="group" aria-label="Clip list view">
+      <button type="button" data-clip-list-target="viewMode" data-compact="false" data-action="click->clip-list#setViewMode" aria-pressed="true" aria-label="Extended view" title="Extended view — background images"><i data-lucide="panels-top-left" aria-hidden="true"></i></button>
+      <button type="button" data-clip-list-target="viewMode" data-compact="true" data-action="click->clip-list#setViewMode" aria-pressed="false" aria-label="Compact view" title="Compact view — condensed list"><i data-lucide="list" aria-hidden="true"></i></button>
+    </div>
     <button type="button" class="bg-danger text-danger-fg border-none px-3 py-1.5 rounded text-xs font-semibold cursor-pointer hover:bg-danger-hover" style="display:none" data-clip-list-target="emptyTrashBtn" data-action="click->clip-list#emptyTrash" id="empty-trash-btn">Empty Trash</button>
-    <div class="hidden gap-2 items-center ml-auto" data-clip-list-target="groupExport" id="group-export-controls">
-      <button type="button" class="clip-density-toggle" data-action="click->clip-list#editCompilation">Details</button>
+    <div class="hidden gap-2 items-center" data-clip-list-target="groupExport" id="group-export-controls">
       <button type="button" class="inline-flex items-center gap-1.5 bg-surface-secondary text-text-secondary border border-border px-3 py-1 rounded-full text-xs cursor-pointer hover:bg-surface-hover hover:text-text-primary" data-clip-list-target="revealExportButton" data-action="click->clip-list#revealExport" title="Open the export directory" hidden>
         <i data-lucide="folder-open" class="size-3.5"></i>
         <span>Reveal Export Folder</span>

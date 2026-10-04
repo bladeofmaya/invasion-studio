@@ -156,8 +156,8 @@ the next time the WebUI starts.
 
 ### Browsing clips
 
-Clip rows show duration alongside result and rating. Use **Compact** for a denser
-list without preview images. Drag the divider between the library and player to
+Clip rows show duration alongside result and rating. Use the **Extended / Compact** icon toggle for image-backed rows or a denser
+list without preview images. The same toggle appears inside compilations. Drag the divider between the library and player to
 resize the panes; pane width and compact mode are remembered per project.
 Active search and filter chips can be removed individually, or cleared together.
 
@@ -172,7 +172,7 @@ Search by title or description, and sort by name, recent updates, or archive dat
 Choose **+ New compilation** to start a video project, then add clips from the
 library. Cards show clip count and total duration after saved cuts.
 
-Use a card's **⋯ → Edit details…**, or **Details** inside a compilation, to change
+Use a card's **⋯ → Edit details…**, or the **settings gear beside the clip count** inside a compilation, to change
 its title, description, YouTube link, and cover. Covers accept PNG, JPEG or WebP
 files up to 10 MB and are stored in the project's `covers/` directory. Without a
 custom cover, a clip thumbnail is used. The details dialog shows the full image

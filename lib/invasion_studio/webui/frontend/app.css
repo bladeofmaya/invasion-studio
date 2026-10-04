@@ -6,6 +6,15 @@
 @source "../views";
 @source "../public/controllers";
 
+.app-brand { display: inline-flex; align-items: center; flex-shrink: 0; gap: 9px; margin-right: 16px; }
+.app-brand-logo { display: block; width: 36px; height: 36px; object-fit: contain; filter: drop-shadow(0 1px 2px #0003); }
+.app-brand-name { color: var(--color-accent); font-size: 18px; font-weight: 700; letter-spacing: -.025em; line-height: 1.2; white-space: nowrap; }
+@media (max-width: 800px) {
+  .app-brand { gap: 7px; margin-right: 8px; }
+  .app-brand-logo { width: 30px; height: 30px; }
+  .app-brand-name { font-size: 16px; }
+}
+
 @theme {
   --font-sans: "Inter", "Avenir Next", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --color-app-bg: #181510;

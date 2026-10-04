@@ -123,8 +123,8 @@ class TestWebuiServer < Minitest::Test
   def test_top_navigation_tabs_include_icons
     get '/'
 
-    assert_includes last_response.body, 'data-lucide="file-video-camera"'
-    assert_includes last_response.body, 'data-lucide="list-video"'
+    assert_includes last_response.body, 'data-lucide="clapperboard"'
+    assert_includes last_response.body, 'data-lucide="film"'
   end
 
   def test_compilation_navigation_uses_rounded_cards_and_an_icon_heading
@@ -136,7 +136,7 @@ class TestWebuiServer < Minitest::Test
     controller = File.read(File.expand_path(
       '../lib/invasion_studio/webui/public/controllers/clip_list_controller.js', __dir__
     ))
-    assert_includes controller, 'data-lucide="list-video"'
+    assert_includes controller, 'data-lucide="film"'
     assert_includes controller, 'text-accent text-xs'
     refute_includes controller, "this.groupValue + ' ('"
   end

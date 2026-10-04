@@ -69,10 +69,19 @@
 }
 
 .clip-library-duration { font-variant-numeric: tabular-nums; padding-right: 7px; border-right: 1px solid var(--color-border); }
-.clip-density-toggle, .clip-filter-chip { border: 1px solid var(--color-input-border); border-radius: 999px; background: var(--color-input-bg); color: var(--color-text-secondary); padding: 4px 9px; font-size: 11px; cursor: pointer; }
-.clip-density-toggle { margin-left: auto; }
-.clip-density-toggle[aria-pressed=true] { border-color: var(--color-accent); color: var(--color-accent); }
-.clip-density-toggle:focus-visible, .clip-filter-chip:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.clip-filter-chip { border: 1px solid var(--color-input-border); border-radius: 999px; background: var(--color-input-bg); color: var(--color-text-secondary); padding: 4px 9px; font-size: 11px; cursor: pointer; }
+.clip-filter-chip:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.clip-view-toggle { display: inline-flex; flex-shrink: 0; margin-left: auto; padding: 3px; gap: 2px; border: 1px solid var(--color-input-border); border-radius: 8px; background: var(--color-surface); }
+.clip-view-toggle button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 30px; padding: 6px; border: 0; border-radius: 5px; background: transparent; color: var(--color-text-muted); cursor: pointer; }
+.clip-view-toggle button:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+.clip-view-toggle button[aria-pressed=true] { background: var(--color-surface-secondary); color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-input-border); }
+.clip-view-toggle svg, .compilation-settings-button svg { width: 17px; height: 17px; }
+.clip-view-toggle button:focus-visible, .compilation-settings-button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.compilation-heading { min-width: 0; max-width: 100%; }
+.compilation-heading > svg, .compilation-heading > .text-accent { flex-shrink: 0; white-space: nowrap; }
+.compilation-heading-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compilation-settings-button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 28px; height: 28px; padding: 5px; border: 0; border-radius: 50%; background: transparent; color: var(--color-text-muted); cursor: pointer; }
+.compilation-settings-button:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
 .clip-active-filters { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; }
 .clip-active-filters[hidden] { display: none; }
 .clip-filter-chip { max-width: 100%; overflow-wrap: anywhere; text-align: left; }

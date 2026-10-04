@@ -1,16 +1,12 @@
 <section class="min-h-0 overflow-y-auto p-6" data-navigation-target="importPanel" style="display:none">
   <div class="max-w-3xl mx-auto space-y-6">
-    <div>
-      <h1 class="m-0 mb-2 text-xl font-semibold">Import</h1>
-      <p class="m-0 text-sm text-text-muted">Add finished clips or find invasions in longer recordings. New clips are saved in the current project.</p>
-    </div>
     <section class="bg-surface border border-border rounded-lg p-5">
-      <h2 class="m-0 mb-2 text-base font-semibold">Upload clips</h2>
+      <h2 class="m-0 mb-2 flex items-center gap-2 text-base font-semibold"><i data-lucide="upload" class="size-5 shrink-0 text-accent" aria-hidden="true"></i><span>Upload clips</span></h2>
       <p class="m-0 mb-4 text-sm text-text-muted">Already have individual clips? Select multiple files to copy them into your library.</p>
       <%= erb :_import_upload %>
     </section>
     <section class="bg-surface border border-border rounded-lg p-5" data-controller="extraction">
-      <h2 class="m-0 mb-2 text-base font-semibold">Extract from recordings</h2>
+      <h2 class="m-0 mb-2 flex items-center gap-2 text-base font-semibold"><i data-lucide="scissors" class="size-5 shrink-0 text-accent" aria-hidden="true"></i><span>Extract from recordings</span></h2>
       <p class="m-0 mb-4 text-sm text-text-muted">Detect invasions and extract clips from one or more gameplay recordings. Original recordings stay in place.</p>
       <form data-action="submit->extraction#start">
         <fieldset class="border-0 p-0 m-0 min-w-0 space-y-4 disabled:opacity-50" data-extraction-target="fields" disabled>
