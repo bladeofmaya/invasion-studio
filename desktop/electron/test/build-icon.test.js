@@ -15,14 +15,14 @@ test("icon generation preserves the source and pads rectangular artwork with tra
     return result.stdout
   }
   try {
-    mkdirSync(path.join(root, "bin"))
+    mkdirSync(path.join(root, "script"))
     const assets = path.join(root, "desktop/electron/assets")
     mkdirSync(assets, { recursive: true })
-    copyFileSync(new URL("../../../bin/build-icon", import.meta.url), path.join(root, "bin/build-icon"))
+    copyFileSync(new URL("../../../script/build-icon", import.meta.url), path.join(root, "script/build-icon"))
     const source = path.join(assets, "logo.png")
     run("magick", ["-size", "800x400", "xc:red", source])
     const original = readFileSync(source)
-    run("bash", [path.join(root, "bin/build-icon")])
+    run("bash", [path.join(root, "script/build-icon")])
     assert.deepEqual(readFileSync(source), original)
     assert.deepEqual(readFileSync(path.join(assets, "app-icon-master.png")), original)
     assert.equal(run("magick", [path.join(assets, "app-icon.png"), "-format",

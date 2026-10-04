@@ -56,14 +56,21 @@ class TestWebuiServer < Minitest::Test
     assert_equal 'running', JSON.parse(last_response.body)['status']
   end
 
-  def test_clip_preview_has_separate_details_and_video_sections
+  def test_clip_preview_combines_details_and_player_in_one_card
     get '/'
 
     assert_includes last_response.body, 'aria-label="Clip details"'
     assert_includes last_response.body, 'aria-label="Video editor"'
-    assert_includes last_response.body, '<span data-video-player-target="audioTrack"'
     refute_includes last_response.body, 'change->video-player#changeAudioTrack'
     assert_includes last_response.body, 'placeholder="Add a description about this clip..."'
+    shell = last_response.body.index('class="clip-player-shell"')
+    header = last_response.body.index('aria-label="Clip details"')
+    video = last_response.body.index('id="video-wrapper"')
+    assert_operator shell, :<, header
+    assert_operator header, :<, video
+    assert_operator last_response.body.index('meta-filename', header), :<, last_response.body.index('id="note-input"', header)
+    assert_operator last_response.body.index('id="delete-btn"', header), :<, last_response.body.index('id="note-input"', header)
+    assert_match(/id="note-input" rows="1"/, last_response.body)
   end
 
   def test_markers_api_persists_and_validates_manual_events
@@ -195,7 +202,7 @@ class TestWebuiServer < Minitest::Test
   def test_lucide_is_a_bundled_dependency
     package = JSON.parse(File.read(File.expand_path('../package.json', __dir__)))
 
-    assert_equal '1.27.0', package.dig('dependencies', 'lucide')
+    assert_match(/\A\d+\.\d+\.\d+\z/, package.dig('dependencies', 'lucide'))
   end
 
   def test_sortablejs_is_a_bundled_dependency

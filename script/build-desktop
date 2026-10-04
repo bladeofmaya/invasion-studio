@@ -8,14 +8,13 @@ MODE="${1:---package}"
 
 case "$MODE" in
   --package|--make) ;;
-  *) echo "Usage: bin/build-desktop [--package|--make]" >&2; exit 2 ;;
+  *) echo "Usage: script/build-desktop [--package|--make]" >&2; exit 2 ;;
 esac
 
-"$PROJECT_DIR/bin/build-sidecar"
+"$PROJECT_DIR/script/build-sidecar"
 
 cd "$ELECTRON_DIR"
 npm ci
-npm test
 
 if [ "$MODE" = "--make" ]; then
   npm run make

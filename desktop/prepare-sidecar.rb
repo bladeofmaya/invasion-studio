@@ -6,12 +6,12 @@ require_relative 'runtime_dependencies'
 
 stage = ARGV.fetch(0)
 versions = DesktopPackaging.runtime_dependencies(Bundler.load.specs, 'invasion-studio')
-# Tebako's base runtime contains additional gems. Exact requirements in the
-# desktop-only gemspec prevent RubyGems activating an untested newer version.
-File.open(File.join(stage, 'invasion-studio.gemspec'), 'a') do |file|
-  file.puts '.tap do |spec|'
-  file.puts '  spec.dependencies.clear'
-  versions.each { |name, version| file.puts "  spec.add_dependency #{name.inspect}, #{"= #{version}".inspect}" }
-  file.puts 'end'
-end
+# Tebako 2 packages a Gemfile application. Keep the complete runtime closure
+# pinned, excluding development gems and the repository's path dependency.
+File.write(File.join(stage, 'Gemfile'), DesktopPackaging.gemfile(versions))
+File.write(File.join(stage, 'desktop-entry.rb'), <<~RUBY)
+  ENV['BUNDLE_GEMFILE'] = File.expand_path('Gemfile', __dir__)
+  require 'bundler/setup'
+  load File.expand_path('bin/invasion-studio', __dir__)
+RUBY
 File.write(File.join(stage, 'desktop-dependencies.json'), JSON.pretty_generate(versions) + "\n")

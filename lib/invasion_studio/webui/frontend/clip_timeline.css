@@ -1,18 +1,40 @@
 .clip-show-view { overflow: auto; padding: 14px; gap: 14px; }
-.clip-details-card, .clip-player-shell { --clip-card-radius: 12px; border: 1px solid var(--color-border); border-radius: var(--clip-card-radius); background: var(--color-surface); }
-.clip-details-card #title-input { min-width: 0; }
+.clip-player-shell { --clip-card-radius: 12px; border: 1px solid var(--color-border); border-radius: var(--clip-card-radius); background: var(--color-surface); }
+/* One compact header stays with the video in fullscreen. */
+.clip-card-header { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--color-border); }
+.clip-heading-row, .clip-metadata-row, .clip-metadata-fields, .clip-file-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
+.clip-title-input { flex: 1; min-width: 120px; padding: 3px 0; background: transparent; border: 0; font-size: 14px; font-weight: 600; }
+.clip-title-input:focus-visible { outline: none; box-shadow: 0 1px var(--color-accent); }
+.clip-audio-label { color: var(--color-text-muted); font-size: 12px; white-space: nowrap; }
+.clip-fullscreen-button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--color-input-border); background: var(--color-input-bg); color: var(--color-text-primary); border-radius: 5px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
+.clip-card-header .player-file-button { min-width: 0; max-width: min(100%, 240px); min-height: 32px; margin: 0; padding: 4px; border: 0; border-radius: 5px; background: transparent; color: var(--color-text-muted); font-size: 11px; cursor: pointer; }
+.clip-card-header .player-file-button:hover, .clip-card-header .player-file-button:focus-visible { color: var(--color-text-primary); }
+.clip-delete-button { width: 32px; height: 32px; padding: 8px; border: 0; border-radius: 5px; background: transparent; color: var(--color-text-muted); cursor: pointer; }
+.clip-delete-button:hover, .clip-delete-button:focus-visible { color: var(--color-danger); }
+.clip-delete-button:disabled { cursor: default; }
+.clip-card-header .player-file-button svg { flex-shrink: 0; }
+.clip-card-header button:hover { filter: brightness(1.1); }
+.clip-card-header :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.clip-description { width: 100%; box-sizing: border-box; min-height: 30px; padding: 5px 8px; resize: vertical; border: 1px solid var(--color-input-border); border-radius: 5px; background: var(--color-input-bg); color: var(--color-text-primary); font-size: 12px; line-height: 18px; }
+.clip-description:placeholder-shown { border-color: var(--color-border-subtle); background: transparent; }
+.clip-description:hover { border-color: var(--color-input-border); }
+.clip-description:focus { border-color: var(--color-input-focus-ring); background: var(--color-input-bg); }
+.clip-metadata-fields { flex: 1 1 320px; }
+.clip-tags { flex: 1; min-width: 160px; margin-left: auto; justify-content: flex-end; }
+.clip-file-actions { margin-left: auto; justify-content: flex-end; }
+.clip-file-actions > button { flex-shrink: 0; }
+.clip-file-actions > .player-file-button { flex-shrink: 1; }
 .clip-player-shell { flex-shrink: 0; overflow: hidden; }
-.clip-player-shell:fullscreen { width: 100%; height: 100%; overflow: auto; border-radius: 0; }
+.clip-editor-shell { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.clip-editor-shell:fullscreen { box-sizing: border-box; width: 100%; height: 100%; overflow: auto; padding: 14px; background: var(--color-surface-overlay); }
+.clip-details { flex-shrink: 0; min-width: 0; }
 .clip-player-shell video-player { display: block; width: 100%; }
-/* Keep Video.js's grid layout: WebKit otherwise lets its media container
-   exceed the skin's max-height and clips the controls below the preview. */
-.clip-player-shell video-skin { display: grid; width: 100%; grid-template-rows: minmax(0, 1fr); aspect-ratio: 16 / 9; max-height: 55vh; --media-border-radius: 0px; }
-.clip-player-shell #video-wrapper { border-radius: var(--clip-card-radius) var(--clip-card-radius) 0 0; overflow: hidden; }
-.clip-player-shell:fullscreen #video-wrapper { border-radius: 0; }
-.clip-player-shell video { width: 100%; height: 100%; }
+.clip-player-shell #video-wrapper { overflow: hidden; background: #000; }
+.clip-player-shell video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; max-height: 55vh; object-fit: contain; cursor: pointer; }
+.clip-player-shell video:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+.clip-editor-shell:fullscreen video { max-height: 65vh; }
 .player-edit-controls { flex-direction: column; font-size: 12px; }
 .player-edit-controls [hidden] { display: none !important; }
-.player-edit-controls .player-file-toolbar { padding: 10px 16px; margin: 0; border-top: 1px solid var(--color-border-subtle); }
 .player-file-button { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; max-width: 100%; }
 .player-file-button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .player-edit-controls button, .player-edit-controls select, .player-edit-controls input:not([type=checkbox]):not([type=range]) {
@@ -23,12 +45,12 @@
 .player-edit-controls button:hover { background: var(--color-surface-hover); }
 .player-edit-controls button:disabled { opacity: .45; cursor: default; }
 .player-edit-controls :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
-.clip-timeline-editor { border: 0; padding: 0; min-width: 0; }
+.clip-timeline-editor { border: 0; padding: 0; margin: 0; min-width: 0; }
 .timeline-toolbar, .timeline-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }
 .timeline-toggle { display: flex; align-items: center; gap: 5px; }
 .timeline-toolbar input[type=range] { flex: 1; min-width: 80px; }
 .timeline-toolbar output { font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
-.clip-timeline-track { height: 36px; position: relative; margin: 6px 8px 0; border-radius: 5px; background: var(--color-surface-secondary); }
+.clip-timeline-track { height: 36px; position: relative; margin: 0 14px; border-radius: 5px; background: var(--color-surface-secondary); }
 .timeline-cut { position: absolute; top: 20px; height: 14px; background: #a4474780; border: 1px solid #e28e8e; box-sizing: border-box; }
 .player-edit-controls .timeline-handle { position: absolute; top: -3px; width: 12px; height: 18px; padding: 0; background: #e9aa9d; touch-action: none; cursor: ew-resize; }
 .timeline-handle.start { left: -6px; } .timeline-handle.end { right: -6px; }
@@ -42,17 +64,31 @@
 .timeline-row input[type=text] { flex: 1; min-width: 120px; }
 .timeline-rows { max-height: 180px; overflow: auto; }
 .timeline-rows p, .timeline-message { color: var(--color-text-muted); }
-.timeline-cut-panel { padding: 0 16px; }
-.timeline-cut-panel summary { padding: 9px 0; cursor: pointer; font-weight: 600; }
-.timeline-disclosure-hint { margin-left: 10px; font-weight: normal; color: var(--color-text-muted); }
-.timeline-cut-panel[open] summary { border-bottom: 1px solid var(--color-border-subtle); }
-.timeline-cut-panel[open] { padding-bottom: 12px; }
-.timeline-cut-panel .timeline-rows { padding-bottom: 8px; }
-.timeline-marker-section, .timeline-cut-section { border-top: 1px solid var(--color-border-subtle); padding-top: 10px; margin-top: 10px; }
-.timeline-marker-section h3, .timeline-cut-section h3 { font-size: 12px; font-weight: 600; }
-.timeline-cut-section, .timeline-marker-section { border: 1px solid var(--color-border-subtle); border-radius: 7px; padding: 10px; }
+.timeline-cut-panel { display: flex; flex-direction: column; gap: 16px; }
+/* The seeker and editing tools form a continuous footer beneath the video. */
+.timeline-player-footer { padding-top: 10px; background: color-mix(in srgb, var(--color-surface) 70%, black); }
+.timeline-player-footer .clip-timeline-track { background: color-mix(in srgb, var(--color-surface-secondary) 85%, black); }
+.timeline-player-footer > .timeline-toolbar { padding: 8px 14px 10px; margin: 0; gap: 6px; }
+.timeline-player-footer .timeline-toolbar button { background: transparent; border-color: transparent; color: var(--color-text-muted); }
+.timeline-player-footer .timeline-toolbar .timeline-action:first-child { border-color: var(--color-input-border); color: var(--color-text-primary); }
+.timeline-player-footer .timeline-toolbar button:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+.timeline-player-footer .timeline-message:not(:empty) { margin-top: 0; margin-bottom: 0; padding-bottom: 10px; }
+.player-edit-controls .clip-fullscreen-button { background: transparent; border-color: transparent; color: var(--color-text-muted); }
+.player-edit-controls .clip-fullscreen-button:hover { color: var(--color-text-primary); background: var(--color-surface-hover); }
+.timeline-player-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-left: 6px; }
+.timeline-message, .timeline-help { margin-left: 14px; margin-right: 14px; }
+.timeline-message:empty { display: none; }
+.timeline-marker-section, .timeline-cut-section { border: 1px solid var(--color-border-subtle); border-radius: 7px; padding: 10px; margin: 0; }
 .timeline-cut-section { background: color-mix(in srgb, var(--color-danger) 5%, var(--color-surface)); border-left: 3px solid color-mix(in srgb, var(--color-danger) 55%, var(--color-border)); }
 .timeline-marker-section { background: var(--color-surface-secondary); border-left: 3px solid var(--color-accent); }
+.timeline-marker-section h3, .timeline-cut-section h3 { margin: 0 0 10px; font-size: 12px; font-weight: 600; }
+.timeline-section-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.timeline-section-heading h3 { margin: 0; }
+.player-edit-controls .timeline-section-heading button { background: transparent; color: var(--color-text-muted); }
+.player-edit-controls .timeline-section-heading button:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+.timeline-cut-panel .timeline-rows { padding-bottom: 6px; }
+.player-edit-controls .timeline-row > button:last-child { background: transparent; border-color: transparent; color: var(--color-text-muted); }
+.player-edit-controls .timeline-row > button:last-child:hover, .player-edit-controls .timeline-row > button:last-child:focus-visible { color: var(--color-danger); }
 .timeline-row { font-size: 11px; gap: 6px; margin: 6px 0; }
 .player-edit-controls .timeline-row button, .player-edit-controls .timeline-row select, .player-edit-controls .timeline-row input:not([type=checkbox]):not([type=range]) { padding: 3px 6px; font-size: 11px; }
 .timeline-row label { color: var(--color-text-muted); }
@@ -62,5 +98,14 @@
 .timeline-help { color: var(--color-text-muted); margin-top: 8px; }
 @media (max-width: 640px) {
   .clip-show-view { padding: 8px; gap: 8px; }
-  .timeline-cut-panel { padding-left: 10px; padding-right: 10px; }
+  .clip-card-header .player-file-button { max-width: 100%; }
+  .clip-file-actions { width: 100%; }
+  .clip-heading-row { gap: 8px; }
 }
+
+.playback-controls { display: flex; align-items: center; gap: 6px; padding-right: 10px; margin-right: 4px; border-right: 1px solid var(--color-border); }
+.player-edit-controls .playback-icon-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 6px; }
+.playback-icon-button svg { width: 18px; height: 18px; }
+.timeline-toolbar .playback-controls input[type=range] { width: 72px; min-width: 48px; flex: none; accent-color: var(--color-accent); cursor: pointer; }
+.playback-control-status { color: var(--color-text-muted); font-size: 11px; }
+.playback-control-status:empty { display: none; }

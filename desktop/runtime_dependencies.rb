@@ -1,6 +1,12 @@
 # frozen_string_literal: true
 
 module DesktopPackaging
+  def self.gemfile(versions)
+    "source \"https://rubygems.org\"\n\n" + versions.sort.map do |name, version|
+      "gem #{name.inspect}, #{"= #{version}".inspect}\n"
+    end.join
+  end
+
   def self.runtime_dependencies(specifications, root)
     specs = specifications.to_h { |spec| [spec.name, spec] }
     versions = {}

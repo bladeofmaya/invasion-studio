@@ -12,7 +12,7 @@ straight into the WebUI, so the library is not limited to extractor output.
 The v0.8.0 desktop package is a Flatpak containing Electron, the Ruby backend,
 FFmpeg/ffprobe, Tesseract, and English OCR data. You do not need Ruby, Node.js,
 FFmpeg, or Tesseract installed on the host. Flatpak installs the required
-Freedesktop 25.08 runtime separately.
+Freedesktop 26.08 runtime separately.
 
 Download the `.flatpak` release artifact, then install and launch it:
 
@@ -303,121 +303,90 @@ macOS and Linux. A modern browser is required for the WebUI.
 
 ## Development
 
-Ruby 3.4.9 and Node.js 24 LTS are pinned in `mise.toml`. The Ruby application,
-browser-based WebUI, and Electron desktop shell can be developed separately.
+Ruby and Node.js are pinned in `mise.toml`. The five public entry points are:
 
-### Initial setup
+| Command | Purpose |
+| --- | --- |
+| `bin/setup` | Install pinned tools, gems and frontend/Electron dependencies |
+| `bin/dev [PROJECT]` | Run Electron against source Ruby with asset watching and UI reload |
+| `bin/release [--install]` | Build a desktop release, optionally reinstalling it locally |
+| `bin/test` | Run non-video Ruby, frontend and Electron tests |
+| `bin/invasion-studio …` | Application CLI: extraction, scanning, WebUI and exports |
 
-```bash
-# Install Ruby and WebUI asset dependencies.
-bundle install
-npm ci
-bin/build-assets
-```
-
-### Develop the Ruby application and WebUI
-
-The standalone WebUI remains a supported workflow and does not require
-Electron:
+### Fast UI development
 
 ```bash
-# Start from the source checkout.
-bundle exec bin/invasion-studio webui /path/to/project
-
-# Run the non-video Ruby test suite.
-bundle exec rake test
-
-# Build and verify the installable Ruby gem.
-bin/build-gem
+bin/setup
+bin/dev /path/to/project
+# Or use a browser (prints the local URL):
+bin/dev --browser /path/to/project
 ```
 
-After installing the gem, the same UI remains available with:
+Without a project argument, development uses `tmp/dev-project`. Use a disposable
+project when experimenting: development edits are real project changes. Electron
+uses separate development window settings and Recents; the Ruby app still uses
+its usual user settings and host FFmpeg/Tesseract tools.
+
+`bin/dev` builds assets once, then watches CSS/JS. Templates and completed asset
+changes reload the page automatically. Ruby changes restart the backend; in
+Electron, Ruby or shell changes restart the development window. Reloads reset
+playback and may discard unsaved fields. Browser mode keeps the same URL across
+backend restarts; set `STUDIO_DEV_PORT` to override port 4567.
+
+There is no packaging, dependency installation or test execution during `dev`.
+Rerun `bin/setup` after changing dependency lockfiles. Ctrl+C stops the app and
+watchers. Host FFmpeg/ffprobe and Tesseract are required for media operations.
 
 ```bash
-invasion-studio webui /path/to/project
+bin/dev console    # Ruby/Pry console
+bin/dev icon       # Regenerate app icons from desktop/electron/assets/logo.png
 ```
 
-Generated WebUI assets under `lib/invasion_studio/webui/public/assets/` are
-ignored and should not be committed.
+Icon generation uses ImageMagick 7 (`magick`) and preserves aspect ratio and
+transparency. Desktop release builds regenerate the icon automatically.
+Generated frontend assets are ignored and must not be committed.
 
-### Develop the Electron desktop application
-
-The Electron project has its own dependency lockfile so ordinary gem
-development does not install Electron or Forge:
+### Build and reinstall
 
 ```bash
-# One-time Electron dependency setup.
-npm ci --prefix desktop/electron
-
-# Fast Electron security and sidecar tests; these do not process video.
-npm test --prefix desktop/electron
-
-# Build the Linux x64 Tebako sidecar.
-bin/build-sidecar
-
-# Launch Electron through Forge against a project folder.
-INVASION_STUDIO_PROJECT=/path/to/project \
-  npm start --prefix desktop/electron
+bin/release                 # Linux x64 Flatpak plus release materials
+bin/release --install       # Build, then install/reinstall for the current user
+bin/release --gem           # Standalone Ruby gem plus notices/checksums
+bin/release --gem --install # Build and install the gem locally
+bin/release version patch  # Or minor, major, or an explicit version
 ```
 
-Electron only supervises the packaged `invasion-studio webui` process and
-loads its local URL. Project, database, media, and WebUI behavior remains in
-the Ruby application.
+Release folders are `pkg/release/<version>/desktop/` and
+`pkg/release/<version>/gem/`. Each build replaces only its own generated target
+folder after successful assembly; existing artifacts from other targets are
+not silently mixed in. Builds do not run tests, tag commits or publish anything.
 
-### Build the Linux desktop package
+Desktop packaging currently supports **Linux x64 only**. Windows/macOS packaging
+is not implemented. Build prerequisites include Python 3, ImageMagick 7, a C
+compiler, make, curl, sha256sum, Flatpak, flatpak-builder and elfutils (`eu-strip`),
+plus the Freedesktop SDK/Platform and Electron BaseApp 26.08. The Flatpak bundles
+pinned media tools; source development and the standalone gem use host tools.
 
-The first desktop release targets Linux x64, with Flatpak as the primary
-installer:
+Close the installed app before reinstalling, then launch it with
+`flatpak run com.bladeofmaya.InvasionStudio`. The gem's WebUI can be launched with
+`invasion-studio webui /path/to/project`.
+
+### Explicit verification
 
 ```bash
-# Rebuild the sidecar, run Electron tests, and create an unpacked app.
-bin/build-desktop
-
-# Launch the project picker, or pass a folder to bypass it during development.
-bin/run-desktop
-bin/run-desktop /path/to/project
-
-# Run the Flatpak maker instead of producing only the unpacked app.
-bin/build-desktop --make
-
-# Build and install/reinstall the Flatpak for the current user.
-bin/install-desktop
+bin/test                  # Non-video Ruby + frontend + Electron suites
+bin/test --packaged       # Empty-project backend checks after a desktop build
+bin/test --installed      # Same checks inside the installed Flatpak
+bin/test --release        # Non-video suites, isolated gem installation, backend check
+bin/test --video          # Video integration suite: run manually
+bin/test --media-package  # Sample-clip upload/probe/serving check: run manually
 ```
 
-Close the running app before reinstalling. Launch the installed build with
-`flatpak run com.bladeofmaya.InvasionStudio`.
-
-After editing `desktop/electron/assets/logo.png`, run `bin/build-icon` to
-regenerate the 512×512 app icon, then `bin/install-desktop` to build and reinstall.
-Icon generation requires ImageMagick 7 (`magick`). It preserves the artwork's
-aspect ratio and transparency, padding non-square logos without cropping.
-
-Build output is ignored under `desktop/electron/out/`. The sidecar is generated
-under `pkg/sidecar/linux-x64/`. Empty platform directories reserve the planned
-Windows x64 and macOS x64/ARM64 targets, but those packaging pipelines are not
-implemented for the first release.
-
-The unpacked app is a development build and uses host media tools. The Flatpak
-release builds its own pinned FFmpeg, Leptonica, and Tesseract from the
-checksummed sources in `desktop/flatpak/media-modules.json`, and includes English
-OCR data. Build prerequisites are Docker, Node.js/npm, Flatpak, flatpak-builder,
-elfutils, Freedesktop SDK/Platform 25.08, and Electron BaseApp 25.08.
-
-See [RELEASING.md](RELEASING.md) for build commands, source archives, dependency
-notices, and the manual acceptance checklist. Local artifacts are release
-candidates until those checks pass.
-
-### Verification and releases
-
-```bash
-# Complete suite, including sample-video processing. Run manually.
-bin/test
-
-# Gem release gate: assets, non-video tests, gem installation, CLI, and WebUI.
-bin/release-check
-```
-
-See `RELEASING.md` and `desktop/electron/README.md` for the detailed gates.
+`--release` requires a current desktop build and a clean checkout; use
+`ALLOW_DIRTY=1` only for local development. It needs network access to install
+into an isolated gem environment. No tests run implicitly during development or
+release builds. See [RELEASING.md](RELEASING.md) for the manual acceptance checklist.
+Internal helpers live in `script/`; they are not the public command interface.
 
 ## Support
 

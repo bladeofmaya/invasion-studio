@@ -5,11 +5,11 @@ require 'json'
 
 # Bump the gem version and refresh Gemfile.lock.
 #
-#   bin/bump-version patch      0.6.0 -> 0.6.1
-#   bin/bump-version minor      0.6.0 -> 0.7.0
-#   bin/bump-version major      0.6.0 -> 1.0.0
-#   bin/bump-version 1.2.3      set an explicit version
-#   bin/bump-version v1.2.3-dev set an explicit prerelease version
+#   bin/release version patch      0.6.0 -> 0.6.1
+#   bin/release version minor      0.6.0 -> 0.7.0
+#   bin/release version major      0.6.0 -> 1.0.0
+#   bin/release version 1.2.3      set an explicit version
+#   bin/release version v1.2.3-dev set an explicit prerelease version
 
 VERSION_FILE = File.expand_path('../lib/invasion_studio/version.rb', __dir__)
 ELECTRON_PACKAGE_FILE = File.expand_path('../desktop/electron/package.json', __dir__)
@@ -17,7 +17,7 @@ ELECTRON_LOCK_FILE = File.expand_path('../desktop/electron/package-lock.json', _
 GEM_LOCK_FILE = File.expand_path('../Gemfile.lock', __dir__)
 
 arg = ARGV.fetch(0) do
-  warn 'Usage: bin/bump-version patch|minor|major|[v]X.Y.Z[-PRERELEASE]'
+  warn 'Usage: bin/release version patch|minor|major|[v]X.Y.Z[-PRERELEASE]'
   exit 2
 end
 
@@ -64,5 +64,5 @@ puts 'Electron package metadata refreshed.'
 
 puts
 puts 'Next steps:'
-puts '  bin/release-check'
+puts '  bin/test --release'
 puts "  git commit -am \"bump version to #{new_version}\" && git tag v#{new_version}"

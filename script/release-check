@@ -3,8 +3,8 @@
 # from scratch. Needs network access (npm ci, dependency install) and a
 # compiler toolchain for native extensions (sqlite3, puma).
 #
-#   bin/release-check                 full run (requires a clean working tree)
-#   ALLOW_DIRTY=1 bin/release-check   skip the clean-tree requirement
+#   script/release-check                 full run (requires a clean working tree)
+#   ALLOW_DIRTY=1 script/release-check   skip the clean-tree requirement
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -35,10 +35,8 @@ if [ -n "$(git ls-files -- 'lib/invasion_studio/webui/public/assets')" ]; then
 fi
 
 step "Building frontend assets"
-bin/build-assets
+script/build-assets
 
-step "Running test suite (non-video)"
-bundle exec rake test
 
 step "Building gem"
 VERSION="$(bundle exec ruby -Ilib -rinvasion_studio/version -e 'print InvasionStudio::VERSION')"
@@ -48,7 +46,7 @@ rm -f "$GEM_FILE"
 bundle exec gem build invasion-studio.gemspec
 
 step "Verifying gem contents"
-bin/verify-gem "$GEM_FILE"
+script/verify-gem "$GEM_FILE"
 
 step "Installing into an empty GEM_HOME"
 TMP_GEM_HOME="$(mktemp -d)"

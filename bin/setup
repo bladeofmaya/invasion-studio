@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
-IFS=$'\n\t'
-set -vx
-
-bundle install
-
-# Do any other automated setup that you need to do here
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+[ "$#" = 0 ] || { echo "Usage: bin/setup" >&2; exit 2; }
+command -v mise >/dev/null || { echo "Install mise first, then rerun bin/setup." >&2; exit 1; }
+mise install
+BUNDLER_VERSION="$(sed -n '/BUNDLED WITH/{n;s/^[[:space:]]*//;p;}' Gemfile.lock)"
+mise exec -- gem install bundler --version "$BUNDLER_VERSION" --no-document
+mise exec -- bundle install
+mise exec -- npm ci
+mise exec -- npm ci --prefix desktop/electron
+for tool in ffmpeg ffprobe tesseract magick cc make curl python3 flatpak flatpak-builder eu-strip; do
+  command -v "$tool" >/dev/null || echo "Missing optional/system prerequisite: $tool (see README.md)."
+done
+echo "Setup complete. Run bin/dev [PROJECT] or bin/dev --browser [PROJECT]."

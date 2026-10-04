@@ -1,0 +1,8 @@
+# Shared by public Bash commands. Re-enter once with the pinned mise tools.
+ENTRYPOINT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_DIR"
+if [ "${STUDIO_TOOLCHAIN_ACTIVE:-}" != 1 ]; then
+  command -v mise >/dev/null || { echo "mise is required; install it, then run bin/setup." >&2; exit 1; }
+  exec mise exec -- env STUDIO_TOOLCHAIN_ACTIVE=1 bash "$ENTRYPOINT" "$@"
+fi

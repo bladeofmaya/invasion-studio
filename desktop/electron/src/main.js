@@ -19,6 +19,10 @@ const sourceDirectory = path.dirname(fileURLToPath(import.meta.url))
 const electronDirectory = path.dirname(sourceDirectory)
 const repositoryRoot = path.resolve(electronDirectory, "..", "..")
 
+if (!app.isPackaged && process.env.INVASION_STUDIO_DEV === "1") {
+  app.setPath("userData", path.join(app.getPath("appData"), "invasion-studio-dev"))
+}
+
 let mainWindow = null
 let launcherWindow = null
 let quitting = false

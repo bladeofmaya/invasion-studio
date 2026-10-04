@@ -344,8 +344,10 @@ The Linux Flatpak includes Electron (MIT) and Chromium third-party code; their
 complete notices are shipped as `LICENSE` and `LICENSES.chromium.html` beside
 the Electron executable. The Ruby/Tebako backend embeds its runtime and gems;
 see `resources/dependencies.json` and `resources/backend-notices/` in the desktop
-package. The pinned Tebako runtime includes DwarFS under GPLv3, as recorded in
-`backend-notices/runtime-notices/dwarfs-copyright`. The MIT license on Studio's
+package. Tebako 2.8.24 packages Ruby 4.0.7 using runtime 0.16.31. This changes
+the embedded runtime and filesystem components; their complete notices and
+corresponding sources must be reviewed for this exact build before publication.
+The MIT license on Studio's
 own source does not replace licenses on the runtime or its dependencies.
 Corresponding runtime source materials require review before public distribution.
 
@@ -354,9 +356,9 @@ Media sources and SHA-256 checksums are recorded in
 
 | Component | Version | License |
 |---|---|---|
-| FFmpeg / ffprobe | 7.1.3 | LGPL-2.1-or-later (no GPL/nonfree build options) |
-| Leptonica | 1.86.0 | BSD-2-Clause |
-| Tesseract | 5.5.1 | Apache-2.0 |
+| FFmpeg / ffprobe | 9.0.2 | LGPL-2.1-or-later (no GPL/nonfree build options) |
+| Leptonica | 1.87.0 | BSD-2-Clause |
+| Tesseract | 5.5.3 | Apache-2.0 |
 | tessdata_fast English model | 4.1.0 | Apache-2.0 |
 
 Full media license texts are installed under `/app/share/licenses/` in the

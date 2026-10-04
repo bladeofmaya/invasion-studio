@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+OUTPUT_DIR="${TEBAKO_OUTPUT_DIR:-$PROJECT_DIR/pkg/sidecar/linux-x64}"
+PACKAGER_DIR="$PROJECT_DIR/pkg/tebako"
+TEBAKO_VERSION=2.8.24
+# 0.16.32 does not publish a Ruby 4.0.7 Linux GNU x64 runtime yet.
+TEBAKO_RUNTIME_VERSION=0.16.31
+TEBAKO_SHA256=9618711295d785d7dfb32c00a74a40db32c0846eeaae4f18ffbaeab662e167bd
+RUBY_VERSION="$(sed -n 's/^ruby = "\([^"]*\)"/\1/p' "$PROJECT_DIR/mise.toml")"
+TEBAKO="$PACKAGER_DIR/tebako-$TEBAKO_VERSION"
+TEMP_OUTPUT_DIR="$(mktemp -d)"
+STAGE_DIR="$TEMP_OUTPUT_DIR/source"
+trap 'rm -rf "$TEMP_OUTPUT_DIR"' EXIT
+
+fail() { echo "FAIL: $*" >&2; exit 1; }
+[ "$(uname -s)" = Linux ] && [ "$(uname -m)" = x86_64 ] || fail "the desktop build requires Linux x86_64"
+[ "$(ruby -e 'print RUBY_VERSION')" = "$RUBY_VERSION" ] || fail "activate mise's Ruby $RUBY_VERSION first"
+for command in curl sha256sum cc make; do
+  command -v "$command" >/dev/null || fail "$command is required"
+done
+mkdir -p "$OUTPUT_DIR" "$PACKAGER_DIR" "$STAGE_DIR"
+if [ ! -f "$TEBAKO" ]; then
+  curl --fail --location --retry 2 "https://github.com/tamatebako/tebako/releases/download/v$TEBAKO_VERSION/tebako-$TEBAKO_VERSION-linux-gnu-x86_64" -o "$TEMP_OUTPUT_DIR/tebako"
+  echo "$TEBAKO_SHA256  $TEMP_OUTPUT_DIR/tebako" | sha256sum --check --status
+  /usr/bin/install -m 755 "$TEMP_OUTPUT_DIR/tebako" "$TEBAKO"
+fi
+echo "$TEBAKO_SHA256  $TEBAKO" | sha256sum --check --status
+
+"$PROJECT_DIR/script/build-assets"
+tar -cf - -C "$PROJECT_DIR" lib MIT-LICENSE README.md THIRD_PARTY_LICENSES.md | tar -xf - -C "$STAGE_DIR"
+mkdir -p "$STAGE_DIR/bin"
+cp "$PROJECT_DIR/bin/invasion-studio" "$STAGE_DIR/bin/invasion-studio"
+cd "$PROJECT_DIR"
+bundle exec ruby desktop/prepare-sidecar.rb "$STAGE_DIR"
+"$TEBAKO" press --root "$STAGE_DIR" --entry-point desktop-entry.rb \
+  --Ruby "$RUBY_VERSION" --tebako-version "$TEBAKO_RUNTIME_VERSION" \
+  --prefix "$PACKAGER_DIR/runtime" --mode self-contained \
+  --output "$TEMP_OUTPUT_DIR/invasion-studio"
+
+# Validate before replacing the last working backend.
+"$TEMP_OUTPUT_DIR/invasion-studio" --version
+ruby desktop/collect-notices.rb "$PACKAGER_DIR/runtime/o/s" "$TEMP_OUTPUT_DIR/backend-notices"
+mkdir -p "$TEMP_OUTPUT_DIR/backend-notices/runtime-notices"
+for name in COPYING BSDL; do
+  curl --fail --location --retry 2 "https://raw.githubusercontent.com/ruby/ruby/v$RUBY_VERSION/$name" \
+    -o "$TEMP_OUTPUT_DIR/backend-notices/runtime-notices/ruby-$name"
+done
+curl --fail --location --retry 2 "https://raw.githubusercontent.com/tamatebako/tebako/v$TEBAKO_VERSION/LICENSE" \
+  -o "$TEMP_OUTPUT_DIR/backend-notices/runtime-notices/tebako-LICENSE"
+/usr/bin/install -m 755 "$TEMP_OUTPUT_DIR/invasion-studio" "$OUTPUT_DIR/invasion-studio"
+/usr/bin/install -m 644 "$STAGE_DIR/desktop-dependencies.json" "$OUTPUT_DIR/dependencies.json"
+# Replace notices as a unit so obsolete dependency notices do not accumulate.
+rm -rf "$OUTPUT_DIR/backend-notices"
+mv "$TEMP_OUTPUT_DIR/backend-notices" "$OUTPUT_DIR/backend-notices"
+printf '{"ruby":"%s","tebako":"%s","runtime":"%s"}\n' "$RUBY_VERSION" "$TEBAKO_VERSION" "$TEBAKO_RUNTIME_VERSION" > "$OUTPUT_DIR/build-info.json"
+echo "Sidecar artifact: $OUTPUT_DIR/invasion-studio"

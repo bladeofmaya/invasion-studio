@@ -6,6 +6,9 @@
   <title>Invasion Studio</title>
   <link rel="stylesheet" href="/assets/app.css">
   <script type="module" src="/assets/app.js"></script>
+  <% if ENV['INVASION_STUDIO_DEV'] == '1' && ENV['APP_ENV'] == 'development' %>
+    <script src="/dev-reload.js" defer></script>
+  <% end %>
 </head>
 <body class="m-0 font-sans bg-app-bg text-text-primary h-screen overflow-hidden">
   <div class="h-full grid grid-rows-[auto_1fr]" data-controller="router navigation" data-navigation-current-view-value="all">

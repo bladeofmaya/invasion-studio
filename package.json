@@ -1,6 +1,10 @@
 {
   "name": "invasion-studio-assets",
   "private": true,
+  "type": "module",
+  "overrides": {
+    "@parcel/watcher": "2.6.0"
+  },
   "scripts": {
     "test": "node --test test/frontend/*.test.mjs",
     "build": "npm run build:css && npm run build:js",
@@ -10,12 +14,12 @@
   "devDependencies": {
     "@hotwired/stimulus": "3.2.2",
     "@tailwindcss/cli": "4.3.3",
-    "esbuild": "0.28.1",
+    "esbuild": "0.28.2",
     "tailwindcss": "4.3.3"
   },
   "dependencies": {
-    "@videojs/html": "10.0.0-rc.4",
-    "lucide": "1.27.0",
+    "@videojs/html": "10.0.1",
+    "lucide": "1.51.0",
     "sortablejs": "1.15.7"
   }
 }

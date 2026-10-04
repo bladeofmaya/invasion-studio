@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Resolve a user-supplied relative project before changing to the repository.
+CALLER_DIR="${STUDIO_CALLER_DIR:-$PWD}"
+export STUDIO_CALLER_DIR="$CALLER_DIR"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/script/environment"
+case "${1:-}" in
+  console) [ "$#" = 1 ] || { echo "Usage: bin/dev console" >&2; exit 2; }; exec bundle exec ruby script/console ;;
+  icon) shift; exec script/build-icon "$@" ;;
+  *) exec bundle exec node script/dev.mjs "$@" ;;
+esac

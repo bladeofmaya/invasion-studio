@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
-IFS=$'\n\t'
-
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$PROJECT_DIR"
-
-exec bundle exec rake test:all
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/script/environment"
+usage() { echo "Usage: bin/test [--video|--packaged|--installed|--release|--media-package]"; }
+[ "$#" -le 1 ] || { usage >&2; exit 2; }
+case "${1:-}" in
+  '') bundle exec rake test; npm test; npm test --prefix desktop/electron ;;
+  --video) exec bundle exec rake test:system ;;
+  --packaged) exec node script/check-desktop ;;
+  --installed) exec node script/check-desktop --flatpak ;;
+  --media-package) exec bundle exec ruby script/smoke-test-tebako ;;
+  --release)
+    bin/test
+    script/release-check
+    node script/check-desktop
+    ;;
+  -h|--help) usage; echo "Default: non-video Ruby, frontend and Electron tests. Media checks require an explicit flag." ;;
+  *) usage >&2; exit 2 ;;
+esac

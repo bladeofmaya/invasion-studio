@@ -1,6 +1,7 @@
 <div class="clip-show-view flex flex-col min-h-0 bg-surface-overlay border-l border-border relative" id="preview-panel" data-navigation-target="previewPanel" data-controller="video-player" data-video-player-clip-id-value="" data-video-player-src-value="" data-action="editor:cuts-finalized->video-player#reloadFinalizedClip">
-  <%= erb :_editor %>
-  <section class="clip-player-shell" aria-label="Video editor" data-video-player-target="playerShell">
+  <div class="clip-editor-shell" data-video-player-target="playerShell">
+  <section class="clip-player-shell" aria-label="Video editor">
+    <%= erb :_editor %>
   <div class="px-4 py-2 text-sm text-text-muted" role="status" aria-live="polite" data-video-player-target="playbackStatus" hidden></div>
   <div class="px-4 py-2 text-sm text-danger" role="alert" data-video-player-target="saveError" hidden>
     Timeline edits could not be saved. Keep this window open.
@@ -11,6 +12,11 @@
     </div>
     <%= erb :_video_controls %>
   </section>
+  <section class="clip-details player-edit-controls" aria-label="Cuts and markers" data-video-player-target="controls" style="display:none;">
+    <div data-video-player-target="timelineDetails"></div>
+    <p class="px-4 py-2 text-xs text-text-muted" role="status" data-video-player-target="markerStatus" hidden></p>
+  </section>
+  </div>
   <div class="absolute inset-0 bg-surface-overlay/100 flex items-center justify-center z-10" data-video-player-target="placeholder">
     <div class="text-text-muted text-lg font-medium">Select a clip to preview</div>
   </div>

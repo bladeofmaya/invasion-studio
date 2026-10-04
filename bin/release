@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/script/environment"
+usage() { echo "Usage: bin/release [--gem] [--install] | version patch|minor|major|VERSION"; }
+if [ "${1:-}" = version ]; then
+  [ "$#" = 2 ] || { usage >&2; exit 2; }
+  exec ruby script/bump-version "$2"
+fi
+GEM_ONLY=0
+INSTALL=0
+for arg in "$@"; do
+  case "$arg" in
+    --gem) GEM_ONLY=1 ;;
+    --install) INSTALL=1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) usage >&2; exit 2 ;;
+  esac
+done
+if [ "$GEM_ONLY" = 1 ]; then
+  script/build-gem
+  GEM_VERSION="$(bundle exec ruby -Ilib -rinvasion_studio/version -rrubygems -e 'print Gem::Version.new(InvasionStudio::VERSION)')"
+  ARTIFACT="$PROJECT_DIR/invasion-studio-$GEM_VERSION.gem"
+  script/prepare-release --gem
+  if [ "$INSTALL" = 1 ]; then gem install --local --no-document "$ARTIFACT"; fi
+else
+  [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = x86_64 ] || {
+    echo "Desktop releases currently support Linux x86_64 only. Use --gem on other systems." >&2; exit 1;
+  }
+  if [ "$INSTALL" = 1 ]; then command -v flatpak >/dev/null || { echo "Flatpak is required." >&2; exit 1; }; fi
+  script/build-icon
+  script/build-desktop --make
+  script/prepare-release
+  ARTIFACT="$PROJECT_DIR/desktop/electron/out/make/flatpak/x86_64/com.bladeofmaya.InvasionStudio_stable_x86_64.flatpak"
+  if [ "$INSTALL" = 1 ]; then
+    [ -f "$ARTIFACT" ] || { echo "Missing Flatpak: $ARTIFACT" >&2; exit 1; }
+    flatpak install --user --reinstall --noninteractive "$ARTIFACT"
+    echo "Launch: flatpak run com.bladeofmaya.InvasionStudio"
+  fi
+fi
+echo "Build complete. Tests and publication are separate; see bin/test --help and RELEASING.md."

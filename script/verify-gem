@@ -4,7 +4,7 @@
 require "rubygems/package"
 
 gem_path = ARGV.fetch(0) do
-  warn "Usage: bin/verify-gem PATH_TO_GEM"
+  warn "Usage: script/verify-gem PATH_TO_GEM"
   exit 2
 end
 

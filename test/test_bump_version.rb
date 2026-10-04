@@ -7,10 +7,10 @@ require 'open3'
 class TestBumpVersion < Minitest::Test
   def setup
     @root = Dir.mktmpdir
-    FileUtils.mkdir_p(File.join(@root, 'bin'))
+    FileUtils.mkdir_p(File.join(@root, 'script'))
     FileUtils.mkdir_p(File.join(@root, 'lib/invasion_studio'))
     FileUtils.mkdir_p(File.join(@root, 'desktop/electron'))
-    FileUtils.cp(File.expand_path('../bin/bump-version', __dir__), File.join(@root, 'bin/bump-version'))
+    FileUtils.cp(File.expand_path('../script/bump-version', __dir__), File.join(@root, 'script/bump-version'))
     File.write(File.join(@root, 'lib/invasion_studio/version.rb'), <<~RUBY)
       module InvasionStudio
         VERSION = "0.7.1"
@@ -56,7 +56,7 @@ class TestBumpVersion < Minitest::Test
 
   def run_bump(version)
     Open3.capture3({ 'PATH' => "#{@fake_bin}:#{ENV.fetch('PATH')}" },
-                   RbConfig.ruby, File.join(@root, 'bin/bump-version'), version)
+                   RbConfig.ruby, File.join(@root, 'script/bump-version'), version)
   end
 
   def write_json(path, value)
